@@ -1,0 +1,282 @@
+{
+  "MLP": {
+    "finetune": {
+      "hparams": {
+        "lr": 0.01,
+        "epochs": 25
+      },
+      "val_score": -0.7496296296296295,
+      "val_metrics_last_seed": {
+        "ACC": 0.25,
+        "BWT": -1.0,
+        "FM": 1.0
+      }
+    },
+    "replay": {
+      "hparams": {
+        "lr": 0.003,
+        "buffer_capacity": 512,
+        "replay_frac": 0.9
+      },
+      "val_score": 0.9094444444444445,
+      "val_metrics_last_seed": {
+        "ACC": 0.965,
+        "BWT": -0.04444444444444443,
+        "FM": 0.04444444444444443
+      }
+    },
+    "ewc": {
+      "hparams": {
+        "lr": 0.01,
+        "ewc_lambda": 100,
+        "ewc_gamma": 0.5
+      },
+      "val_score": -0.7496296296296295,
+      "val_metrics_last_seed": {
+        "ACC": 0.25,
+        "BWT": -1.0,
+        "FM": 1.0
+      }
+    },
+    "full": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "replay_frac": 0.7,
+        "ewc_lambda": 1000
+      },
+      "val_score": 0.9720370370370369,
+      "val_metrics_last_seed": {
+        "ACC": 0.9866666666666666,
+        "BWT": -0.015555555555555581,
+        "FM": 0.015555555555555581
+      }
+    },
+    "lwf": {
+      "hparams": {
+        "lr": 0.001,
+        "distill_lambda": 0.5,
+        "distill_T": 2.0
+      },
+      "val_score": -0.7474074074074074,
+      "val_metrics_last_seed": {
+        "ACC": 0.25,
+        "BWT": -1.0,
+        "FM": 1.0
+      }
+    },
+    "bic": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 1.0
+      },
+      "val_score": 0.9887037037037038,
+      "val_metrics_last_seed": {
+        "ACC": 0.995,
+        "BWT": -0.006666666666666672,
+        "FM": 0.006666666666666672
+      }
+    },
+    "icarl": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 1.0
+      },
+      "val_score": 0.9809259259259259,
+      "val_metrics_last_seed": {
+        "ACC": 0.9924999999999999,
+        "BWT": -0.010000000000000009,
+        "FM": 0.010000000000000009
+      }
+    }
+  },
+  "GRU": {
+    "finetune": {
+      "hparams": {
+        "lr": 0.001,
+        "epochs": 25
+      },
+      "val_score": -0.7045370370370371,
+      "val_metrics_last_seed": {
+        "ACC": 0.27,
+        "BWT": -0.9722222222222223,
+        "FM": 0.9722222222222223
+      }
+    },
+    "replay": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "replay_frac": 0.7
+      },
+      "val_score": 0.7742592592592592,
+      "val_metrics_last_seed": {
+        "ACC": 0.9225000000000001,
+        "BWT": -0.08666666666666671,
+        "FM": 0.08666666666666671
+      }
+    },
+    "ewc": {
+      "hparams": {
+        "lr": 0.001,
+        "ewc_lambda": 5000,
+        "ewc_gamma": 2.0
+      },
+      "val_score": -0.04120370370370372,
+      "val_metrics_last_seed": {
+        "ACC": 0.4025,
+        "BWT": -0.2688888888888889,
+        "FM": 0.2688888888888889
+      }
+    },
+    "full": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 128,
+        "replay_frac": 0.7,
+        "ewc_lambda": 100
+      },
+      "val_score": 0.5244444444444444,
+      "val_metrics_last_seed": {
+        "ACC": 0.7825,
+        "BWT": -0.2733333333333333,
+        "FM": 0.2733333333333333
+      }
+    },
+    "lwf": {
+      "hparams": {
+        "lr": 0.001,
+        "distill_lambda": 2.0,
+        "distill_T": 3.0
+      },
+      "val_score": -0.6739814814814814,
+      "val_metrics_last_seed": {
+        "ACC": 0.25166666666666665,
+        "BWT": -0.9899999999999999,
+        "FM": 0.9899999999999999
+      }
+    },
+    "bic": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 1.0
+      },
+      "val_score": 0.7700925925925928,
+      "val_metrics_last_seed": {
+        "ACC": 0.8125,
+        "BWT": -0.2288888888888889,
+        "FM": 0.2288888888888889
+      }
+    },
+    "icarl": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 0.5
+      },
+      "val_score": 0.7597222222222221,
+      "val_metrics_last_seed": {
+        "ACC": 0.8916666666666667,
+        "BWT": -0.10555555555555558,
+        "FM": 0.10555555555555558
+      }
+    }
+  },
+  "CNN1D": {
+    "finetune": {
+      "hparams": {
+        "lr": 0.001,
+        "epochs": 50
+      },
+      "val_score": -0.6880555555555556,
+      "val_metrics_last_seed": {
+        "ACC": 0.29833333333333334,
+        "BWT": -0.9311111111111111,
+        "FM": 0.9311111111111111
+      }
+    },
+    "replay": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 128,
+        "replay_frac": 0.9
+      },
+      "val_score": 0.2468518518518518,
+      "val_metrics_last_seed": {
+        "ACC": 0.655,
+        "BWT": -0.4477777777777778,
+        "FM": 0.4477777777777778
+      }
+    },
+    "ewc": {
+      "hparams": {
+        "lr": 0.001,
+        "ewc_lambda": 100,
+        "ewc_gamma": 0.5
+      },
+      "val_score": -0.6849074074074073,
+      "val_metrics_last_seed": {
+        "ACC": 0.28583333333333333,
+        "BWT": -0.9322222222222223,
+        "FM": 0.9322222222222223
+      }
+    },
+    "full": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 256,
+        "replay_frac": 0.9,
+        "ewc_lambda": 100
+      },
+      "val_score": 0.2437962962962963,
+      "val_metrics_last_seed": {
+        "ACC": 0.6933333333333334,
+        "BWT": -0.381111111111111,
+        "FM": 0.381111111111111
+      }
+    },
+    "lwf": {
+      "hparams": {
+        "lr": 0.001,
+        "distill_lambda": 0.5,
+        "distill_T": 1.5
+      },
+      "val_score": -0.727037037037037,
+      "val_metrics_last_seed": {
+        "ACC": 0.25,
+        "BWT": -0.98,
+        "FM": 0.98
+      }
+    },
+    "bic": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 2.0
+      },
+      "val_score": 0.6110185185185185,
+      "val_metrics_last_seed": {
+        "ACC": 0.74,
+        "BWT": -0.2722222222222222,
+        "FM": 0.2722222222222222
+      }
+    },
+    "icarl": {
+      "hparams": {
+        "lr": 0.01,
+        "buffer_capacity": 512,
+        "distill_lambda": 0.5
+      },
+      "val_score": 0.2974074074074074,
+      "val_metrics_last_seed": {
+        "ACC": 0.7216666666666667,
+        "BWT": -0.35888888888888887,
+        "FM": 0.35888888888888887
+      }
+    }
+  },
+  "_note": "val_metrics_last_seed holds the last tuning-seed snapshot, not a mean; selection used val_score means across seeds 0-2. Fixed in run_validation_tune.py to store means for future runs."
+}

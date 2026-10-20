@@ -1,0 +1,6 @@
+{
+  "lr": 0.001,
+  "ewc_lambda": 100.0,
+  "buffer_capacity": 128,
+  "replay_frac": 0.9
+}

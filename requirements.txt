@@ -1,0 +1,9 @@
+# Python 3.9+ required.
+# No PyTorch/TensorFlow/sklearn needed -- every model, optimizer and metric
+# in this repository is implemented from scratch in NumPy. These four
+# packages are the complete set actually imported anywhere in the codebase:
+numpy>=1.24
+pandas>=1.5
+matplotlib>=3.6
+tabulate>=0.9      # required by pandas' DataFrame.to_markdown(), used in
+                   # experiments/generate_summary_report.py

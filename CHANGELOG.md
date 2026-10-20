@@ -1,0 +1,387 @@
+# CHANGELOG — cubesat-cl-ids (CubeSat TinyML CIL)
+
+All protocol/method changes are logged here with **why** (journal-review rationale).
+Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
+No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
+
+## [2026-09-21] v5.3 final report corrections (text-only, verified against Base_Paper.pdf + CSVs)
+- `v5_3_project_report_final.md`: STIN paragraph corrected (reported stress test +
+  coarse prior; frozen configs from CuCD-ID validation); "proposed CMMU/system" →
+  combined baseline; `joint_scratch` → offline reference (CNN inversion disclosed);
+  60 KB hardened to assumed-budget wording throughout; task-order restated
+  (budget means ~0.01, wider individual range); few-shot seeds 5; §7 spec herding
+  qualified; §5.11 buffer claim corrected to frozen 512 / STIN prior 128;
+  0.1pp roundings fixed (84.7, 8.9); CNN bic-vs-replay significance row added;
+  peak-RAM (~127 KB) line added; §2 base-paper table corrected against the
+  source (server hardware, N leave-one-out runs + 10 FSCIL episodes, AUC+PAUC,
+  few-shot-without-uplink-accounting); Novelty 2/3/5 scoped to what the base
+  paper actually lacks; §9 "always"/"60–80%" softened with base-paper numbers.
+- `src/cmmu.py`: "<600 KB" typo → assumed 60 KB budget comment.
+- **Why:** every number verified against CSVs; every base-paper claim verified
+  against Base_Paper.pdf; wording now matches code, results, and source.
+
+## [2026-09-21] Fail-loud frozen hyperparameters (reproducibility hardening, no reruns)
+- New `config.load_frozen_hparams_strict()`: raises `FileNotFoundError` with an
+  actionable message when `best_hparams_per_method_arch.json` is absent, instead
+  of training on legacy/default configs.
+- `run_main.py`: legacy warning+fallback branch deleted; all 7 downstream
+  scripts (`run_fewshot/ablation/task_order/arch_tune/per_class/feature_order/
+  purged_temporal`) delegate to the strict loader. `load_best_hparams()` kept
+  defined only for the dormant quarantined script that still imports it.
+- Verified: missing file → hard error with guidance; present file → normal
+  path + consistency ALL CHECKS PASSED. No numeric changes, no reruns.
+- **Why:** a missing tuning step must stop the pipeline, never silently
+  produce a valid-looking matrix from obsolete configurations.
+
+## [2026-09-21] v5.1 review cleanup — docs, CI bars, quarantine wiring (no training reruns)
+
+### C-1 `PROJECT_CONTEXT.md` synchronized to v5.1
+- 9 methods × 10 seeds = 540 runs; frozen per-method/arch tuning; MLP-primary
+  vs GRU/CNN stress tests; dual IID/temporal protocols; persistent vs peak RAM;
+  exact permutation stats; full pipeline/file table.
+- **Why:** stale 5-methods/90-run description contradicts the shipped pipeline.
+
+### C-2 `run_arch_tune.py` wired into `run_all.py` as explicit exploratory step
+- Report §7.2 already labeled it exploratory; now a clean `run_all.py` run
+  reproduces `arch_tune.csv`/`arch_tune.png` too.
+- **Why:** final report must be reproducible from the advertised entry point.
+
+### C-3 Figures SD → 95% CI
+- New `ci95()` helper (1.96·SE) applied to method-comparison, task-order, and
+  architecture bars; titles/labels say "mean ± 95% CI"; `run_all.py` label kept.
+- **Why:** docs claimed CI bars while code plotted SD.
+
+### C-4 `Task.X_val` comments → Option A
+- Validation slice documented as onboard calibration data counted in the uplink
+  budget (was "never uplinked"). Test-set ground-truth language kept (correct).
+
+### C-5 `val_metrics` last-seed → means + honest relabel
+- `tune_method_arch` now stores seed-means; on-disk JSON keys mechanically
+  renamed `val_metrics` → `val_metrics_last_seed` + note (values untouched);
+  future runs write `val_metrics_mean`. Report/checker readers hardened
+  against metadata keys.
+- **Why:** stored snapshot misdescribed as representative; selection (means)
+  was always correct.
+
+### C-6 Stale sweep-winner language removed
+- `run_hparam_sweep.py` docstring: coarse prior, not global reuse.
+- `config.py` `ARCH_TUNED_HPARAMS`/`hparams_for`: marked legacy-fallback-only
+  (frozen file already carries per-arch CNN tuning).
+- **Why:** remove the last "one config rules them all" traces.
+
+## [2026-09-21] v5 review fixes — uplink Option A, gamma wording, DATALOG correction
+
+### U-1 Uplink accounting, Option A (count calibration data)
+- `Task` gains `uplink_calib_bytes_fp32/int8` (val-based; 0 when no val).
+- `run_fewshot.py` logs `uplink_KB_calib` + `uplink_KB_total_with_calib` per row;
+  `fewshot.csv` rerun (210 runs, same seeds/configs — training numerics unchanged).
+- Report §4 table adds `n_calib_rows` + calib/total columns; §7.1 reports
+  adaptation KB and with-calibration totals per K (K=150: 10.1 → 20.2 KB).
+- README §2 + calibration note + limitations flipped: reported budget =
+  adaptation + calibration (calibration val is fixed-cap, ~10.1 KB, and
+  dominates at low K — stated honestly).
+- **Why:** onboard BiC/Fisher consume val data, so excluding it from the
+  uplink budget contradicted the operational story. Option A chosen over
+  redesigning calibration-free updates.
+
+### U-2 Gamma documentation correction
+- No `gamma=1` statement remains in live docs: report §5.2 reads per-arch γ
+  from the frozen JSON; README/PAPER_PLAN describe γ as a validation-tuned
+  weighting parameter (GRU 2.0 amplifies by selection; γ≤1 restriction would
+  need EWC reruns). `train.py`/`cmmu.py` fallback defaults annotated as
+  fallback-only. No DATALOG line ever claimed gamma=1 for final configs
+  (verified); this entry records the correction explicitly.
+- **Why:** doc/result consistency for the tuned 0.5/2.0/0.5 configs.
+
+## [2026-09-21] v4 review hardening — exact stats, terminology, quarantine (no training reruns)
+
+### R-1 `experiments/run_stats.py` — exact permutation test (was Monte-Carlo)
+- Replaced SciPy branch + 10k random-sign-flip fallback with exact NumPy
+  enumeration over all 2^n sign assignments (n=10 → 1024). No SciPy dependency.
+- Verified: all `p_exact` values dyadic (k/1024); old `0.00159984` (=16/10001)
+  Monte-Carlo fingerprint gone. Significance pattern unchanged.
+- **Why:** statistical pipeline crashed with SciPy installed and mislabeled
+  Monte-Carlo as "exact" — Q2 blocker.
+
+### R-2 EWC gamma wording corrected to frozen values
+- Report §5.2 now reads per-arch `ewc_gamma` from the frozen JSON at report
+  time (MLP 0.5 / GRU 2.0 / CNN 0.5); README + PAPER_PLAN updated.
+- **Why:** "gamma=1.0 no-decay" contradicted the actual tuned configs.
+
+### R-3 "Strict upper bound" → "offline joint-training reference"
+- `create_manifest.py`, regenerated manifest, `train.py` comments,
+  `config.py` comment, figure legend; historical CHANGELOG/DATALOG entries kept.
+- **Why:** results show warm-start joint exceeding scratch; terminology challengeable.
+
+### R-4 MAC + task-order + legacy wording
+- `run_main.py` comment + `estimate_macs_per_update` docstring: estimated/
+  conservative MAC cost (final-head-width proxy). Task-order: budget-mode
+  means ~0.01 apart with wider individual variability (report §7.3 computes
+  both; README/PAPER_PLAN/figure title updated).
+- Legacy `temporal_compare.csv`, `stats_wilcoxon.csv`, `ablation_task_order.csv`
+  moved to `results/legacy/` + supersession README; legacy task-order ablation
+  removed from `run_ablation.py` (disentangled study supersedes).
+- Stale docstrings fixed (`run_main.py`, `run_per_class_analysis.py`);
+  dormant `run_temporal_compare.py`/`run_arch_tune.py` marked superseded/exploratory.
+- Checker step-4 now asserts frozen-file coverage; `run_all.py` wires
+  task-order study, consistency check, and manifest creation.
+
+### R-5 `arch_tune.csv` rerun (was stale test-scored)
+- Reran `run_arch_tune.py` (54 runs: 3 lr × 2 epochs × 3 methods × 3 seeds,
+  CNN1D/CuCD-ID) after the V-scoring + frozen-base fix; regenerated
+  `arch_tune.png` + report §7.2. This was the one artifact whose calculation
+  changed post-rerun without being re-executed.
+- **Why:** reporting a test-scored exploratory table as "validation-scored"
+  would be a false claim. No other training reruns needed: main 540,
+  Phase-2 training CSVs, stats inputs, and resource inputs are unchanged
+  since the full rerun.
+
+## [2026-09-20] Publication hardening round 2 — secondary provenance, resources, reporting (COMPLETED, full rerun)
+
+### H-1 Secondary experiments routed to frozen configs
+- `run_robustness.py`: loads `best_hparams_per_method_arch.json` per `(MLP, method)` (was legacy `best_hparams.json`); `int8_sim` arm now applies the BiC corrector like every other arm.
+- `run_per_class_analysis.py`: loads frozen per-method/arch configs (was legacy global + `ARCH_TUNED_HPARAMS` override); BiC correction still applied at eval.
+- `run_task_order.py`: loads frozen `(MLP, method)` configs; added to `run_all.py` Phase 2 (report §7.3 depends on it).
+- `run_arch_tune.py`: quarantined as exploratory — selection now on validation `V` (was test `R`), base configs from frozen file, not in `run_all.py`, report §7.2 labeled as such.
+- **Why:** one authoritative pipeline `tune → freeze → test`; secondary numbers must not come from a different configuration than the main matrix.
+
+### H-2 Bounded herding + teacher accounting + performed compute
+- `src/train.py`: BiC/iCaRL herding rebuild selects from resident buffer + incoming batch only (unbounded `herding_data` history removed); returns last frozen `teacher` plus performed counters (`train_steps_total`, `train_samples_total`, `teacher_samples_total`).
+- `run_main.py`: peak RAM uses per-step replay minibatch (not full buffer) and the real teacher object; `macs_per_update` from performed student/teacher samples (not union-size estimate).
+- **Why:** hidden unbounded memory + zero-teacher peak RAM + inflated MACs would fail a systems reviewer's audit.
+
+### H-3 Macro-F1 BiC policy unified
+- `compute_macro_f1_balanced_acc(model, ts, corrector)` applies the corrector when fitted; `run_main.py` + `run_fewshot.py` pass it (matches detection/per-class eval).
+- **Why:** BiC Macro-F1 was biased low vs per-class tables for the same config.
+
+### H-4 Stale report/plot readers fixed
+- Report §7.4 → `temporal_purged_compare.csv`/`protocol` (was dead `temporal_compare.csv`/`split`); §7.7 → `stats_permutation.csv` (`p_exact/p_holm/cohens_d/CI`); §1 documents STIN prior vs frozen per-method/arch table; §3 memory units fixed (bytes means ÷1024; persistent vs peak separated); §5.3 legacy order marked superseded.
+- `plots.py`: temporal bracket reads purged file, `int8_sim` restored to robustness plot, `SEEDS_ALL` 0-9, Macro-F1 added to method comparison, dynamic seed counts.
+- `run_stats.py`: NumPy fallback +1 smoothing (never p=0.0); exact enumeration when 2^n ≤ 2048.
+- **Why:** several figures/sections silently rendered stale or dropped data.
+
+### H-5 Purge guards + docstring honesty
+- Purged builder raises on empty train/test per class, warns on purge-emptied val (narrow TimeRadians classes); `_assert_split_integrity` docstring corrected (structural checks only, disjointness by construction) + non-empty train/test asserts.
+- **Why:** future dataset/config changes must fail loudly, not silently produce invalid experiments.
+
+### H-6 Consistency checker + pipeline wiring
+- `check_consistency.py`: filters CuCD-ID for main-vs-K150 compare on intersecting seeds (fixes false failures; now passes 0.0000 diffs); methods match few-shot PLAN.
+- `run_all.py`: adds task-order study, consistency check, and manifest creation; purge step labeled with qualified units.
+- **Why:** `python3 run_all.py` is the advertised reproducibility entry point and must produce the full artifact set.
+
+### H-7 Wording sync (no protocol changes)
+- README rewritten: 540 runs/10 seeds/9 methods, frozen per-method/arch tuning, MLP-primary vs GRU/CNN stress tests (+feature-order evidence), dual IID/temporal estimands, assumed-60KB budget, packed-payload uplink, simulated INT8, online new-task Fisher (γ=1), val-calibration accounting note, fresh headline numbers, full pipeline/file table.
+- PAPER_PLAN rewritten with fresh 10-seed numbers, permutation+Holm stats, moderate task-order spread (0.0495), purged-temporal bounds.
+- Report prose: assumed budget, packed payload, simulated INT8 qualifier, legacy-order superseded note, EWC-variant paragraph.
+
+## [2026-09-20] Q2-Submission Hardening — 8 Critical Fixes (COMPLETED, results regenerated)
+
+### Q2-1 `src/train.py` — BiC stage-local correction bug fix
+- **Fixed:** `BiasCorrector.apply()` now only corrects `n_old:n_old+n_new` (previously corrected all future classes).
+- **Fixed:** `fit_stage()` now stores `n_new` per stage; stage dict = `{"n_old", "n_new", "alpha", "beta"}`.
+- **Why:** Reviewer P0.3 — baseline with incorrect implementation is unpublishable. All BiC results regenerated.
+
+### Q2-2 `experiments/run_hparam_sweep.py` / `src/train.py` — Train/Val/Test methodology
+- Sweep now uses `val_frac=0.10` on STIN; hyperparameters selected on **validation ACC_val - FM_val**, never test.
+- `train_continual()` returns validation matrix `V` alongside test matrix `R`.
+- **Why:** Reviewer P0.1 — test-set leakage invalidates main comparison if uncorrected.
+
+### Q2-3 `experiments/run_validation_tune.py` (NEW) — Per-method/arch validation tuning
+- 7 methods × 3 architectures tuned on CuCD-ID validation (3 seeds each), small grids per method family.
+- Winners frozen to `results/best_hparams_per_method_arch.json` → used by ALL subsequent experiments.
+- **Why:** Reviewer P0.2 — single sweep on MLP/STIN does not transfer to GRU/CNN (confirmed by ablation).
+
+### Q2-4 `src/data_utils.py` / `experiments/run_purged_temporal.py` (NEW) — Purged temporal protocol
+- Added `build_cucd_id_tasks_purged_temporal()` with 22s-equivalent (0.02 rad) purge gaps on `TimeRadians`.
+- Layout: `[Train | Purge | Val | Purge | Test]` — exceeds 20s sliding-window horizon + 20-22s clearing pauses.
+- STIN keeps existing `id`-based temporal (no purge — secondary stress test only).
+- Dual-protocol evaluation: **IID (benchmark)** + **Forward Temporal + Purge (stress test)**.
+- **Why:** Reviewer P0.6/0.7 — IID numbers (~0.92) vs temporal (~0.20) gap must be explicit, not hidden.
+
+### Q2-5 `src/metrics.py` / `src/train.py` / `experiments/run_main.py` — Dual memory + compute accounting
+- **Persistent footprint:** INT8 weights + INT8 replay + FP16 EWC (deployed storage).
+- **Peak training RAM:** FP32 weights + gradients + Adam(2×params) + activations + batch + replay_batch + teacher + temp.
+- **MAC/update:** MAC/sample × N_train_samples × epochs (not just MAC/forward).
+- **Why:** Reviewer P0.14/15/18 — Q2 systems reviewer will demand complete resource accounting.
+
+### Q2-6 `experiments/config.py` / `experiments/run_main.py` / `experiments/run_fewshot.py` — Final consistent rerun
+- **Main matrix:** 10 seeds (540 runs: 2 datasets × 3 archs × 9 methods × 10 seeds) with frozen per-method/arch hparams.
+- **Few-shot:** 5 seeds, inherits frozen hparams, only K varies (K=5..300), uplink Pareto outputs.
+- **Why:** Reviewer P0.4/9/10 — central comparison must be internally consistent and statistically defensible.
+
+### Q2-7 `src/metrics.py` / `experiments/run_stats.py` / `experiments/run_per_class_analysis.py` — Journal-grade metrics + stats
+- **Primary metrics:** Macro-F1, Balanced Accuracy, BWT/FM (Accuracy supplementary).
+- **Per-class:** Final F1 + forgetting for each attack class (CuCD-ID).
+- **Stats:** Exact paired permutation test (SciPy if available, else NumPy) + Holm correction + Cohen's d + 95% CI.
+- Headline comparisons only (no elaborate stats for every ablation).
+- **Why:** Reviewer P0.10/11/23/24 — "p=0.043 proves superiority" is not Q2-citable.
+
+### Q2-8 `experiments/run_feature_order.py` (NEW) — Architecture interpretation fix
+- 4 feature permutations × MLP/GRU/CNN × 4 methods × 2 seeds.
+- MLP stable; GRU/CNN sensitive → confirms MLP as primary tabular backbone, GRU/CNN as stress tests.
+- **Why:** Reviewer P0.21/22 — GRU/CNN on reshaped tabular features are not genuine temporal models.
+
+### Q2-9 New tooling for reproducibility
+- `experiments/check_consistency.py` — Verifies main vs few-shot hyperparameter consistency, seed counts, config provenance.
+- `experiments/create_manifest.py` — Creates `results/final_experiment_manifest.json` with full provenance (git commit, env, datasets, protocols, frozen hparams, outputs).
+- `results/final_experiment_manifest.json` — Complete machine-readable reproducibility record.
+
+### Pipeline integration
+- `run_all.py`: CORE (gradient → sweep → validation_tune → main) → PHASE2 (purged_temporal → fewshot → feature_order → ablations → per_class → stats → robustness) → REPORT (plots → summary).
+- `analysis/plots.py`: CI bars, Pareto figures, dual-protocol comparison, updated column names for persistent/peak memory.
+- `experiments/generate_summary_report.py`: Journal tables (Macro-F1 primary), dual memory, uplink Pareto.
+
+---
+
+## [Unreleased] Phase 0 — MUST-FIX protocol corrections (no results invalidated, old API kept)
+
+### Q2-1 `src/train.py` — BiC stage-local correction bug fix
+- **Fixed:** `BiasCorrector.apply()` now only corrects `n_old:n_old+n_new` (previously corrected all future classes).
+- **Fixed:** `fit_stage()` now stores `n_new` per stage; stage dict = `{"n_old", "n_new", "alpha", "beta"}`.
+- **Why:** Reviewer P0.3 — baseline with incorrect implementation is unpublishable. All BiC results regenerated.
+
+### Q2-2 `experiments/run_hparam_sweep.py` / `src/train.py` — Train/Val/Test methodology
+- Sweep now uses `val_frac=0.10` on STIN; hyperparameters selected on **validation ACC_val - FM_val**, never test.
+- `train_continual()` returns validation matrix `V` alongside test matrix `R`.
+- **Why:** Reviewer P0.1 — test-set leakage invalidates main comparison if uncorrected.
+
+### Q2-3 `experiments/run_validation_tune.py` (NEW) — Per-method/arch validation tuning
+- 7 methods × 3 architectures tuned on CuCD-ID validation (3 seeds each), small grids per method family.
+- Winners frozen to `results/best_hparams_per_method_arch.json` → used by ALL subsequent experiments.
+- **Why:** Reviewer P0.2 — single sweep on MLP/STIN does not transfer to GRU/CNN (confirmed by ablation).
+
+### Q2-4 `src/data_utils.py` / `experiments/run_purged_temporal.py` (NEW) — Purged temporal protocol
+- Added `build_cucd_id_tasks_purged_temporal()` with 22s-equivalent (0.02 rad) purge gaps on `TimeRadians`.
+- Layout: `[Train | Purge | Val | Purge | Test]` — exceeds 20s sliding-window horizon + 20-22s clearing pauses.
+- STIN keeps existing `id`-based temporal (no purge — secondary stress test only).
+- Dual-protocol evaluation: **IID (benchmark)** + **Forward Temporal + Purge (stress test)**.
+- **Why:** Reviewer P0.6/0.7 — IID numbers (~0.92) vs temporal (~0.20) gap must be explicit, not hidden.
+
+### Q2-5 `src/metrics.py` / `src/train.py` / `experiments/run_main.py` — Dual memory + compute accounting
+- **Persistent footprint:** INT8 weights + INT8 replay + FP16 EWC (deployed storage).
+- **Peak training RAM:** FP32 weights + gradients + Adam(2×params) + activations + batch + replay_batch + teacher + temp.
+- **MAC/update:** MAC/sample × N_train_samples × epochs (not just MAC/forward).
+- **Why:** Reviewer P0.14/15/18 — Q2 systems reviewer will demand complete resource accounting.
+
+### Q2-6 `experiments/config.py` / `experiments/run_main.py` / `experiments/run_fewshot.py` — Final consistent rerun
+- **Main matrix:** 10 seeds (540 runs: 2 datasets × 3 archs × 9 methods × 10 seeds) with frozen per-method/arch hparams.
+- **Few-shot:** 5 seeds, inherits frozen hparams, only K varies (K=5..300), uplink Pareto outputs.
+- **Why:** Reviewer P0.4/9/10 — central comparison must be internally consistent and statistically defensible.
+
+### Q2-7 `src/metrics.py` / `experiments/run_stats.py` / `experiments/run_per_class_analysis.py` — Journal-grade metrics + stats
+- **Primary metrics:** Macro-F1, Balanced Accuracy, BWT/FM (Accuracy supplementary).
+- **Per-class:** Final F1 + forgetting for each attack class (CuCD-ID).
+- **Stats:** Exact paired permutation test (SciPy if available, else NumPy) + Holm correction + Cohen's d + 95% CI.
+- Headline comparisons only (no elaborate stats for every ablation).
+- **Why:** Reviewer P0.10/11/23/24 — "p=0.043 proves superiority" is not Q2-citable.
+
+### Q2-8 `experiments/run_feature_order.py` (NEW) — Architecture interpretation fix
+- 4 feature permutations × MLP/GRU/CNN × 4 methods × 2 seeds.
+- MLP stable; GRU/CNN sensitive → confirms MLP as primary tabular backbone, GRU/CNN as stress tests.
+- **Why:** Reviewer P0.21/22 — GRU/CNN on reshaped tabular features are not genuine temporal models.
+
+### Pipeline integration
+- `run_all.py`: CORE (gradient → sweep → validation_tune → main) → PHASE2 (purged_temporal → fewshot → feature_order → ablations → per_class → stats → robustness) → REPORT (plots → summary).
+- `analysis/plots.py`: CI bars, Pareto figures, dual-protocol comparison, updated column names for persistent/peak memory.
+- `experiments/generate_summary_report.py`: Journal tables (Macro-F1 primary), dual memory, uplink Pareto.
+
+## [Unreleased] Phase 0 — MUST-FIX protocol corrections (no results invalidated, old API kept)
+
+### 0.1 `src/data_utils.py` — train/val/test + temporal (leakage-safe) splits
+- **Added:** `Task.X_val / y_val` (optional, default `None`), `TaskSequence.split_mode`, `val_frac` plumbing.
+- **Added:** `_stratified_train_val_test_split()` — test is locked before any train/val sampling; val is carved from train pool only.
+- **Added:** `build_cucd_id_tasks_temporal()` / `build_stin_tasks_temporal()` — per-class **block (time-ordered) split** instead of row-shuffle, because CuCD-ID features contain `SlidingWindow* / MessageCountInWindow / MessageRateInWindow` computed over neighbouring rows; random row-shuffle leaks correlated windows between train and test and inflates absolute ACC. Old builders kept byte-identical behaviour when `val_frac=0.0` and `split_mode="random"`.
+- **Why:** reviewer P0.1 (sliding-window leakage) + P0.2 (no val/test separation). Relative rankings (replay >> finetune) survive leakage, but absolute numbers (e.g. MLP 0.93 / permuted-order 0.995) are not Q1/Q2-credible without this.
+
+### 0.2 `src/train.py` — true joint-from-scratch + bias-correction hook + balanced replay option
+- **Added:** `method="joint_scratch"` — re-initialises the model and trains on the union of all training data seen so far at each task boundary. Old `method="joint"` is kept but renamed in docs as `cumulative warm-start` (it continues from current weights, `train.py` pool logic). New method is the strict upper bound.
+- **Added:** `BiasCorrector` (BiC-style, 2 params per task-group: `logits_new -> alpha*logits_new + beta`, fit on held-out val/buffer, trunk+head frozen). Phase 0 exposes `fit_bic()` / `apply()` + `bias_correction` flag plumbing; full BiC training loop lands in Phase 1.
+- **Added:** `replay_balance="uniform"|"class_balanced"` — reservoir sampling over-represents the large T0 class pool; balanced interleaving is the known fix for new-class head bias. Default stays `uniform` so old numbers reproduce.
+- **Why:** reviewer P0.3 (joint bound mislabelled) + P4 (bias is the dominant CIL failure; EWC `lambda=0` already best on GRU/CNN in `ablation_ewc_lambda.csv`, so regularisation alone cannot fix logit competition).
+
+### 0.3 `src/cmmu.py` — herding selector + val-balanced Fisher guidance
+- **Added:** `HerdingBuffer.select_herding()` (per-class mean-matching exemplar selection) alongside existing reservoir `ReplayBuffer`; added `ReplayBuffer.sample_balanced()` for class-balanced minibatch augmentation.
+- **Added:** `OnlineEWC.consolidate(..., X_val=None)` — Fisher estimated on val-balanced sample when supplied; docstring warns against estimating Fisher on new-task train-only data (understates old-task curvature).
+- **Why:** iCaRL/BiC literature + reviewer P4; herding + balanced replay are prerequisites for Phase-1 `BiC / iCaRL-lite / LwF` baselines on CuCD-ID first, STIN second.
+
+### 0.4 Tracking files
+- **Added:** `CHANGELOG.md` (this file) + `DATALOG.md` (every data/experiment change log).
+- **Why:** requested by user; also required for reproducibility section of a Q1/Q2 systems paper.
+
+## Planned (not yet done)
+- Phase 2: few-shot uplink sweep, corruption suite, disentangled task-order study, int8-quant delta, activation-RAM accounting (all simulation-explicit).
+
+## [Unreleased] Phase 3 — reporting integration + per-arch adoption (this round)
+
+### 3.1 `analysis/plots.py` — 9-method world + 4 new figures
+- METHOD_ORDER 5→9 (+labels/colors for lwf/bic/icarl/joint_scratch), seeds 3→5,
+  per-class ylabel fixed, confusion pair finetune-vs-icarl (was finetune-vs-full),
+  legacy task-order bar kept as fallback but superseded by disentangled plot.
+- New (all CSV-guarded no-ops when absent): `fewshot_pareto.png`,
+  `arch_tune.png`, `temporal_bracket.png`, `robustness.png`. 20 figures total.
+- **Why:** PAPER_PLAN figure list; new RQs need visuals.
+
+### 3.2 `experiments/generate_summary_report.py` — §7 Phase-2 evidence
+- Dynamic seed counts, DET table (method column fixed — first version dropped
+  it), per-class covers all 9 methods, new §7.1–7.7 (fewshot table + KB Pareto
+  line, arch-tune bests, disentangled order spread vs legacy, temporal bracket
+  with drift pointer, robustness drops, activation ledger, Wilcoxon top-20).
+- **Why:** every paper number must be traceable to a CSV, nothing hand-typed.
+
+### 3.3 `experiments/config.py` — `ARCH_TUNED_HPARAMS` + `hparams_for()`
+- `{"CNN1D": {"lr": 0.01, "epochs": 50}}` from arch_tune.csv evidence, applied
+  by run_main.py + run_per_class_analysis.py. Ablations/sweep/Phase-2 scripts
+  stay frozen (they study frozen-hparam transfer; only CNN has an override).
+- ⚠️ Next full rerun changes CNN matrix numbers (currently on-disk CSVs are
+  frozen-hparam). Paper reports both; see DATALOG.
+- **Why:** "adopt per-arch LR" without silently rewriting history.
+
+### 3.4 `run_all.py` — Phase-2 block + interpreter fix
+- Steps grouped CORE / PHASE2 / REPORT; `--no-phase2` flag (~30–45 min core
+  only vs ~1.5–2.5 h full). Subprocesses now use `sys.executable` instead of
+  hardcoded `python3` — the latter has no numpy on this machine, so `run_all.py`
+  previously failed at step 1 unless invoked oddly.
+- **Why:** reproducibility; pipeline must work with `.venv/bin/python run_all.py`.
+
+### 2.1 `experiments/run_arch_tune.py` (new) — per-arch tune, CNN flag
+- CuCD-ID/CNN × replay,icarl,scratch × lr × epochs × 3 seeds → `results/arch_tune.csv`. Found frozen hparams starve CNN; tuned CNN (lr=0.01, 50ep): replay 0.718, icarl 0.856, scratch 0.961.
+- **Why:** Phase-1 anomaly (`scratch<joint` on CNN) had to be resolved before any architecture claim is publishable.
+
+### 2.2 `experiments/run_fewshot.py` (new) — uplink-budget sweep (RQ4)
+- CuCD-ID, T0 fixed, K=5..300 × MLP[replay,full,icarl,bic]×5seeds + GRU[replay,icarl]×3seeds → `results/fewshot.csv` with ACC/BWT/FM + DET_AUROC + exact `uplink_KB_total`. Knee K≈50 (MLP/icarl); GRU needs ≥150.
+- **Why:** the operational "small labelled CSV" claim was previously asserted, never measured.
+
+### 2.3 task-order disentangled + temporal bracket + robustness ledger + paper plan
+- `data_utils.build_cucd_id_tasks_order` + `run_task_order.py` → `task_order_disentangled.csv` (144 runs): null result under val protocol (spread ~0.01; legacy 0.064 was no-val artifact — retract old claim).
+- `run_temporal_compare.py` → `temporal_compare.csv` (40 runs): random→temporal collapse incl. scratch (0.997→0.140); diagnosed as within-class mission-time drift (train 1.000 vs test 0.155 resubstitution; per-class TimeRadians phases; memory 19→74) → headline stays random-split with stated limits, temporal as stress bound.
+- `run_robustness.py` → `robustness.csv` (noise/drop/window-mask/int8) + `memory_ledger.csv` (analytic activations; totals <20KB). `nowindow` −0.3 proves window-feature reliance — disclose.
+- `PAPER_PLAN.md`: RQ→evidence→numbers map, figure list, limits, open items.
+- Phase-2 scripts intentionally standalone (not yet in `run_all.py`); plots.py/report integration for Phase-2 CSVs still open.
+
+### Still open (next)
+- plots.py + generate_summary_report.py integration for Phase-2 CSVs
+  (`arch_tune`, `fewshot`, `task_order_disentangled`, `temporal_compare`,
+  `robustness`, `memory_ledger`); per-arch LR adoption into main matrix.
+
+### 1.1 `src/train.py` — `lwf / bic / icarl` (all NumPy, CuCD-ID-first design)
+- **Added:** `_distill_dlogits` (Hinton KD gradient, T²-scaled, old-head columns only) + `_snapshot_teacher` (frozen trunk+old head before each growth step) + `_rebuild_herding_buffer` (equal exemplars/class, input-space herding — documented lite limitation vs embedding-space iCaRL).
+- `lwf`: memory-free distillation, no replay. `bic`: herding + balanced replay + distillation + full `(alpha,beta)` BiC grid fit on held-out val. `icarl` (lite): herding + balanced replay + distillation, softmax eval (NCM omitted — documented).
+- **Bug fixed during smoke test:** KD was first combined as convex `(1-lam)*CE + KD`, which at the default `distill_lambda=1.0` zeroed new-class learning (`lwf ACC~=chance`). Changed to additive `CE + lam*KD`; post-fix 3-epoch smoke (MLP/CuCD-ID): `bic 0.612 > full 0.415 ≈ replay 0.413 > icarl 0.326 > lwf 0.291`.
+- **Why:** reviewer P1.5 + base paper (BiC best, LwF/iCaRL family expected); tests stay on CuCD-ID first, STIN second — no generic dataset added per user constraint.
+
+### 1.2 `src/metrics.py` — detection + from-scratch stats
+- **Added:** `detection_scores_from_logits` (`1-p(normal)`), `_binary_auroc` (tie-averaged ranks), `_binary_aupr` (average precision), `_fpr_at_tpr`, `compute_detection_metrics` (AUROC/AUPR/FPR95+prevalence). STIN must not use these (no benign) — `run_main.final_detection_metrics` returns NaN there.
+- **Added:** `wilcoxon_signed_rank` (normal approx with tie correction, no scipy) for matched-seed method pairs.
+- Smoke finding (3 epochs, unconverged): detection AUROC stays ~1.0 even when ACC collapses (collapsed head predicts everything as attack) while FPR95 separates (`replay 0.001` vs `lwf 0.738`) — confirms classification-vs-detection dissociation is a paper-worthy RQ, matching the base paper's take-home.
+- **Why:** IDS paper without normal-vs-attack evaluation is rejectable; stats required for Q1/Q2 (5 seeds → min two-sided p=0.0625, so effects reported alongside p).
+
+### 1.3 `experiments/config.py` — broader matrix, more seeds
+- `METHODS` 5 → 9 (`+ lwf/bic/icarl/joint_scratch`, `joint` kept as legacy warm-start), `SEEDS` 3 → 5 (`[0..4]`). Matrix 90 → 270 runs.
+- **Why:** baseline breadth + variance credibility; `joint_scratch` is the citable upper bound.
+
+### 1.4 `experiments/run_main.py` / `run_per_class_analysis.py` / `run_all.py` / `run_stats.py` (new)
+- `run_main`: builds tasks with `val_frac=0.10` (BiC/val-Fisher need val), adds `DET_AUROC/AUPR/FPR95` columns (CuCD-ID only), summary aggregates them.
+- `run_per_class_analysis`: same val frac + applies fitted corrector at eval (BiC numbers previously would have been reported uncorrected).
+- New `run_stats.py` → `results/stats_wilcoxon.csv` (all method pairs per dataset×arch on matched-seed ACC).
+- `run_all.py`: inserts stats step; runtime note updated (25–45 min).
+- **Why:** protocol consistency; old `results/*.csv` are pre-fix baseline (random split, no val, 3 seeds) — see DATALOG; never mix old/new in one table.
