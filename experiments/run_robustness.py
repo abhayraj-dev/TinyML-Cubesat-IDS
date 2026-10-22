@@ -111,13 +111,9 @@ def activation_ledger(arch, n_features, n_classes_total=5):
 
 
 def load_frozen_hparams():
-    """Load per-method/arch frozen hyperparameters from validation tuning."""
-    path = os.path.join(RESULTS_DIR, "best_hparams_per_method_arch.json")
-    if os.path.exists(path):
-        import json
-        with open(path) as f:
-            return json.load(f)
-    return {}
+    """Fail loudly if tuning was skipped: never train on defaults."""
+    from config import load_frozen_hparams_strict
+    return load_frozen_hparams_strict()
 
 
 def main():

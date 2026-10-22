@@ -51,10 +51,18 @@ def get_pandas_version():
         return "unknown"
 
 
+def _load_consistency():
+    path = os.path.join(RESULTS_DIR, "consistency_check.json")
+    if not os.path.exists(path):
+        return {"status": "missing", "error": "run experiments/check_consistency.py"}
+    with open(path) as f:
+        return json.load(f)
+
+
 def main():
     manifest = {
         "project": "cubesat-cl-ids",
-        "version": "q2-submission-v1",
+        "version": "v5.4",
         "timestamp_utc": datetime.utcnow().isoformat() + "Z",
         "git": {
             "commit": get_git_commit(),
@@ -72,14 +80,18 @@ def main():
                 "rows": 22465,
                 "features": 22,
                 "classes": 5,
-                "class_names": ["normal", "command_flooding", "data_injection", "defence_impairment", "storage_exhaustion"]
+                "class_names": ["normal", "command_flooding", "data_injection", "defence_impairment", "storage_exhaustion"],
+                "provenance": "Fayyaz et al., Data in Brief (2026), doi:10.1016/j.dib.2026.112598; Mendeley Data doi:10.17632/7n2d42pm3n.3",
+                "collection": "NASA NOS3/cFS software-in-the-loop digital twin; all telemetry simulated"
             },
             "STIN": {
                 "path": "data/STIN/SAT20.csv + TER20.csv",
                 "rows": 209564,
                 "features": 30,
                 "classes": 9,
-                "class_names": ["Syn_DDoS", "UDP_DDoS", "LDAP_DDoS", "MSSQL_DDoS", "Botnet", "Portmap_DDoS", "Web Attack", "Backdoor", "NetBIOS_DDoS"]
+                "class_names": ["Syn_DDoS", "UDP_DDoS", "LDAP_DDoS", "MSSQL_DDoS", "Botnet", "Portmap_DDoS", "Web Attack", "Backdoor", "NetBIOS_DDoS"],
+                "provenance": "Li et al., IEEE Access (2020), doi:10.1109/ACCESS.2020.3041641; data: github.com/kun9717/STIN-data-set",
+                "collection": "Flow-based satellite/terrestrial network testbed (SAT20/TER20)"
             }
         },
         "architectures": {
@@ -140,16 +152,19 @@ def main():
             "selection_metric": "ACC_val - FM_val",
             "frozen_config_file": "results/best_hparams_per_method_arch.json",
             "methods_tuned": [
-                "finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"
+                "finetune", "replay", "ewc", "full", "lwf", "bic", "icarl",
+                "joint", "joint_scratch"
             ],
             "grids": {
                 "finetune": {"lr": [1e-3, 3e-3, 1e-2], "epochs": [25, 50]},
-                "replay": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "replay_frac": [0.5, 0.7, 0.9]},
-                "ewc": {"lr": [1e-3, 3e-3, 1e-2], "ewc_lambda": [100, 1000, 5000], "ewc_gamma": [0.5, 1.0, 2.0]},
-                "full": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "replay_frac": [0.5, 0.7, 0.9], "ewc_lambda": [100, 1000, 5000]},
-                "lwf": {"lr": [1e-3, 3e-3, 1e-2], "distill_lambda": [0.5, 1.0, 2.0], "distill_T": [1.5, 2.0, 3.0]},
-                "bic": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "distill_lambda": [0.5, 1.0, 2.0]},
-                "icarl": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "distill_lambda": [0.5, 1.0, 2.0]}
+                "replay": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "replay_frac": [0.5, 0.7, 0.9], "epochs": [25, 50]},
+                "ewc": {"lr": [1e-3, 3e-3, 1e-2], "ewc_lambda": [100, 1000, 5000], "ewc_gamma": [0.5, 1.0, 2.0], "epochs": [25, 50]},
+                "full": {"lr": [3e-3, 1e-2], "buffer_capacity": [256, 512], "replay_frac": [0.7, 0.9], "ewc_lambda": [100, 1000], "ewc_gamma": [0.5, 1.0, 2.0], "epochs": [25, 50]},
+                "lwf": {"lr": [1e-3, 3e-3, 1e-2], "distill_lambda": [0.5, 1.0, 2.0], "distill_T": [1.5, 2.0, 3.0], "epochs": [25, 50]},
+                "bic": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "distill_lambda": [0.5, 1.0, 2.0], "epochs": [25, 50]},
+                "icarl": {"lr": [1e-3, 3e-3, 1e-2], "buffer_capacity": [128, 256, 512], "distill_lambda": [0.5, 1.0, 2.0], "epochs": [25, 50]},
+                "joint": {"lr": [1e-3, 3e-3, 1e-2], "epochs": [25, 50]},
+                "joint_scratch": {"lr": [1e-3, 3e-3, 1e-2], "epochs": [25, 50]}
             }
         },
         "quantization": {
@@ -230,18 +245,20 @@ def main():
                 "results/robustness.csv",
                 "results/memory_ledger.csv"
             ],
-            "stats": "results/stats_permutation.csv",
+            "stats_acc": "results/stats_permutation.csv",
+            "stats_macrof1": "results/stats_permutation_macrof1.csv",
+            "leakage_ablation": ["results/leakage_ablation.csv", "results/leakage_ablation_summary.csv"],
+            "consistency": "results/consistency_check.json",
             "figures_dir": "figures/",
-            "report": "results/RESULTS_SUMMARY.md"
+            "report": "results/RESULTS_SUMMARY.md",
+            "final_report": "v5_4_project_report_final.md"
         },
-        "consistency_checks": {
-            "main_vs_fewshot_k150": "pass",
-            "seeds_main": 10,
-            "seeds_fewshot": 5,
-            "hyperparameter_source": "results/best_hparams_per_method_arch.json"
-        },
+        "consistency_checks": _load_consistency(),
         "known_limitations": [
             "Simulation-only (no hardware-in-the-loop)",
+            "CuCD-ID is generated in a NOS3/cFS software-in-the-loop digital twin, not captured from an orbiting spacecraft",
+            "Random-split (IID) headline numbers are leakage-optimistic: sliding-window aggregates and scenario/time identifiers can cross train/test boundaries; leakage_ablation.csv quantifies feature-group reliance",
+            "Random-split headline results are not a deployment guarantee; temporal-purged results are a separate forward-extrapolation estimand",
             "STIN has no benign class (no detection metrics)",
             "GRU/CNN use reshaped tabular features (not genuine temporal)",
             "INT8 quantization is simulated round-trip only",

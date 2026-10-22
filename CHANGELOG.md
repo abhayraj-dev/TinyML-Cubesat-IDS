@@ -4,6 +4,40 @@ All protocol/method changes are logged here with **why** (journal-review rationa
 Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
 No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
 
+## [2026-10-21] v5.4 Q2/Q3 correctness + provenance hardening (results rerun)
+- **Temporal ordering:** `src/data_utils.py` now orders by unwrapped circular
+  `TimeRadians`; the 0.02 rad purge remains a documented proxy. The old raw
+  sort broke at the 0→2π wrap.
+- **EWC:** Fisher is estimated from a class-balanced cumulative old+new
+  validation pool instead of current-task data only; `train.py`/`cmmu.py`
+  docstrings corrected.
+- **Leakage:** new `experiments/run_leakage_ablation.py` retrains CuCD-ID/MLP
+  after removing time/CCSDS-ID/20-s-window feature groups (5 variants × 3
+  methods × 10 seeds). README/report now disclose that the IID split can share
+  overlapping windows and is a benchmark estimand, not a deployment estimate.
+- **Tuning:** all 9 methods (including `joint`/`joint_scratch`) and all
+  architectures now tune on validation with `epochs` and EWC `gamma`
+  dimensions; one training pass per combo. Grid sizes capped for runtime.
+- **Stats:** ACC and Macro-F1 exact paired permutation files; STIN headline
+  comparisons added; Holm applied within each metric.
+- **Reporting:** `generate_summary_report.py` now emits both
+  `results/RESULTS_SUMMARY.md` and the auto-generated
+  `v5_4_project_report_final.md`, with a computed executive summary. All
+  result values come from CSV/JSON; stale hand-typed result tables were
+  removed from README/PAPER_PLAN/SUPERVISOR_SUMMARY.
+- **Consistency:** `check_consistency.py` accepts all 9 tuned methods and
+  writes `results/consistency_check.json`; `create_manifest.py` reads that
+  status dynamically and now also hashes the v5.4 report.
+- **Ablations/robustness:** `run_ablation.py` now uses `val_frac=0.10`;
+  `run_robustness.py` uses the strict frozen-hparams loader.
+- **Provenance:** citations and simulated-telemetry scope added to README,
+  PROJECT_CONTEXT, PAPER_PLAN, and the final report; per-class figure ylabel
+  corrected; few-shot Pareto now plots uplink KB vs Macro-F1; leakage figure
+  added.
+- **Why:** a reviewer can otherwise mistake simulated, overlapping-window IID
+  results for deployment evidence, and current-task-only Fisher plus raw
+  circular-time sorting are correctness defects.
+
 ## [2026-09-21] v5.3 final report corrections (text-only, verified against Base_Paper.pdf + CSVs)
 - `v5_3_project_report_final.md`: STIN paragraph corrected (reported stress test +
   coarse prior; frozen configs from CuCD-ID validation); "proposed CMMU/system" →

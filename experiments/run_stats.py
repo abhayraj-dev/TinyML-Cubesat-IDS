@@ -1,9 +1,12 @@
-"""Phase 1 paired statistical comparisons (exact paired permutation test + Holm).
+"""Paired statistical comparisons (exact paired permutation test + Holm).
 
-Reads results/main_results_runs.csv (ACC per seed) and writes
-results/stats_permutation.csv: for each (dataset, arch) pair, headline method
-comparisons on ACC across matched seeds (n=10): mean diff, 95% CI, Cohen's d,
-exact permutation p-value, Holm-adjusted p-value.
+Reads results/main_results_runs.csv and writes:
+  results/stats_permutation.csv          — ACC headline comparisons
+  results/stats_permutation_macrof1.csv  — Macro-F1 (primary metric) comparisons
+
+Both files cover CuCD-ID and STIN across matched seeds (n=10), with mean diff,
+95% CI, Cohen's d, exact permutation p-value, and Holm-adjusted p-value.
+Holm correction is applied across every comparison within a metric.
 
 The p-value is computed by EXACT enumeration over all 2^n sign-flip
 permutations (n=10 -> 1024, trivial). No SciPy dependency, no Monte Carlo.
@@ -77,30 +80,38 @@ def holm_correction(p_values):
     return result
 
 
-def main():
-    path = os.path.join(RESULTS_DIR, "main_results_runs.csv")
-    if not os.path.exists(path):
-        print(f"No {path} -- run run_main.py first.")
-        return
-    df = pd.read_csv(path)
+HEADLINE_COMPARISONS = [
+    ("CuCD-ID", "MLP", "icarl", "replay"),
+    ("CuCD-ID", "MLP", "icarl", "full"),
+    ("CuCD-ID", "MLP", "icarl", "bic"),
+    ("CuCD-ID", "MLP", "replay", "finetune"),
+    ("CuCD-ID", "MLP", "full", "finetune"),
+    ("CuCD-ID", "GRU", "icarl", "replay"),
+    ("CuCD-ID", "GRU", "icarl", "full"),
+    ("CuCD-ID", "CNN1D", "bic", "replay"),
+    ("CuCD-ID", "CNN1D", "bic", "icarl"),
+    ("STIN", "MLP", "bic", "replay"),
+    ("STIN", "MLP", "bic", "joint_scratch"),
+    ("STIN", "MLP", "replay", "finetune"),
+    ("STIN", "MLP", "full", "finetune"),
+    ("STIN", "MLP", "bic", "full"),
+    ("STIN", "GRU", "icarl", "replay"),
+    ("STIN", "GRU", "icarl", "full"),
+    ("STIN", "GRU", "replay", "finetune"),
+    ("STIN", "GRU", "joint", "joint_scratch"),
+    ("STIN", "CNN1D", "bic", "replay"),
+    ("STIN", "CNN1D", "bic", "icarl"),
+    ("STIN", "CNN1D", "icarl", "replay"),
+    ("STIN", "CNN1D", "replay", "finetune"),
+    ("STIN", "CNN1D", "joint", "joint_scratch"),
+]
 
-    # Headline comparisons: best vs rest on CuCD-ID per arch
-    headline_comparisons = [
-        ("CuCD-ID", "MLP", "icarl", "replay"),
-        ("CuCD-ID", "MLP", "icarl", "full"),
-        ("CuCD-ID", "MLP", "icarl", "bic"),
-        ("CuCD-ID", "MLP", "replay", "finetune"),
-        ("CuCD-ID", "MLP", "full", "finetune"),
-        ("CuCD-ID", "GRU", "icarl", "replay"),
-        ("CuCD-ID", "GRU", "icarl", "full"),
-        ("CuCD-ID", "CNN1D", "bic", "replay"),
-        ("CuCD-ID", "CNN1D", "bic", "icarl"),
-    ]
 
+def run_metric(df, metric, suffix):
     rows = []
     all_p_values = []
 
-    for dset, arch, method_a, method_b in headline_comparisons:
+    for dset, arch, method_a, method_b in HEADLINE_COMPARISONS:
         g = df[(df.dataset == dset) & (df.arch == arch)]
         if len(g) == 0:
             continue
@@ -109,15 +120,15 @@ def main():
         seeds = sorted(set(ga.seed) & set(gb.seed))
         if len(seeds) < 2:
             continue
-        xa = ga.set_index("seed").loc[seeds, "ACC"].to_numpy()
-        xb = gb.set_index("seed").loc[seeds, "ACC"].to_numpy()
+        xa = ga.set_index("seed").loc[seeds, metric].to_numpy()
+        xb = gb.set_index("seed").loc[seeds, metric].to_numpy()
 
         res = paired_permutation_test(xa, xb)
         all_p_values.append(res["p"])
 
         rows.append(dict(
             dataset=dset, arch=arch, method_a=method_a, method_b=method_b,
-            n=len(seeds),
+            metric=metric, n=len(seeds),
             mean_a=float(xa.mean()), mean_b=float(xb.mean()),
             mean_diff=res["mean_diff"],
             ci_low=res["ci_low"], ci_high=res["ci_high"],
@@ -125,22 +136,35 @@ def main():
             p_exact=res["p"],
         ))
 
-    # Holm correction
     holm_p = holm_correction(all_p_values)
     for i, row in enumerate(rows):
         row["p_holm"] = holm_p[i]
 
     out = pd.DataFrame(rows)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    out.to_csv(os.path.join(RESULTS_DIR, "stats_permutation.csv"), index=False)
+    out_path = os.path.join(RESULTS_DIR, f"stats_permutation{suffix}.csv")
+    out.to_csv(out_path, index=False)
 
-    print(f"Wrote {len(out)} headline comparisons to results/stats_permutation.csv")
-    print("\nHeadline results (CuCD-ID):")
+    print(f"\nWrote {len(out)} headline comparisons to {out_path}")
     for _, row in out.iterrows():
         sig = "**" if row["p_holm"] < 0.05 else ("*" if row["p_holm"] < 0.1 else "")
-        print(f"  {row['arch']:5s} {row['method_a']:8s} vs {row['method_b']:8s}: "
-              f"Δ={row['mean_diff']:+.3f} 95%CI=[{row['ci_low']:+.3f},{row['ci_high']:+.3f}] "
-              f"d={row['cohens_d']:+.2f} p={row['p_exact']:.4f} p_holm={row['p_holm']:.4f} {sig}")
+        print(f"  {row['dataset']:7s} {row['arch']:5s} {row['method_a']:8s} vs "
+              f"{row['method_b']:8s}: Δ={row['mean_diff']:+.3f} "
+              f"95%CI=[{row['ci_low']:+.3f},{row['ci_high']:+.3f}] "
+              f"d={row['cohens_d']:+.2f} p={row['p_exact']:.4f} "
+              f"p_holm={row['p_holm']:.4f} {sig}")
+    return out
+
+
+def main():
+    path = os.path.join(RESULTS_DIR, "main_results_runs.csv")
+    if not os.path.exists(path):
+        print(f"No {path} -- run run_main.py first.")
+        return
+    df = pd.read_csv(path)
+
+    run_metric(df, "ACC", "")
+    if "MacroF1" in df.columns:
+        run_metric(df, "MacroF1", "_macrof1")
 
 
 if __name__ == "__main__":

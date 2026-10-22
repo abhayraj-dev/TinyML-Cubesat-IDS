@@ -17,8 +17,9 @@ Methods:
               class training actively pushes down old classes' logits via
               softmax competition even before considering weight drift.
   replay   -- CMMU sub-mechanism A only (experience replay buffer).
-  ewc      -- CMMU sub-mechanism B only (online EWC regularisation, now
-              covering the shared head as well as the trunk).
+  ewc      -- CMMU sub-mechanism B only (online EWC regularisation covering
+              the shared head as well as the trunk; Fisher is estimated from
+              the cumulative old+new validation pool, not new-task data alone).
   full     -- both CMMU sub-mechanisms combined (the proposed system).
   joint    -- LEGACY cumulative warm-start: trains on the union of all
               classes' training data seen so far but continues from current
@@ -349,14 +350,15 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
             else:
                 buffer.add_batch(task.X_train, y_train_global, t)
         if ewc is not None:
-            # Phase 0: prefer val-balanced Fisher when val exists (old-task
-            # curvature is otherwise understated by new-train-only samples).
-            if task.X_val is not None and y_val_global is not None and len(task.X_val):
-                try:
-                    ewc.consolidate(model, task.X_train, y_train_global,
-                                    X_val=task.X_val, y_val=y_val_global)
-                except TypeError:
-                    ewc.consolidate(model, task.X_train, y_train_global)
+            # Use the cumulative validation pool (all tasks seen so far), not
+            # only the current task's val slice. The old behaviour estimated
+            # Fisher on one new class at a time, which understated old-task
+            # curvature and made the running estimate depend on task order.
+            if seen_val:
+                Xv = np.concatenate([x for x, y in seen_val], axis=0)
+                yv = np.concatenate([y for x, y in seen_val], axis=0)
+                ewc.consolidate(model, task.X_train, y_train_global,
+                                X_val=Xv, y_val=yv)
             else:
                 ewc.consolidate(model, task.X_train, y_train_global)
 

@@ -25,6 +25,16 @@ def main():
                 "`experiments/generate_summary_report.py` directly from the CSV/JSON "
                 "outputs of the experiment scripts -- every number below is a real, "
                 "computed result, not a placeholder._\n")
+    out.append("\n**Data provenance.** CuCD-ID is the labelled NOS3/cFS "
+                "software-in-the-loop CubeSat telemetry dataset of Fayyaz et al. "
+                "(Data in Brief 2026, doi:10.1016/j.dib.2026.112598; Mendeley "
+                "doi:10.17632/7n2d42pm3n.3); all telemetry is simulated, not "
+                "captured from an orbiting spacecraft. STIN (SAT20/TER20) is the "
+                "satellite/terrestrial flow dataset of Li et al. (IEEE Access 2020, "
+                "doi:10.1109/ACCESS.2020.3041641; github.com/kun9717/STIN-data-set) "
+                "and is used as a cross-domain stress test. Headline tables below "
+                "use the IID random split; Sections 5.3 and 7.4 quantify the "
+                "resulting leakage/feature-reliance caveats.\n")
 
     # ---- hyperparameter sweep (coarse prior) + frozen per-method/arch configs ----
     sweep = pd.read_csv(os.path.join(RESULTS_DIR, "hparam_sweep_stin.csv"))
@@ -182,10 +192,12 @@ def main():
         for _arch in ["MLP", "GRU", "CNN1D"]:
             _g = frozen_gamma.get(_arch, {}).get("ewc", {}).get("hparams", {}).get("ewc_gamma", None)
             gamma_strs.append(f"{_arch} γ={_g}")
-        out.append("EWC here is online new-task Fisher (Fisher estimated from "
-                    "current-task train/val samples with the running estimate retained, "
-                    "not re-estimated from old-task data; update "
-                    "`F_new = γ·F_old + F_current`). Frozen per-architecture γ "
+        out.append("EWC here is online diagonal Fisher with a running estimate "
+                    "(`F_new = γ·F_old + F_current`). The Fisher sample is drawn "
+                    "from a class-balanced mix of the current task's training data "
+                    "and the cumulative validation pool of all tasks seen so far "
+                    "(not the current task alone), so old-task curvature is not "
+                    "dropped at each consolidation. Frozen per-architecture γ "
                     "weighting: "
                     + ", ".join(gamma_strs) + ". γ is treated as a "
                     "validation-tuned weighting parameter rather than a conventional "
@@ -193,8 +205,31 @@ def main():
                     "selection; a γ≤1 restriction would be stricter but would require "
                     "rerunning EWC experiments).\n")
 
+    leak_path = os.path.join(RESULTS_DIR, "leakage_ablation_summary.csv")
+    if os.path.exists(leak_path):
+        leak = pd.read_csv(leak_path)
+        out.append("\n### 5.3 Feature-provenance leakage ablation (CuCD-ID/MLP, 10 seeds)\n")
+        out.append("Retrained models after removing feature groups (not test-time "
+                    "corruption). Deltas are relative to the all-feature run for the "
+                    "same method; negative values mean the removed features were "
+                    "helping the model.\n")
+        out.append(df_to_md(leak[[
+            "variant", "method", "n_features", "ACC_mean", "MacroF1_mean",
+            "ACC_mean_delta_vs_all", "MacroF1_mean_delta_vs_all"
+        ]]))
+        out.append("\nThis quantifies how much random-split performance rides on "
+                    "the circular time field, CCSDS identifiers, and 20-second "
+                    "window aggregates. It is a reliance measure, not proof that "
+                    "every removed feature is illegitimate: `no_ids` also removes "
+                    "protocol information a real detector may legitimately use. The "
+                    "IID headline remains a benchmark estimand; the temporal-purged "
+                    "table in Section 7.4 is the separate deployment-shift estimand.\n")
+    else:
+        out.append("\n_(leakage_ablation_summary.csv not found -- run "
+                    "`experiments/run_leakage_ablation.py` first)_\n")
+
     order = pd.read_csv(os.path.join(RESULTS_DIR, "legacy", "ablation_task_order.csv"))
-    out.append("\n### 5.3 Task-order sensitivity, legacy 3-perm (CuCD-ID, MLP, method=full)\n")
+    out.append("\n### 5.4 Task-order sensitivity, legacy 3-perm (CuCD-ID, MLP, method=full)\n")
     out.append("_Legacy confounded design (budgets move with the task); superseded by "
                 "the disentangled 12-permutation study in §7.3. Retained for provenance only._\n")
     order_agg = order.groupby("order")[["ACC", "BWT"]].agg(["mean", "std"]).reset_index()
@@ -204,7 +239,8 @@ def main():
     spread = order_means.max() - order_means.min()
     out.append(f"\nACC spread across the 3 legacy orderings: **{spread:.4f}** "
                 f"(range {order_means.min():.4f} - {order_means.max():.4f}). "
-                f"See §7.3 for the disentangled measurement (spread 0.0495).\n")
+                f"See §7.3 for the disentangled measurement (computed from "
+                f"`task_order_disentangled.csv`, not hard-coded).\n")
 
     # ---- per-class F1 / confusion matrix ----
     out.append("\n## 6. Per-class F1 -- direct evidence of forgetting\n")
@@ -225,19 +261,16 @@ def main():
                            ["finetune", "ewc", "lwf", "replay", "full", "bic", "icarl",
                             "joint", "joint_scratch"]]
             out.append(df_to_md(piv[method_cols].reset_index()))
-        out.append("\nFor CuCD-ID, `finetune` and `ewc` collapse every task except the "
-                    "most-recently-learned one to *exactly* F1 = 0.000 -- the model "
-                    "stops predicting those classes at all. For STIN, the same collapse "
-                    "occurs but lands on whichever task ends up dominating the shared "
-                    "head's bias after the last update (not always precisely the final "
-                    "task, and not always exactly 0.000 for every other task -- see the "
-                    "table above), which is itself expected: STIN's per-task class count "
-                    "(3 new classes/task) and harder feature separability make the "
-                    "'recency bias' target noisier across seeds than CuCD-ID's cleaner "
-                    "1-2-classes/task structure. In both datasets, `replay`, `full`, and "
-                    "`joint` retain non-zero, generally high F1 across every task -- the "
-                    "direct, per-class confirmation of the class-incremental collapse "
-                    "summarised by the task-level ACC/BWT/FM numbers in Section 2.\n")
+        out.append("\nFor CuCD-ID, the memoryless methods (`finetune`, `ewc`) "
+                   "collapse most classes to zero or near-zero F1 while retaining "
+                   "some ability on the most recent class; the exact per-class "
+                   "pattern is shown above and varies by method and seed. On STIN "
+                   "the same severe recency bias appears, but it is noisier because "
+                   "each task introduces several classes and the feature set is less "
+                   "separable. Memory-based and joint references retain non-zero F1 "
+                   "across most tasks. This is the direct per-class confirmation of "
+                   "the task-level results in Section 2; do not infer a universal "
+                   "exact-zero pattern from one method.\n")
     else:
         out.append("\n_(per-class F1 results not found -- run "
                     "`experiments/run_per_class_analysis.py` first)_\n")
@@ -265,7 +298,7 @@ def main():
         k50 = mlp[mlp.K == 50].groupby("method")["ACC"].mean()
         k5 = mlp[mlp.K == 5].groupby("method")["ACC"].mean()
         out.append(f"MLP @K=50 (knee): " +
-                    ", ".join(f"{m}={k50[m]:.3f}" for m in k50.index) + ". ")
+                    ", ".join(f"{m}={k50[m]:.3f}" for m in k50.index) + ".\n")
         out.append(f"MLP @K=5 (extreme): " +
                     ", ".join(f"{m}={k5[m]:.3f}" for m in k5.index) + ".\n")
     else:
@@ -308,8 +341,14 @@ def main():
         out.append(df_to_md(tc.groupby(["method", "protocol"])["ACC"].agg(["mean", "std"]).reset_index()))
         out.append("\nIID = random-split benchmark; temporal-purged = forward temporal "
                     "generalization under distribution shift with reduced window overlap "
-                    "(separate estimands, not interpolated). Purge: 0.02 rad on TimeRadians "
-                    "(~22s equivalent). See DATALOG.md for the drift diagnosis.\n")
+                    "(separate estimands, not interpolated). Purge: 0.02 rad on "
+                    "TimeRadians (a proxy for the documented ~20-22 s window horizon; "
+                    "not a wall-clock guarantee). Blocks are ordered on unwrapped "
+                    "circular time so an orbital wrap does not scramble chronology. "
+                    "For classes whose TimeRadians span is narrow, the purge can "
+                    "empty the validation slice; those cells are warned about by the "
+                    "builder and val-dependent methods (BiC/EWC) are correspondingly "
+                    "weaker in this protocol. See DATALOG.md for the drift diagnosis.\n")
     elif _present("temporal_compare.csv"):
         tc = pd.read_csv(os.path.join(RESULTS_DIR, "temporal_compare.csv"))
         out.append("\n### 7.4 Temporal-vs-random bracket (legacy unpurged), CuCD-ID/MLP\n")
@@ -343,22 +382,135 @@ def main():
     else:
         out.append("\n_(memory_ledger.csv not found -- run `experiments/run_robustness.py` first)_\n")
 
-    if _present("stats_permutation.csv"):
-        st = pd.read_csv(os.path.join(RESULTS_DIR, "stats_permutation.csv"))
-        sig = st[st.p_holm < 0.05]
-        out.append(f"\n### 7.7 Exact paired permutation + Holm (matched seeds, ACC): "
-                    f"{len(sig)}/{len(st)} headline comparisons significant at Holm p<0.05\n")
-        cols = [c for c in ["dataset", "arch", "method_a", "method_b", "n",
-                            "mean_a", "mean_b", "mean_diff", "ci_low", "ci_high",
-                            "cohens_d", "p_exact", "p_holm"] if c in st.columns]
-        out.append(df_to_md(st.sort_values("mean_diff", ascending=False)[cols].head(20)))
-    else:
-        out.append("\n_(stats_permutation.csv not found -- run `experiments/run_stats.py` first)_\n")
+    for metric_file, metric_label in [
+        ("stats_permutation.csv", "ACC"),
+        ("stats_permutation_macrof1.csv", "Macro-F1 (primary)"),
+    ]:
+        if _present(metric_file):
+            st = pd.read_csv(os.path.join(RESULTS_DIR, metric_file))
+            sig = st[st.p_holm < 0.05]
+            out.append(f"\n### 7.7 Exact paired permutation + Holm (matched seeds, "
+                        f"{metric_label}): {len(sig)}/{len(st)} headline comparisons "
+                        f"significant at Holm p<0.05\n")
+            out.append("Holm correction is applied across all comparisons in this "
+                        "metric. The exact sign-flip test has n=10 paired seeds.\n")
+            cols = [c for c in ["dataset", "arch", "method_a", "method_b", "n",
+                                "mean_a", "mean_b", "mean_diff", "ci_low", "ci_high",
+                                "cohens_d", "p_exact", "p_holm"] if c in st.columns]
+            out.append(df_to_md(st.sort_values("mean_diff", ascending=False)[cols]))
+        else:
+            out.append(f"\n_({metric_file} not found -- run "
+                        f"`experiments/run_stats.py` first)_\n")
+
+    # ---- dynamic executive summary for the v5.4 final report ----
+    deployable = ["finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"]
+    best_rows = []
+    for dset in ["CuCD-ID", "STIN"]:
+        for arch in sorted(runs.arch.unique()):
+            sub = runs[(runs.dataset == dset) & (runs.arch == arch) &
+                       (runs.method.isin(deployable))]
+            if sub.empty:
+                continue
+            g = sub.groupby("method")[["ACC", "MacroF1"]].mean()
+            m = g["MacroF1"].idxmax()
+            best_rows.append(dict(dataset=dset, arch=arch, method=m,
+                                  ACC=g.loc[m, "ACC"], MacroF1=g.loc[m, "MacroF1"]))
+    best_df = pd.DataFrame(best_rows)
+
+    sig_lines = []
+    for metric_file, metric_label in [
+        ("stats_permutation.csv", "ACC"),
+        ("stats_permutation_macrof1.csv", "Macro-F1"),
+    ]:
+        path = os.path.join(RESULTS_DIR, metric_file)
+        if os.path.exists(path):
+            st = pd.read_csv(path)
+            sig_lines.append(f"{int((st.p_holm < 0.05).sum())}/{len(st)} {metric_label} "
+                             f"comparisons significant at Holm p<0.05")
+
+    temporal_line = ""
+    tpath = os.path.join(RESULTS_DIR, "temporal_purged_compare.csv")
+    if os.path.exists(tpath):
+        tp = pd.read_csv(tpath)
+        iid = tp[tp.protocol == "iid"].groupby("method").ACC.mean()
+        pur = tp[tp.protocol == "temporal_purged"].groupby("method").ACC.mean()
+        common = [m for m in deployable if m in iid.index and m in pur.index]
+        if common:
+            temporal_line = (f"Mean deployable-method ACC falls from "
+                             f"{iid[common].mean():.4f} (IID) to "
+                             f"{pur[common].mean():.4f} (temporal-purged).")
+
+    leak_line = ""
+    lpath = os.path.join(RESULTS_DIR, "leakage_ablation_summary.csv")
+    if os.path.exists(lpath):
+        lk = pd.read_csv(lpath)
+        if not lk.empty and "MacroF1_mean_delta_vs_all" in lk.columns:
+            worst = lk.loc[lk["MacroF1_mean_delta_vs_all"].idxmin()]
+            leak_line = (f"Largest retrained Macro-F1 drop: {worst['variant']}/"
+                         f"{worst['method']} {worst['MacroF1_mean_delta_vs_all']:+.4f}.")
+
+    task_line = ""
+    opath = os.path.join(RESULTS_DIR, "task_order_disentangled.csv")
+    if os.path.exists(opath):
+        to = pd.read_csv(opath)
+        if "order" in to.columns and "ACC" in to.columns:
+            task_line = (f"Disentangled task-order ACC spread: "
+                         f"{to.groupby('order').ACC.mean().max() - to.groupby('order').ACC.mean().min():.4f}.")
+
+    exec_out = [
+        "# Project Report v5.4",
+        "## Resource-Aware Class-Incremental Continual Learning for TinyML-Based Intrusion Detection in CubeSats",
+        "",
+        "_Auto-generated by `experiments/generate_summary_report.py` from the "
+        "CSV/JSON outputs of this run. No result value is typed by hand; the "
+        "static text is limited to provenance and interpretation._",
+        "",
+        "**Data provenance.** CuCD-ID is the labelled NOS3/cFS "
+        "software-in-the-loop CubeSat telemetry dataset of Fayyaz et al. "
+        "(Data in Brief 2026, doi:10.1016/j.dib.2026.112598; Mendeley "
+        "doi:10.17632/7n2d42pm3n.3); all telemetry is simulated, not captured "
+        "on orbit. STIN is Li et al., IEEE Access 2020, "
+        "doi:10.1109/ACCESS.2020.3041641, used as a cross-domain stress test.",
+        "",
+        "## Executive summary",
+        "",
+        f"- Main matrix: **{len(runs)}** runs, {runs.arch.nunique()} architectures, "
+        f"{runs.method.nunique()} methods, {runs.seed.nunique()} seeds.",
+        f"- Largest `full` persistent state: **{mem.persistent_total_KB.max():.2f} KB**; "
+        f"largest host-estimated peak update RAM: **{mem.peak_total_KB.max():.2f} KB**.",
+    ]
+    if not best_df.empty:
+        for _, r in best_df.iterrows():
+            exec_out.append(f"- Best deployable by Macro-F1, {r['dataset']}/{r['arch']}: "
+                            f"**{r['method']}** (ACC {r['ACC']:.4f}, Macro-F1 {r['MacroF1']:.4f}).")
+    for line in sig_lines:
+        exec_out.append(f"- Exact paired tests: {line}.")
+    cpath = os.path.join(RESULTS_DIR, "consistency_check.json")
+    if os.path.exists(cpath):
+        with open(cpath) as f:
+            cons = json.load(f)
+        exec_out.append(f"- Main-vs-few-shot consistency: **{cons.get('status', 'unknown')}** "
+                        f"(max |ACC diff| {cons.get('k150_max_abs_acc_diff')}).")
+    if temporal_line:
+        exec_out.append(f"- {temporal_line}")
+    if leak_line:
+        exec_out.append(f"- {leak_line}")
+    if task_line:
+        exec_out.append(f"- {task_line}")
+    exec_out.append("- The IID headline is a benchmark estimand; the temporal and "
+                    "feature-provenance results are separate robustness/reliance "
+                    "estimands, not deployment guarantees.")
 
     report = "\n".join(out)
     with open(os.path.join(RESULTS_DIR, "RESULTS_SUMMARY.md"), "w") as f:
         f.write(report)
+    final_report = "\n".join(exec_out) + "\n\n---\n\n" + report.replace(
+        "# Results Summary\n", "# Detailed results\n", 1)
+    with open(os.path.join(RESULTS_DIR, "..", "v5_4_project_report_final.md"), "w") as f:
+        f.write(final_report)
     print(f"Wrote {os.path.join(RESULTS_DIR, 'RESULTS_SUMMARY.md')} ({len(report)} chars)")
+    print("Wrote v5_4_project_report_final.md "
+          f"({len(final_report)} chars, auto-generated)")
 
 
 if __name__ == "__main__":

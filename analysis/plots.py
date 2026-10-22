@@ -342,16 +342,21 @@ def fig_fewshot_pareto():
             ax.set_visible(False)
             continue
         for method in [m for m in ["icarl", "bic", "replay", "full"] if m in set(sub.method)]:
-            g = sub[sub.method == method].groupby("K")["ACC"].mean()
-            ax.plot(g.index.astype(str), g.values, marker="o",
+            g = sub[sub.method == method].groupby("K").agg(
+                uplink_KB=("uplink_KB_total_with_calib", "mean"),
+                macro_f1=("MacroF1", "mean"))
+            ax.plot(g.uplink_KB.values, g.macro_f1.values, marker="o",
                     label=METHOD_LABELS.get(method, method), color=COLORS.get(method, "gray"))
-        ax.set_xlabel("Uplink samples per new class (K)")
+            for k, row in g.iterrows():
+                ax.annotate(str(k), (row.uplink_KB, row.macro_f1), fontsize=6,
+                            textcoords="offset points", xytext=(3, 3))
+        ax.set_xlabel("Uplink KB per new class (adaptation + calibration)")
         ax.set_title(f"{arch} (CuCD-ID)")
         ax.grid(alpha=0.3)
-    axes[0].set_ylabel("ACC")
+    axes[0].set_ylabel("Macro-F1")
     axes[0].legend(fontsize=8)
-    fig.suptitle("Few-shot uplink sweep: accuracy vs labelled samples per new attack\n"
-                 "Knee at K~50 for MLP/iCaRL; GRU needs K>=150")
+    fig.suptitle("Few-shot uplink Pareto: Macro-F1 vs uplink KB per new attack\n"
+                 "point labels are K (samples/class); knee around K~50 for MLP/iCaRL")
     savefig("fewshot_pareto.png")
 
 
@@ -434,6 +439,38 @@ def fig_robustness():
     savefig("robustness.png")
 
 
+def fig_leakage_ablation():
+    path = os.path.join(RESULTS_DIR, "leakage_ablation_summary.csv")
+    if not os.path.exists(path):
+        return
+    df = pd.read_csv(path)
+    variant_order = ["all", "no_time", "no_ids", "no_window", "no_time_ids_window"]
+    variants = [v for v in variant_order if v in set(df.variant)]
+    methods = [m for m in ["replay", "bic", "joint_scratch"] if m in set(df.method)]
+    x = np.arange(len(variants))
+    width = 0.8 / max(1, len(methods))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6), sharey=True)
+    for ax, metric, label in [(axes[0], "ACC_mean", "ACC"),
+                              (axes[1], "MacroF1_mean", "Macro-F1")]:
+        for i, m in enumerate(methods):
+            vals = [df[(df.variant == v) & (df.method == m)][metric].mean()
+                    for v in variants]
+            ax.bar(x + i * width, vals, width, label=METHOD_LABELS.get(m, m),
+                   color=COLORS.get(m, "gray"))
+        ax.set_xticks(x + width * (len(methods) - 1) / 2)
+        ax.set_xticklabels(variants, rotation=20, ha="right")
+        ax.set_ylabel(label)
+        ax.grid(axis="y", alpha=0.3)
+    axes[0].legend(fontsize=8)
+    raw_path = os.path.join(RESULTS_DIR, "leakage_ablation.csv")
+    n_seeds = (int(pd.read_csv(raw_path)["seed"].nunique())
+               if os.path.exists(raw_path) else 10)
+    fig.suptitle("Feature-provenance leakage ablation, CuCD-ID/MLP "
+                 f"(retrained, mean over {n_seeds} seeds)\n"
+                 "removing time / identifiers / 20-s window aggregates")
+    savefig("leakage_ablation.png")
+
+
 def main():
     fig_method_comparison_bars()
     fig_forgetting_curves()
@@ -451,6 +488,7 @@ def main():
     fig_arch_tune()
     fig_temporal_bracket()
     fig_robustness()
+    fig_leakage_ablation()
 
 
 if __name__ == "__main__":

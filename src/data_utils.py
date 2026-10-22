@@ -190,6 +190,30 @@ def _temporal_block_split(idx_sorted: np.ndarray, test_frac: float, val_frac: fl
     return train_pool, val_idx, test_idx
 
 
+def _chronological_order(sub: pd.DataFrame, time_col: str = "TimeRadians"):
+    """Return `sub` ordered by unwrapped circular time.
+
+    TimeRadians is periodic on [0, 2π); a plain sort puts samples after an
+    orbital wrap at the beginning of the timeline. `np.unwrap` restores
+    chronological order across wraps while preserving the original rows.
+    """
+    t = sub[time_col].to_numpy(dtype=np.float64)
+    order = np.argsort(t, kind="mergesort")
+    t_sorted = t[order]
+
+    # Find the largest gap on the circle. If it is an internal gap, rotate
+    # there and unwrap across the orbital wrap. If the largest gap is the
+    # wrap itself, ascending phase is already chronological.
+    gaps = np.diff(t_sorted)
+    wrap_gap = t_sorted[0] + 2.0 * np.pi - t_sorted[-1]
+    if len(gaps) and wrap_gap <= gaps.max():
+        cut = int(np.argmax(gaps)) + 1
+        order = np.concatenate([order[cut:], order[:cut]])
+        t_sorted = t[order]
+    t_unwrapped = np.unwrap(t_sorted)
+    return sub.iloc[order], t_unwrapped
+
+
 def _temporal_purged_split(
     df: pd.DataFrame,
     mask: np.ndarray,
@@ -203,10 +227,11 @@ def _temporal_purged_split(
     The purge gaps are empty time regions to prevent sliding-window feature leakage.
     purge_time_rad: radians on TimeRadians (0.02 rad ≈ 22s equivalent,
     exceeds 20s sliding-window horizon + 20-22s clearing pauses).
-    Returns (train_idx, val_idx, test_idx) as original dataframe indices."""
-    sub = df.loc[mask].sort_values(time_col, kind="mergesort")
+    Sorting uses unwrapped circular time so orbital wraps do not scramble the
+    chronological order. Returns (train_idx, val_idx, test_idx) as original
+    dataframe indices."""
+    sub, time_sorted = _chronological_order(df.loc[mask], time_col=time_col)
     idx_sorted = sub.index.to_numpy()
-    time_sorted = sub[time_col].to_numpy()
 
     n = len(idx_sorted)
     n_test = max(1, int(round(n * test_frac)))
@@ -534,7 +559,7 @@ def build_stin_tasks(
 def _ordered_idx_cucd(df: pd.DataFrame, mask) -> np.ndarray:
     sub = df.loc[mask]
     if "TimeRadians" in df.columns:
-        sub = sub.sort_values("TimeRadians", kind="mergesort")
+        sub, _ = _chronological_order(sub, time_col="TimeRadians")
     return sub.index.to_numpy()
 
 

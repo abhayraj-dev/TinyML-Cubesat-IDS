@@ -54,7 +54,7 @@ def ablation_buffer_size(cucd_df, stin_df, frozen_hparams):
             base_hp = get_frozen_hp(frozen_hparams, arch, "full")
             for cap in capacities:
                 for seed in SEEDS:
-                    ts = builder(df, seed=seed)
+                    ts = builder(df, seed=seed, val_frac=0.10)
                     mk = model_kwargs_for(arch, ts.n_features)
                     hp = {**BASE_TRAIN_HPARAMS, **base_hp, "buffer_capacity": cap}
                     out = train_continual(MODEL_CLASSES[arch], mk, ts, "full", hp, seed=seed)
@@ -76,7 +76,7 @@ def ablation_ewc_lambda(cucd_df, stin_df, frozen_hparams):
             base_hp = get_frozen_hp(frozen_hparams, arch, "full")
             for lam in lambdas:
                 for seed in SEEDS:
-                    ts = builder(df, seed=seed)
+                    ts = builder(df, seed=seed, val_frac=0.10)
                     mk = model_kwargs_for(arch, ts.n_features)
                     hp = {**BASE_TRAIN_HPARAMS, **base_hp, "ewc_lambda": lam}
                     out = train_continual(MODEL_CLASSES[arch], mk, ts, "full", hp, seed=seed)

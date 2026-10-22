@@ -2,6 +2,31 @@
 
 Purpose: log **what data/split/config produced which results**, so the journal reproducibility checklist can be answered. Append-only: newest entries on top.
 
+## 2026-10-21 — v5.4 Q2/Q3 correctness rerun (completed)
+- **Data provenance:** CuCD-ID is simulated NOS3/cFS software-in-the-loop
+  telemetry (Fayyaz et al., Data in Brief 2026,
+  doi:10.1016/j.dib.2026.112598; Mendeley doi:10.17632/7n2d42pm3n.3);
+  STIN is Li et al., IEEE Access 2020, doi:10.1109/ACCESS.2020.3041641.
+- **Ordering:** temporal/purged splits now use a largest-circular-gap rotation
+  + `np.unwrap` on `TimeRadians`, so the 0→2π wrap is chronological within
+  each class block.
+- **EWC:** Fisher is drawn from a class-balanced cumulative old+new
+  validation pool; frozen configs are regenerated for all 9 methods.
+- **New artifact:** `leakage_ablation.csv` / `_summary.csv` retrain
+  CuCD-ID/MLP with time, CCSDS-ID, and 20-s-window groups removed.
+- **Stats:** separate ACC and Macro-F1 exact permutation/Holm files;
+  STIN comparisons added.
+- Full pipeline rerun on this machine; all results, figures, manifest, and
+  reports were regenerated. Current run counts, metrics, tests, ablations,
+  and limitations are recorded in `results/final_experiment_manifest.json`,
+  `results/RESULTS_SUMMARY.md`, and the auto-generated
+  `v5_4_project_report_final.md`.
+- Consistency now writes `results/consistency_check.json`; the manifest reads
+  that status instead of asserting a hardcoded pass. The check accepts all 9
+  tuned methods (joint/joint_scratch included).
+- Historical `v5_3_project_report_final.md` is retained with a superseded
+  banner; cite the generated v5.4 report.
+
 ## 2026-09-21 — v5.3 report corrections (text-only, no reruns)
 - All `v5_3_project_report_final.md` numbers re-verified against on-disk CSVs
   (all match; two 0.1pp rounding fixes applied); all §2 base-paper cells

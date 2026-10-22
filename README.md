@@ -77,13 +77,29 @@ never surface. Section 7 shows this failure mode occurring, and the CMMU's
 | **CuCD-ID** | Primary | `data/CuCD-ID/noised_dataset.csv` | 22,465 | 22 (telemetry) | 5 (`normal`, `command_flooding`, `data_injection`, `defence_impairment`, `storage_exhaustion`) |
 | **STIN** | Secondary / cross-domain stress test | `data/STIN/SAT20.csv` + `TER20.csv` (concatenated) | 209,564 | 30 (network flow) | 9 distinct attack types (`Syn_DDoS`, `UDP_DDoS`, `LDAP_DDoS`, `MSSQL_DDoS`, `Botnet`, `Portmap_DDoS`, `Web Attack`, `Backdoor`, `NetBIOS_DDoS`) |
 
-STIN has no benign/normal class in the provided files, so it is used purely
+**Provenance and scope.** CuCD-ID is the labelled NOS3/cFS CubeSat
+telemetry dataset of Fayyaz et al., *Data in Brief* (2026),
+doi:10.1016/j.dib.2026.112598 (data: Mendeley
+doi:10.17632/7n2d42pm3n.3). It was generated in a high-fidelity
+software-in-the-loop digital twin; **all telemetry is simulated, not
+captured from an orbiting spacecraft**. STIN (SAT20/TER20) is the
+satellite/terrestrial flow dataset of Li et al., *IEEE Access* (2020),
+doi:10.1109/ACCESS.2020.3041641 (github.com/kun9717/STIN-data-set). STIN
+has no benign/normal class in the provided files, so it is used purely
 as a larger-scale, higher-class-count **cross-domain stress test** to check
 whether findings generalize beyond the primary dataset. A coarse STIN/MLP
 sweep provides an initial hyperparameter prior only; **final
 method × architecture hyperparameters are tuned on CuCD-ID validation data
 and frozen** (`results/best_hparams_per_method_arch.json`) before any test
 evaluation -- the primary dataset's test numbers are never used for tuning.
+
+**Leakage caveat.** CuCD-ID includes a circular time field, CCSDS packet
+identifiers, and 20-second sliding-window aggregates. The headline IID
+random split can share overlapping windows between train and test, so those
+numbers are benchmark estimates, not deployment guarantees. The
+`leakage_ablation` experiment retrains models after removing each feature
+group, and the temporal-purged protocol is reported separately; neither
+turns the IID number into a leakage-free estimate.
 
 ### Task construction (class-incremental protocol)
 
@@ -148,19 +164,18 @@ output columns while leaving existing ones untouched).
 | **CubeSat 1-D CNN** | `Conv1D(1->6,k=3) -> ReLU -> Conv1D(6->10,k=3) -> ReLU -> GlobalAvgPool` | **Architectural stress test** -- feature vector treated as a length-F, 1-channel signal; conv implemented via an explicit (correct, gradient-checked) im2col-style loop. Not genuine sequence modelling. |
 
 A feature-order permutation study (`experiments/run_feature_order.py`)
-confirms this framing: MLP accuracy is stable under random feature-column
-permutation (change −0.04 to +0.01), while the CNN degrades by up to 0.17
-and the GRU shifts substantially -- the convolution/recurrence genuinely
-depend on the imposed feature ordering, whereas the MLP does not.
+confirms this framing: the MLP is stable under random feature-column
+permutation, while the CNN and GRU change materially -- the
+convolution/recurrence depend on the imposed feature ordering, whereas the
+MLP does not. See the generated feature-order table for current values.
 
 All configurations fit within the **assumed 60 KB TinyML persistent-state
 budget** imposed as a conservative study constraint (not a universal
-CubeSat hardware limit) -- see Section 3 of the results summary; the
-largest configuration (STIN + MLP) uses **24.17 KB persistent (40.3% of the
-assumed budget)**. Peak update RAM (FP32 weights, gradients, Adam states,
-activations, batches, teacher) is reported separately and is substantially
-larger (up to ~127 KB host-estimated) -- persistent footprint and update
-RAM are different quantities and are never conflated in this report.
+CubeSat hardware limit) -- see the generated memory ledger for the current
+largest configuration. Peak update RAM (FP32 weights, gradients, Adam
+states, activations, batches, teacher) is reported separately and is
+substantially larger -- persistent footprint and update RAM are different
+quantities and are never conflated in this report.
 
 ---
 
@@ -262,7 +277,7 @@ correction**, reported with mean difference, 95% CI, and Cohen's d
    `val_frac=0.10`). The winner is a coarse prior only
    (`results/best_hparams.json`).
 2. **`experiments/run_validation_tune.py`** -- per-method x per-architecture
-   validation tuning on **CuCD-ID** (7 methods x 3 architectures x 3
+   validation tuning on **CuCD-ID** (9 methods x 3 architectures x 3
    seeds), scored on validation. Winners are frozen to
    `results/best_hparams_per_method_arch.json` and used, unchanged, by
    every subsequent experiment -- test data is never used for selection.
@@ -280,18 +295,21 @@ correction**, reported with mean difference, 95% CI, and Cohen's d
    (`run_task_order.py`: `fixed_position` primary), ablations
    (`run_ablation.py`: buffer capacity, EWC lambda, legacy task order),
    per-class analysis (`run_per_class_analysis.py`: frozen configs, BiC
-   correction applied), exact permutation statistics (`run_stats.py`),
-   robustness + quantization + memory ledger (`run_robustness.py`:
-   simulated INT8 round-trip `int8_sim`).
+   correction applied), exact permutation statistics on **ACC and
+   Macro-F1** (`run_stats.py`), robustness + quantization + memory ledger
+   (`run_robustness.py`: simulated INT8 round-trip `int8_sim`), and a
+   feature-provenance leakage ablation (`run_leakage_ablation.py`:
+   retrain without time/identifier/window groups).
 5. **`experiments/check_consistency.py`** -- verifies main vs few-shot
    (K=150, intersecting seeds) hyperparameter and seed consistency.
 6. **`analysis/plots.py`** -- generates every figure in `figures/`
-   (20 PNGs, Macro-F1 primary, dual-protocol temporal bracket).
+   (21 PNGs, Macro-F1 primary, dual-protocol temporal bracket, leakage ablation).
 7. **`experiments/create_manifest.py`** -- writes
    `results/final_experiment_manifest.json` (machine-readable provenance).
 8. **`experiments/generate_summary_report.py`** -- writes
-   `results/RESULTS_SUMMARY.md`, a fully auto-generated Markdown report
-   pulling every number directly out of the CSV/JSON result files.
+   `results/RESULTS_SUMMARY.md` and `v5_4_project_report_final.md`, fully
+   auto-generated reports pulling every number directly out of the
+   CSV/JSON result files.
 
 ### Run order and expected outputs (for running on your own machine)
 
@@ -313,8 +331,9 @@ python3 experiments/run_feature_order.py            # feature-order stability
 python3 experiments/run_task_order.py               # disentangled task order
 python3 experiments/run_ablation.py                 # buffer / lambda / order ablations
 python3 experiments/run_per_class_analysis.py       # per-class F1 + confusion matrices
-python3 experiments/run_stats.py                    # permutation stats + Holm
+python3 experiments/run_stats.py                    # ACC + Macro-F1 permutation stats + Holm
 python3 experiments/run_robustness.py               # robustness + simulated INT8
+python3 experiments/run_leakage_ablation.py         # retrained feature-group leakage ablation
 python3 experiments/check_consistency.py            # main-vs-fewshot verification
 python3 analysis/plots.py                           # figures
 python3 experiments/create_manifest.py              # reproducibility manifest
@@ -344,11 +363,12 @@ a full run you should have:
 | `results/task_order_disentangled.csv` | task-order study |
 | `results/ablation_buffer_size.csv`, `results/ablation_ewc_lambda.csv`, `results/ablation_task_order.csv` | ablations |
 | `results/per_class_f1_runs.csv`, `results/per_class_f1_summary.csv`, `results/confusion_matrices.json` | per-class analysis |
-| `results/stats_permutation.csv` | permutation stats |
+| `results/stats_permutation.csv`, `results/stats_permutation_macrof1.csv` | permutation stats (ACC + Macro-F1) |
 | `results/robustness.csv`, `results/memory_ledger.csv` | robustness |
+| `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv` | leakage ablation |
 | `results/final_experiment_manifest.json` | manifest |
-| 20 PNG files under `figures/` | plots |
-| `results/RESULTS_SUMMARY.md` | report |
+| 21 PNG files under `figures/` | plots |
+| `results/RESULTS_SUMMARY.md`, `v5_4_project_report_final.md` | report |
 
 Nothing needs network access at run time (the two datasets are already
 included under `data/`); everything is deterministic given the fixed seeds
@@ -357,92 +377,40 @@ validation tuning: 0-2), so re-running the whole pipeline should
 reproduce every number in `results/RESULTS_SUMMARY.md` and every figure
 exactly.
 
-(Full pipeline: ~3-5 hours on a single CPU core, dominated by validation
+(Full pipeline: ~10-14 hours on a single CPU core, dominated by validation
 tuning and the 540-run matrix; no GPU required.)
 
 ---
 
 ## 7. Headline results
 
-*(Full tables: `results/RESULTS_SUMMARY.md`. All numbers below are means
-over 10 seeds, taken directly from `results/main_results_summary.csv`.)*
+Every result value is written by the experiment pipeline; none is edited by
+hand. See `results/RESULTS_SUMMARY.md` and the auto-generated
+`v5_4_project_report_final.md` for the current tables, confidence intervals,
+paired tests, ablations, and figures. `results/main_results_summary.csv` is
+the underlying source for the headline matrix.
 
-**Class-incremental collapse is real, severe, and exactly matches the
-literature's known failure mode.** On CuCD-ID with the MLP backbone,
-naive sequential fine-tuning collapses to **ACC = 0.250 / Macro-F1 =
-0.073** after 4 tasks -- essentially chance-level, since with 5 total
-classes the model ends up only able to recognise the single
-most-recently-learned task's classes, having had every earlier class's
-output logit driven towards zero by softmax competition during subsequent
-training. **EWC alone is no better (ACC = 0.250)** -- regularising weights
-does nothing to stop this collapse, a well-documented result in the
-class-incremental-learning literature. Among continual methods on MLP,
-**BiC-lite leads (ACC = 0.956 / Macro-F1 = 0.963)**, followed by **iCaRL-lite
-(0.941 / 0.943)** and **replay (0.919 / 0.928)**; the combined replay+EWC
-configuration reaches 0.863/0.873. The non-deployable offline references
-reach ACC = 0.995 (warm joint) / 0.994 (from-scratch). Headline pairwise
-tests (exact permutation + Holm, 10 matched seeds): replay vs finetune is
-decisive (Δ=+0.669, Holm p=0.014, d=8.37); iCaRL-lite vs replay is not
-significant (Δ=+0.022, Holm p=0.72) -- reported as a tie, not a win.
+The stable qualitative findings are:
 
-**The harder STIN stress test shows the same qualitative pattern, with a
-much smaller ceiling.** finetune/ewc/lwf collapse to ACC ~= 0.28, while
-BiC-lite reaches 0.680, iCaRL-lite 0.664 and the joint references 0.650 /
-0.643 for the MLP backbone -- the continual methods match the offline
-references at the ceiling. The ceiling itself -- even offline joint
-training struggling to separate 9 statistically similar DDoS-flavoured
-attack classes from 30 network-flow features -- is a useful,
-honestly-reported negative result about the STIN feature set's
-separability at this scale.
+- Class-incremental naive fine-tuning collapses on the sequential benchmark;
+  EWC/LwF alone do not rescue it.
+- Replay and replay-based methods substantially reduce forgetting, but their
+  ranking depends on architecture and tuning; report the per-backbone matrix,
+  not a single pooled winner.
+- BiC-lite and iCaRL-lite are competitive with replay on several backbones,
+  while the offline joint references define the ceiling.
+- The STIN cross-domain stress test has a much lower ceiling than CuCD-ID.
+- Architecture matters: MLP is the primary backbone, with GRU/CNN treated as
+  stress tests rather than assumed equivalents.
+- The IID split is a benchmark estimand. Temporal-purged evaluation and
+  feature-provenance ablations are separate reliance/robustness estimands and
+  are not deployment accuracy claims.
+- Persistent model memory fits the assumed budget, but estimated peak update
+  RAM is materially larger and is reported separately.
 
-**MLP is the primary backbone; GRU/CNN are stress tests.** On CuCD-ID,
-MLP/BiC-lite reaches ACC = 0.956, GRU/iCaRL-lite 0.895 and CNN/BiC-lite
-0.745. The CNN gap is an optimization gap as much as a CL gap (per-method
-validation tuning already applied); the residual shortfall and the CNN's
-feature-order sensitivity (up to 0.17 degradation under permutation, vs
-MLP stable) are reported as findings, not adjusted away.
-
-**Per-method validation tuning was necessary.** Hyperparameters tuned on
-one architecture do not transfer: the EWC-lambda ablation (method=`full`)
-shows GRU/CNN accuracy falling steeply with lambda on both datasets while
-MLP stays flat, and buffer-capacity sensitivity differs markedly by
-backbone (`results/RESULTS_SUMMARY.md` Section 5.1-5.2). Final numbers use
-frozen per-method × per-architecture validation configs.
-
-**Per-class F1 gives direct, visual confirmation of the collapse, not just
-an aggregate implication of it.** `experiments/run_per_class_analysis.py`
-evaluates the final trained model per-class on STIN+GRU and CuCD-ID+MLP
-with frozen configs and BiC correction applied. On CuCD-ID, `finetune`
-and `ewc` drive every class's F1 to **exactly 0.000** except the very last
-class learned -- the model stops predicting the other 4 classes entirely,
-visible directly in `figures/confusion_matrix_CuCD-ID_MLP.png` as a single
-solid column. On STIN the same collapse occurs, landing on whichever
-class(es) end up dominating the shared head's bias (noisier across seeds
-than CuCD-ID's cleaner structure, since STIN introduces 3 new
-classes/task instead of 1-2). Full tables:
-`results/RESULTS_SUMMARY.md` Section 6; figures:
-`figures/per_class_f1_*.png`, `figures/confusion_matrix_*.png`.
-
-**Task order produces moderate variation, not a large effect.** Across 12
-permutations x 2 budget modes (CuCD-ID/MLP, frozen configs), the ACC spread
-is **0.0495**, with `fixed_position` (0.979) and `moves_with_task` (0.980)
-means essentially identical. The earlier larger reported effect was
-confounded by the placement of the large initial task and the absence of a
-validation protocol; it is retired and replaced by this measurement.
-
-**Two evaluation protocols, two estimands.** IID random-split numbers are
-the benchmark; the forward-temporal-purged protocol (0.02 rad TimeRadians
-purge, ~22s equivalent) measures generalization under shift: e.g. MLP
-replay 0.919 → 0.210, iCaRL-lite 0.941 → 0.229, joint-scratch 0.994 →
-0.159. Neither is presented as ground-truth deployment accuracy.
-
-**Memory: persistent fits the assumed budget; peak RAM is separate.** All
-6 (dataset x arch) persistent configurations fit the assumed 60 KB budget
-(largest: STIN + MLP, **24.17 KB, 40.3%**). Estimated peak update RAM is
-larger (up to **~127 KB** host-estimated for STIN/MLP, counting FP32
-weights, gradients, Adam states, activations, batches, and teacher) -- a
-reported constraint on onboard training, not something the persistent
-number is claimed to cover.
+Task-order variation, per-class collapse, robustness, leakage, power, and
+significance details are all generated from the corresponding CSV/JSON files;
+consult those files rather than copying numbers into prose.
 
 ---
 
@@ -474,7 +442,8 @@ number is claimed to cover.
 |   |-- run_ablation.py                # buffer / lambda / order ablations
 |   |-- run_per_class_analysis.py      # per-class F1 + confusion matrices
 |   |-- run_stats.py                   # exact permutation + Holm + effect sizes
-|   |-- run_robustness.py              # robustness + simulated INT8 + memory ledger
+|   |-- run_robustness.py              # robustness + simulated INT8
+|   |-- run_leakage_ablation.py        # retrained feature-group leakage ablation
 |   |-- check_consistency.py           # main-vs-fewshot verification
 |   |-- create_manifest.py             # reproducibility manifest
 |   `-- generate_summary_report.py     # auto-generated report
@@ -502,8 +471,8 @@ number is claimed to cover.
   used to evaluate normal-vs-attack detection directly, only inter-attack
   class-incremental discrimination; it is used as a cross-domain stress
   test only (the coarse STIN sweep is a prior, not the final tuning). Its
-  joint/offline accuracy ceiling (~0.64-0.65 for MLP) is itself notably
-  lower than CuCD-ID's, indicating the 9-class discrimination problem is
+  joint/offline accuracy ceiling is notably lower than CuCD-ID's,
+  indicating the 9-class discrimination problem is
   intrinsically harder at this feature set and scale -- not merely a
   continual-learning artefact.
 * **GRU/CNN are architectural stress tests, not temporal models.** Both
@@ -514,7 +483,7 @@ number is claimed to cover.
   independently (Section 7 / `results/RESULTS_SUMMARY.md` Section 5.2) --
   reported as a finding, not adjusted away.
 * **CNN1D underperforms on CuCD-ID** relative to MLP/GRU even after
-  per-method validation tuning (BiC-lite 0.745 vs MLP 0.956), and degrades
+  per-method validation tuning (see the generated main-results matrix), and degrades
   under feature permutation; the residual gap (optimization + structural
   sensitivity) is reported as an open question rather than resolved.
 * **Small task sample counts** (deliberately, to respect the KB-scale
@@ -532,11 +501,11 @@ number is claimed to cover.
   mix consume validation samples that also feed the `V` matrix, so
   validation metrics are not untouched; the test set is. Those calibration
   samples are counted inside the reported uplink budget (see Section 2).
-* **Task-order effect is moderate and unexplained in mechanism.** The
-  disentangled study finds near-identical budget-mode means (~0.01 apart)
-  with a 0.0495 spread of per-order means, although individual runs vary
-  more; whether the remainder is class difficulty or order interaction is
-  flagged as future work rather than resolved here.
+* **Task-order effect is non-trivial and unexplained in mechanism.** The
+  disentangled study reports budget-mode means and per-order spread in the
+  generated task-order table; individual runs vary more still. Whether the
+  remainder is class difficulty or order interaction is flagged as future
+  work rather than resolved here.
 * **Temporal evaluation is a stress estimand, not ground truth.** The
   purged protocol reduces window overlap (0.02 rad TimeRadians purge) but
   the data also exhibits mission-time drift and a T0-frozen scaler; IID

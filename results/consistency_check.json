@@ -1,0 +1,16 @@
+{
+  "status": "pass",
+  "mismatch_count": 0,
+  "k150_max_abs_acc_diff": 0.0,
+  "k150_abs_acc_diffs": {
+    "MLP/replay": 0.0,
+    "MLP/full": 0.0,
+    "MLP/icarl": 0.0,
+    "MLP/bic": 0.0,
+    "GRU/replay": 0.0,
+    "GRU/icarl": 0.0
+  },
+  "seeds_main": 10,
+  "seeds_fewshot": 5,
+  "hyperparameter_source": "results/best_hparams_per_method_arch.json"
+}

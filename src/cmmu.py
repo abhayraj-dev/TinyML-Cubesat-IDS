@@ -198,10 +198,11 @@ class OnlineEWC:
         parameters (trunk + the shared, currently-full-width head) are
         protected -- see module docstring.
 
-        Phase 0: when X_val/y_val are supplied, the Fisher sample is drawn
-        from a class-balanced mix of (X_task, X_val) so old-task curvature
-        is not understated by new-train-only data. Callers may omit them
-        (legacy behaviour: Fisher on X_task only)."""
+        When X_val/y_val are supplied, the Fisher sample is drawn from a
+        class-balanced mix of (X_task, X_val). `train_continual` passes the
+        cumulative validation pool (old + new tasks), so old-task curvature
+        is represented rather than only the current task. Callers may omit
+        them (legacy behaviour: Fisher on X_task only)."""
         protected_names = list(model.params.keys())
         # Phase 0 val-balanced Fisher: mix new-train with val (old+new) so the
         # sample is not dominated by the current task. Balance by class.

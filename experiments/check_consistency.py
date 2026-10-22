@@ -54,6 +54,7 @@ def main():
     # CuCD-ID uplink_n_per_class=150; filter dataset to avoid STIN mixing.
     # Few-shot PLAN covers MLP[replay,full,icarl,bic] + GRU[replay,icarl] only.
     mismatch_count = 0
+    k150_diffs = {}
     PLAN_CHECK = [
         ("MLP", ["replay", "full", "icarl", "bic"]),
         ("GRU", ["replay", "icarl"]),
@@ -70,6 +71,7 @@ def main():
                 main_acc = main_sub.ACC.mean()
                 fs_acc = fs_rows.ACC.mean()
                 diff = abs(main_acc - fs_acc)
+                k150_diffs[f"{arch}/{method}"] = round(float(diff), 6)
 
                 # Also check if hyperparameters match
                 frozen_hp = frozen.get(arch, {}).get(method, {}).get("hparams", {})
@@ -110,30 +112,39 @@ def main():
     print("-" * 70)
     # Assert the frozen file covers every tuned method x architecture and
     # that K=150 numerics already matched above on intersecting seeds.
-    expected_methods = {"finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"}
+    expected_methods = {"finetune", "replay", "ewc", "full", "lwf", "bic",
+                        "icarl", "joint", "joint_scratch"}
     expected_archs = {"MLP", "GRU", "CNN1D"}
     missing = [(a, m) for a in expected_archs for m in expected_methods
                if not frozen.get(a, {}).get(m, {}).get("hparams")]
-    # joint/joint_scratch intentionally untuned (no method-specific knobs)
-    for a in expected_archs:
-        for m in ["joint", "joint_scratch"]:
-            if m in frozen.get(a, {}):
-                print(f"  NOTE: unexpected tuned entry {a}/{m}")
-                mismatch_count += 1
+    extra = [(a, m) for a in frozen for m in frozen.get(a, {})
+             if a not in expected_archs or m not in expected_methods]
+    if extra:
+        print(f"  NOTE: extra frozen entries present: {extra}")
     if missing:
         print(f"  *** WARNING: missing frozen configs: {missing} ***")
         mismatch_count += 1
     else:
         print(f"  OK: frozen configs cover {len(expected_archs)} archs x "
-              f"{len(expected_methods)} methods; joint/joint_scratch use BASE defaults")
+              f"{len(expected_methods)} methods")
 
     print("\n" + "=" * 70)
+    status = "pass" if mismatch_count == 0 else "fail"
     if mismatch_count == 0:
         print("ALL CHECKS PASSED - No inconsistencies detected")
-        return 0
     else:
         print(f"{mismatch_count} ISSUE(S) DETECTED - Review required")
-        return 1
+    with open(os.path.join(RESULTS_DIR, "consistency_check.json"), "w") as f:
+        json.dump({
+            "status": status,
+            "mismatch_count": mismatch_count,
+            "k150_max_abs_acc_diff": max(k150_diffs.values()) if k150_diffs else None,
+            "k150_abs_acc_diffs": k150_diffs,
+            "seeds_main": len(set(main_runs.seed.tolist())),
+            "seeds_fewshot": len(set(fewshot.seed.tolist())),
+            "hyperparameter_source": "results/best_hparams_per_method_arch.json",
+        }, f, indent=2)
+    return 0 if mismatch_count == 0 else 1
 
 
 if __name__ == "__main__":

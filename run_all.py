@@ -16,9 +16,10 @@ Runs the complete experimental pipeline end-to-end for Q2 publication:
   9c. Exploratory CNN arch tune (validation-scored, not applied) experiments/run_arch_tune.py
   7. Ablation studies (frozen val-tuned hparams) experiments/run_ablation.py
   9. Per-class F1 / confusion matrix analysis    experiments/run_per_class_analysis.py
-  10. Paired stats (exact permutation + Holm)    experiments/run_stats.py
+  10. Paired stats (ACC + Macro-F1, Holm)        experiments/run_stats.py
   11. Robustness/quant/memory ledger             experiments/run_robustness.py
-  11b. Main-vs-fewshot consistency check         experiments/check_consistency.py
+  11b. Feature-provenance leakage ablation       experiments/run_leakage_ablation.py
+  11c. Main-vs-fewshot consistency check         experiments/check_consistency.py
 
   REPORTING:
   12. Figures (95% CI, Pareto, dual protocol)   analysis/plots.py
@@ -30,7 +31,8 @@ Usage:
     # or skip the slow Phase-2 block:
     python3 run_all.py --no-phase2
 
-Takes roughly 3-4 hours on a single CPU core (~1,700 total runs).
+Takes roughly 10-14 hours on a single CPU core (several thousand runs); the
+expanded per-method tuning grid dominates runtime.
 All outputs are written to results/ and figures/.
 """
 import subprocess
@@ -54,15 +56,16 @@ STEPS_PHASE2 = [
     ("Exploratory CNN arch tune (validation-scored, not applied)", [sys.executable, "experiments/run_arch_tune.py"]),
     ("Ablation studies", [sys.executable, "experiments/run_ablation.py"]),
     ("Per-class F1 / confusion matrix analysis", [sys.executable, "experiments/run_per_class_analysis.py"]),
-    ("Paired stats (exact permutation + Holm)", [sys.executable, "experiments/run_stats.py"]),
+    ("Paired stats (ACC + Macro-F1, exact permutation + Holm)", [sys.executable, "experiments/run_stats.py"]),
     ("Robustness/quant/memory ledger", [sys.executable, "experiments/run_robustness.py"]),
+    ("Feature-provenance leakage ablation", [sys.executable, "experiments/run_leakage_ablation.py"]),
     ("Main-vs-fewshot consistency check", [sys.executable, "experiments/check_consistency.py"]),
 ]
 
 STEPS_REPORT = [
     ("Figures (CI, Pareto, dual protocol)", [sys.executable, "analysis/plots.py"]),
-    ("Experiment manifest", [sys.executable, "experiments/create_manifest.py"]),
     ("Results summary report", [sys.executable, "experiments/generate_summary_report.py"]),
+    ("Experiment manifest", [sys.executable, "experiments/create_manifest.py"]),
 ]
 
 

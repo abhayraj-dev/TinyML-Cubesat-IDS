@@ -1,10 +1,10 @@
 {
   "project": "cubesat-cl-ids",
-  "version": "q2-submission-v1",
-  "timestamp_utc": "2026-09-21T06:55:15.747280Z",
+  "version": "v5.4",
+  "timestamp_utc": "2026-10-21T19:56:15.849097Z",
   "git": {
-    "commit": "unknown",
-    "status": "unknown"
+    "commit": "118eb05e4c748a9b13275bbceddd4972ac5f6d59",
+    "status": "M .gitignore\n M CHANGELOG.md\n M DATALOG.md\n M PAPER_PLAN.md\n M PROJECT_CONTEXT.md\n M README.md\n M SUPERVISOR_SUMMARY.md\n M analysis/plots.py\n M experiments/check_consistency.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_ablation.py\n M experiments/run_robustness.py\n M experiments/run_stats.py\n M experiments/run_validation_tune.py\n M figures/accuracy_heatmap_CuCD-ID.png\n M figures/accuracy_heatmap_STIN.png\n M figures/architecture_comparison.png\n M figures/buffer_size_sensitivity.png\n M figures/confusion_matrix_STIN_GRU.png\n M figures/ewc_lambda_sensitivity.png\n M figures/fewshot_pareto.png\n M figures/forgetting_curve_task0_CuCD-ID.png\n M figures/forgetting_curve_task0_STIN.png\n M figures/hparam_sweep_heatmap.png\n M figures/memory_footprint.png\n M figures/method_comparison_CuCD-ID.png\n M figures/method_comparison_STIN.png\n M figures/per_class_f1_CuCD-ID_MLP.png\n M figures/per_class_f1_STIN_GRU.png\n M figures/robustness.png\n M figures/task_order_sensitivity.png\n M figures/temporal_bracket.png\n M results/RESULTS_SUMMARY.md\n M results/ablation_buffer_size.csv\n M results/ablation_ewc_lambda.csv\n M results/accuracy_matrices.json\n M results/best_hparams_per_method_arch.json\n M results/confusion_matrices.json\n M results/feature_order_stability.csv\n M results/fewshot.csv\n M results/final_experiment_manifest.json\n M results/hparam_sweep_stin.csv\n M results/main_results_runs.csv\n M results/main_results_summary.csv\n M results/per_class_f1_runs.csv\n M results/per_class_f1_summary.csv\n M results/robustness.csv\n M results/stats_permutation.csv\n M results/task_order_disentangled.csv\n M results/temporal_purged_compare.csv\n M results/validation_tuning_results.csv\n M run_all.py\n M src/cmmu.py\n M src/data_utils.py\n M src/train.py\n M v5_3_project_report_final.md\n?? experiments/run_leakage_ablation.py\n?? figures/leakage_ablation.png\n?? results/consistency_check.json\n?? results/leakage_ablation.csv\n?? results/leakage_ablation_summary.csv\n?? results/stats_permutation_macrof1.csv\n?? v5_4_project_report_final.md"
   },
   "environment": {
     "python_version": "3.14.4",
@@ -24,7 +24,9 @@
         "data_injection",
         "defence_impairment",
         "storage_exhaustion"
-      ]
+      ],
+      "provenance": "Fayyaz et al., Data in Brief (2026), doi:10.1016/j.dib.2026.112598; Mendeley Data doi:10.17632/7n2d42pm3n.3",
+      "collection": "NASA NOS3/cFS software-in-the-loop digital twin; all telemetry simulated"
     },
     "STIN": {
       "path": "data/STIN/SAT20.csv + TER20.csv",
@@ -41,7 +43,9 @@
         "Web Attack",
         "Backdoor",
         "NetBIOS_DDoS"
-      ]
+      ],
+      "provenance": "Li et al., IEEE Access (2020), doi:10.1109/ACCESS.2020.3041641; data: github.com/kun9717/STIN-data-set",
+      "collection": "Flow-based satellite/terrestrial network testbed (SAT20/TER20)"
     }
   },
   "architectures": {
@@ -175,7 +179,9 @@
       "full",
       "lwf",
       "bic",
-      "icarl"
+      "icarl",
+      "joint",
+      "joint_scratch"
     ],
     "grids": {
       "finetune": {
@@ -204,6 +210,10 @@
           0.5,
           0.7,
           0.9
+        ],
+        "epochs": [
+          25,
+          50
         ]
       },
       "ewc": {
@@ -221,28 +231,37 @@
           0.5,
           1.0,
           2.0
+        ],
+        "epochs": [
+          25,
+          50
         ]
       },
       "full": {
         "lr": [
-          0.001,
           0.003,
           0.01
         ],
         "buffer_capacity": [
-          128,
           256,
           512
         ],
         "replay_frac": [
-          0.5,
           0.7,
           0.9
         ],
         "ewc_lambda": [
           100,
-          1000,
-          5000
+          1000
+        ],
+        "ewc_gamma": [
+          0.5,
+          1.0,
+          2.0
+        ],
+        "epochs": [
+          25,
+          50
         ]
       },
       "lwf": {
@@ -260,6 +279,10 @@
           1.5,
           2.0,
           3.0
+        ],
+        "epochs": [
+          25,
+          50
         ]
       },
       "bic": {
@@ -277,6 +300,10 @@
           0.5,
           1.0,
           2.0
+        ],
+        "epochs": [
+          25,
+          50
         ]
       },
       "icarl": {
@@ -294,6 +321,32 @@
           0.5,
           1.0,
           2.0
+        ],
+        "epochs": [
+          25,
+          50
+        ]
+      },
+      "joint": {
+        "lr": [
+          0.001,
+          0.003,
+          0.01
+        ],
+        "epochs": [
+          25,
+          50
+        ]
+      },
+      "joint_scratch": {
+        "lr": [
+          0.001,
+          0.003,
+          0.01
+        ],
+        "epochs": [
+          25,
+          50
         ]
       }
     }
@@ -383,18 +436,38 @@
       "results/robustness.csv",
       "results/memory_ledger.csv"
     ],
-    "stats": "results/stats_permutation.csv",
+    "stats_acc": "results/stats_permutation.csv",
+    "stats_macrof1": "results/stats_permutation_macrof1.csv",
+    "leakage_ablation": [
+      "results/leakage_ablation.csv",
+      "results/leakage_ablation_summary.csv"
+    ],
+    "consistency": "results/consistency_check.json",
     "figures_dir": "figures/",
-    "report": "results/RESULTS_SUMMARY.md"
+    "report": "results/RESULTS_SUMMARY.md",
+    "final_report": "v5_4_project_report_final.md"
   },
   "consistency_checks": {
-    "main_vs_fewshot_k150": "pass",
+    "status": "pass",
+    "mismatch_count": 0,
+    "k150_max_abs_acc_diff": 0.0,
+    "k150_abs_acc_diffs": {
+      "MLP/replay": 0.0,
+      "MLP/full": 0.0,
+      "MLP/icarl": 0.0,
+      "MLP/bic": 0.0,
+      "GRU/replay": 0.0,
+      "GRU/icarl": 0.0
+    },
     "seeds_main": 10,
     "seeds_fewshot": 5,
     "hyperparameter_source": "results/best_hparams_per_method_arch.json"
   },
   "known_limitations": [
     "Simulation-only (no hardware-in-the-loop)",
+    "CuCD-ID is generated in a NOS3/cFS software-in-the-loop digital twin, not captured from an orbiting spacecraft",
+    "Random-split (IID) headline numbers are leakage-optimistic: sliding-window aggregates and scenario/time identifiers can cross train/test boundaries; leakage_ablation.csv quantifies feature-group reliance",
+    "Random-split headline results are not a deployment guarantee; temporal-purged results are a separate forward-extrapolation estimand",
     "STIN has no benign class (no detection metrics)",
     "GRU/CNN use reshaped tabular features (not genuine temporal)",
     "INT8 quantization is simulated round-trip only",
