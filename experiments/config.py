@@ -2,6 +2,8 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from models import CubeSatMLP, CubeSatGRU, CubeSat1DCNN
+from tuning_grids import (VAL_FRAC, CALIB_FRAC, VAL_CAP_PER_CLASS,
+                          CALIB_CAP_PER_CLASS, SELECT_CAP_PER_CLASS)
 
 ARCHS = ["MLP", "GRU", "CNN1D"]
 # Phase 1: lwf (distill-only), bic (replay+distill+BiC), icarl (herding+distill),
@@ -9,7 +11,10 @@ ARCHS = ["MLP", "GRU", "CNN1D"]
 # upper bound). `joint` kept as legacy
 # cumulative warm-start for comparability with old CSVs.
 METHODS = ["finetune", "replay", "ewc", "full", "lwf", "bic", "icarl", "joint", "joint_scratch"]
-SEEDS = list(range(10))  # 10 seeds for Q2 publication
+# 15 seeds: with 216 all-pairwise comparisons, the exact sign-flip floor is
+# 2/2^15 = 6.1e-5, so a Holm-adjusted comparison can reach p<0.05 (10 seeds
+# cannot: 2/2^10 * 216 = 0.42).  The count is fixed before the confirmatory run.
+SEEDS = list(range(15))
 
 MODEL_CLASSES = {"MLP": CubeSatMLP, "GRU": CubeSatGRU, "CNN1D": CubeSat1DCNN}
 
@@ -18,13 +23,40 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "figures")
 
 
+def validate_frozen_hparams(data):
+    """Ensure every architecture/method has a non-empty frozen hparams entry."""
+    problems = []
+    for arch in ARCHS:
+        arch_entry = data.get(arch) if isinstance(data, dict) else None
+        if not isinstance(arch_entry, dict):
+            problems.append(f"{arch}: missing architecture entry")
+            continue
+        for method in METHODS:
+            entry = arch_entry.get(method)
+            if not isinstance(entry, dict):
+                problems.append(f"{arch}/{method}: missing method entry")
+                continue
+            hp = entry.get("hparams")
+            if not isinstance(hp, dict) or not hp:
+                problems.append(f"{arch}/{method}: missing non-empty hparams")
+            elif "lr" not in hp or "epochs" not in hp:
+                problems.append(f"{arch}/{method}: hparams missing lr/epochs")
+    if problems:
+        raise ValueError(
+            "Incomplete frozen hyperparameter file: " + "; ".join(problems)
+            + ". Re-run `python3 experiments/run_validation_tune.py`."
+        )
+    return data
+
+
 def load_frozen_hparams_strict():
     """Load per-method/arch frozen hyperparameters, failing loudly if absent.
 
     Every experiment downstream of validation tuning must call this instead of
-    falling back to legacy or default configs: a missing frozen file means the
-    pipeline ran out of order (or tuning failed), and silently training on
-    wrong hyperparameters would produce a valid-looking but invalid matrix.
+    falling back to legacy or default configs: a missing or incomplete frozen
+    file means the pipeline ran out of order (or tuning failed), and silently
+    training on wrong hyperparameters would produce a valid-looking but
+    invalid matrix.
     """
     import json
     path = os.path.join(RESULTS_DIR, "best_hparams_per_method_arch.json")
@@ -36,7 +68,7 @@ def load_frozen_hparams_strict():
             "Refusing to fall back to legacy/default configs."
         )
     with open(path) as f:
-        return json.load(f)
+        return validate_frozen_hparams(json.load(f))
 
 BASE_TRAIN_HPARAMS = dict(epochs=25, batch_size=32, fisher_n_samples=200)
 

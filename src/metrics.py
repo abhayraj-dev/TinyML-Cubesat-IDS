@@ -255,9 +255,13 @@ def model_persistent_footprint(model, buffer=None, ewc=None):
 
 def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
                              batch_size: int = 32, n_features: int = 22,
-                             n_replay: int = 0):
+                             n_replay: int = 0, retained_state_bytes: int = 0):
     """Estimated peak RAM during training (SRAM usage on MCU).
-    FP32 weights + gradients + Adam states (2x params) + activations + batch + replay batch + teacher + temp."""
+
+    FP32 weights + gradients + Adam states + *batch* activations + current
+    batch + replay batch + teacher + temp + any retained update-time state
+    (e.g. cumulative validation arrays used by EWC/BiC).
+    """
     n_params = model.param_count()
 
     # FP32 model weights (4 bytes each)
@@ -269,9 +273,10 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
     # Adam optimizer states: m and v for each parameter (2 * 4 bytes each)
     adam_bytes = n_params * 4 * 2  # m + v
 
-    # Activations (forward pass, batch=1, FP32)
+    # Activations for the actual minibatch, FP32. The old batch=1 estimate
+    # understated GRU/CNN peak RAM by roughly the batch factor.
     act_floats = _estimate_activation_floats(model, n_features)
-    activations_bytes = act_floats * 4
+    activations_bytes = act_floats * 4 * int(batch_size)
 
     # Training batch (input + labels)
     batch_bytes = batch_size * n_features * 4 + batch_size * 8
@@ -279,8 +284,14 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
     # Replay batch (if applicable)
     replay_batch_bytes = n_replay * n_features * 4 + n_replay * 8 if n_replay > 0 else 0
 
-    # Teacher model (for distillation methods)
-    teacher_bytes = teacher.param_count() * 4 if teacher is not None else 0
+    # Teacher model (for distillation methods): weights + its minibatch
+    # activations. The teacher sees the replay-augmented batch.
+    if teacher is not None:
+        teacher_bytes = teacher.param_count() * 4
+        teacher_bytes += (_estimate_activation_floats(teacher, n_features)
+                          * 4 * int(batch_size + n_replay))
+    else:
+        teacher_bytes = 0
 
     # Temporary buffers (gradients, intermediate computations) ~2x weights
     temp_bytes = n_params * 4 * 2
@@ -293,7 +304,7 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
     buffer_fp32 = buffer.memory_bytes(quantized=False) if buffer is not None else 0
     ewc_fp32 = ewc.memory_bytes(bytes_per_val=4) if ewc is not None else 0
 
-    peak_bytes += buffer_fp32 + ewc_fp32
+    peak_bytes += buffer_fp32 + ewc_fp32 + int(retained_state_bytes)
 
     return {
         "peak_weights_bytes_fp32": weights_bytes,
@@ -306,6 +317,7 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
         "peak_temp_bytes_fp32": temp_bytes,
         "peak_buffer_bytes_fp32": buffer_fp32,
         "peak_ewc_bytes_fp32": ewc_fp32,
+        "peak_retained_state_bytes": int(retained_state_bytes),
         "peak_total_bytes": peak_bytes,
         "peak_total_KB": peak_bytes / 1024.0,
     }

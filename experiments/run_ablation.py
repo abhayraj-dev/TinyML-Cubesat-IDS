@@ -12,9 +12,12 @@ NOTE: the legacy 3-permutation task-order ablation was removed here; the
 disentangled 12-permutation study (`run_task_order.py`,
 `task_order_disentangled.csv`) supersedes it (see results/legacy/README.md).
 """
-import sys, os, json, itertools
+import sys, os, json, itertools, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
+
+from parallel import configure_single_thread, describe, parallel_map, get_jobs
+configure_single_thread()
 
 import numpy as np
 import pandas as pd
@@ -22,7 +25,8 @@ import pandas as pd
 import data_utils as du
 from train import train_continual
 from metrics import compute_cl_metrics
-from config import MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR, BASE_TRAIN_HPARAMS, SEEDS
+from config import (MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR,
+                    BASE_TRAIN_HPARAMS, SEEDS, VAL_FRAC)
 
 
 def load_frozen_hparams():
@@ -44,56 +48,76 @@ def get_frozen_hp(frozen_hparams, arch, method):
     return frozen_hparams.get(arch, {}).get(method, {}).get("hparams", {})
 
 
-def ablation_buffer_size(cucd_df, stin_df, frozen_hparams):
-    rows = []
-    capacities = [32, 64, 128, 256, 512, 1024]
-    for dset_name, df, builder in [("CuCD-ID", cucd_df, du.build_cucd_id_tasks),
-                                    ("STIN", stin_df, du.build_stin_tasks)]:
-        for arch in ["MLP", "GRU", "CNN1D"]:
-            # Use frozen hparams for full/arch
-            base_hp = get_frozen_hp(frozen_hparams, arch, "full")
-            for cap in capacities:
-                for seed in SEEDS:
-                    ts = builder(df, seed=seed, val_frac=0.10)
-                    mk = model_kwargs_for(arch, ts.n_features)
-                    hp = {**BASE_TRAIN_HPARAMS, **base_hp, "buffer_capacity": cap}
-                    out = train_continual(MODEL_CLASSES[arch], mk, ts, "full", hp, seed=seed)
-                    m = compute_cl_metrics(out["R"])
-                    rows.append(dict(dataset=dset_name, arch=arch, buffer_capacity=cap, seed=seed, **m))
-    df_out = pd.DataFrame(rows)
-    df_out.to_csv(os.path.join(RESULTS_DIR, "ablation_buffer_size.csv"), index=False)
-    print("\n[Ablation A] Buffer capacity sensitivity, all 3 architectures (mean over seeds):")
-    print(df_out.groupby(["dataset", "arch", "buffer_capacity"])[["ACC", "BWT", "FM"]].mean().round(4))
-    return df_out
+CAPACITIES = [32, 64, 128, 256, 512, 1024]
+LAMBDAS = [0, 10, 100, 1000, 5000, 20000, 50000]
+ARCHS_ABL = ["MLP", "GRU", "CNN1D"]
+_FROZEN = None
+_TS = {}
 
 
-def ablation_ewc_lambda(cucd_df, stin_df, frozen_hparams):
-    rows = []
-    lambdas = [0, 10, 100, 1000, 5000, 20000, 50000]
-    for dset_name, df, builder in [("CuCD-ID", cucd_df, du.build_cucd_id_tasks),
-                                    ("STIN", stin_df, du.build_stin_tasks)]:
-        for arch in ["MLP", "GRU", "CNN1D"]:
-            base_hp = get_frozen_hp(frozen_hparams, arch, "full")
-            for lam in lambdas:
-                for seed in SEEDS:
-                    ts = builder(df, seed=seed, val_frac=0.10)
-                    mk = model_kwargs_for(arch, ts.n_features)
-                    hp = {**BASE_TRAIN_HPARAMS, **base_hp, "ewc_lambda": lam}
-                    out = train_continual(MODEL_CLASSES[arch], mk, ts, "full", hp, seed=seed)
-                    m = compute_cl_metrics(out["R"])
-                    rows.append(dict(dataset=dset_name, arch=arch, ewc_lambda=lam, seed=seed, **m))
-    df_out = pd.DataFrame(rows)
-    df_out.to_csv(os.path.join(RESULTS_DIR, "ablation_ewc_lambda.csv"), index=False)
-    print("\n[Ablation B] EWC lambda sensitivity, both datasets x 3 architectures (mean over seeds):")
-    print(df_out.groupby(["dataset", "arch", "ewc_lambda"])[["ACC", "BWT", "FM"]].mean().round(4))
-    return df_out
+def _run_one(item):
+    dset_name, arch, kind, value, seed = item
+    ts = _TS[(dset_name, seed)]
+    base_hp = get_frozen_hp(_FROZEN, arch, "full")
+    if kind == "buffer":
+        hp = {**BASE_TRAIN_HPARAMS, **base_hp, "buffer_capacity": value}
+        row_key = {"buffer_capacity": value}
+    else:
+        hp = {**BASE_TRAIN_HPARAMS, **base_hp, "ewc_lambda": value}
+        row_key = {"ewc_lambda": value}
+    mk = model_kwargs_for(arch, ts.n_features)
+    out = train_continual(MODEL_CLASSES[arch], mk, ts, "full", hp, seed=seed)
+    m = compute_cl_metrics(out["R"])
+    return dict(dataset=dset_name, arch=arch, seed=seed, **row_key, **m)
 
 
 def main():
-    frozen_hparams = load_frozen_hparams()
+    global _FROZEN, _TS
+    _FROZEN = load_frozen_hparams()
     cucd_df, stin_df = get_task_seqs()
-    ablation_buffer_size(cucd_df, stin_df, frozen_hparams)
-    ablation_ewc_lambda(cucd_df, stin_df, frozen_hparams)
+    for seed in SEEDS:
+        _TS[("CuCD-ID", seed)] = du.build_cucd_id_tasks(
+            cucd_df, seed=seed, val_frac=VAL_FRAC)
+        _TS[("STIN", seed)] = du.build_stin_tasks(
+            stin_df, seed=seed, val_frac=VAL_FRAC)
+
+    items = (
+        [(dset, arch, "buffer", cap, seed)
+         for dset in ("CuCD-ID", "STIN")
+         for arch in ARCHS_ABL
+         for cap in CAPACITIES
+         for seed in SEEDS]
+        + [(dset, arch, "ewc", lam, seed)
+           for dset in ("CuCD-ID", "STIN")
+           for arch in ARCHS_ABL
+           for lam in LAMBDAS
+           for seed in SEEDS]
+    )
+    jobs = get_jobs()
+    print(f"Ablations: {len(items)} runs; {describe(jobs)}")
+    t0 = time.perf_counter()
+    rows = []
+    for i, row in enumerate(parallel_map(_run_one, items, jobs=jobs), 1):
+        rows.append(row)
+        if i % 30 == 0 or i == len(items):
+            print(f"  [{i}/{len(items)}] {row['dataset']} {row['arch']} "
+                  f"({time.perf_counter()-t0:.0f}s)")
+
+    df = pd.DataFrame(rows)
+    buf = df[df.get("buffer_capacity").notna()].copy()
+    ewc = df[df.get("ewc_lambda").notna()].copy()
+    buf.to_csv(os.path.join(RESULTS_DIR, "ablation_buffer_size.csv"), index=False)
+    ewc.to_csv(os.path.join(RESULTS_DIR, "ablation_ewc_lambda.csv"), index=False)
+
+    print("\n[Ablation A] Buffer capacity sensitivity, all 3 architectures "
+          "(mean over seeds):")
+    print(buf.groupby(["dataset", "arch", "buffer_capacity"])[["ACC", "BWT", "FM"]]
+          .mean().round(4))
+    print("\n[Ablation B] EWC lambda sensitivity, both datasets x 3 architectures "
+          "(mean over seeds):")
+    print(ewc.groupby(["dataset", "arch", "ewc_lambda"])[["ACC", "BWT", "FM"]]
+          .mean().round(4))
+    print(f"\nDone ({time.perf_counter()-t0:.0f}s)")
 
 
 if __name__ == "__main__":

@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import numpy as np
 from models import CubeSatMLP, CubeSatGRU, CubeSat1DCNN
 from losses import softmax_cross_entropy
+from train import _distill_dlogits
+from cmmu import OnlineEWC
 
 
 def _to_float64(model):
@@ -54,6 +56,66 @@ def numeric_grad_check(model, X, y, eps=1e-5, n_check=8, tol=1e-2):
     assert worst < tol, "Gradient check failed"
 
 
+def check_distill_gradient(seed=3):
+    """Finite-difference check of the KD gradient (old-class columns only)."""
+    rng = np.random.default_rng(seed)
+    student = rng.standard_normal((6, 5)).astype(np.float64)
+    teacher = rng.standard_normal((6, 3)).astype(np.float64)
+    T, lam = 2.0, 0.7
+
+    def kd_loss(z):
+        p_t = np.exp(teacher / T); p_t /= p_t.sum(1, keepdims=True)
+        zz = z[:, :3] / T
+        p_s = np.exp(zz - zz.max(1, keepdims=True))
+        p_s /= p_s.sum(1, keepdims=True)
+        return lam * T * T * np.sum(p_t * (np.log(np.clip(p_t, 1e-12, None)) -
+                                          np.log(np.clip(p_s, 1e-12, None)))) / len(z)
+
+    analytic = _distill_dlogits(student, teacher, T, lam)
+    eps = 1e-6
+    worst = 0.0
+    for idx in [(0, 0), (1, 1), (2, 2), (0, 4), (5, 3)]:
+        z = student.copy()
+        z[idx] += eps
+        lp = kd_loss(z)
+        z[idx] -= 2 * eps
+        lm = kd_loss(z)
+        num = (lp - lm) / (2 * eps)
+        err = abs(num - analytic[idx]) / max(1.0, abs(num) + abs(analytic[idx]))
+        worst = max(worst, err)
+    assert worst < 1e-5, f"KD gradient error {worst}"
+    print(f"  -> KD gradient worst error: {worst:.2e}")
+
+
+def check_ewc_penalty_gradient(seed=4):
+    """Finite-difference check of the EWC quadratic penalty gradient."""
+    rng = np.random.default_rng(seed)
+    m = CubeSatMLP(input_dim=7, h1=5, h2=4, seed=seed)
+    m.expand_head(3)
+    ewc = OnlineEWC(lam=3.0, gamma=1.0)
+    ewc.fisher = {k: rng.random(v.shape) for k, v in m.params.items()}
+    ewc.anchor = {k: v.copy() for k, v in m.params.items()}
+    ewc._consolidated = True
+    grads = ewc.penalty_grad(m.params)
+    eps = 1e-6
+    worst = 0.0
+    for name in list(m.params)[:3]:
+        arr = m.params[name]
+        idx = tuple(0 for _ in arr.shape)
+        orig = arr[idx]
+        arr[idx] = orig + eps
+        lp = ewc.penalty_loss(m.params)
+        arr[idx] = orig - eps
+        lm = ewc.penalty_loss(m.params)
+        arr[idx] = orig
+        num = (lp - lm) / (2 * eps)
+        ana = grads[name][idx]
+        err = abs(num - ana) / max(1.0, abs(num) + abs(ana))
+        worst = max(worst, err)
+    assert worst < 1e-5, f"EWC penalty gradient error {worst}"
+    print(f"  -> EWC penalty gradient worst error: {worst:.2e}")
+
+
 def main():
     rng = np.random.default_rng(42)
     N, F = 9, 12
@@ -83,6 +145,12 @@ def main():
     m.expand_head(2)          # task 1: 2 more classes appended (now 4 total)
     y4 = rng.integers(0, 4, size=N)
     numeric_grad_check(m, X, y4)
+
+    print("\n== KD gradient ==")
+    check_distill_gradient()
+
+    print("\n== EWC penalty gradient ==")
+    check_ewc_penalty_gradient()
 
     print("\nALL GRADIENT CHECKS PASSED")
 

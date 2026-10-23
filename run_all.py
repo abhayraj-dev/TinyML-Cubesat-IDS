@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Runs the complete experimental pipeline end-to-end for Q2 publication:
+Runs the complete experimental pipeline end-to-end for the confirmatory study:
 
   CORE (Phase 1 - validation-based tuning + main matrix):
   1. Gradient checks (sanity)                    tests/test_gradients.py
   2. Hyperparameter sweep on STIN (val-based)    experiments/run_hparam_sweep.py
   3. Per-method/arch validation tuning (NEW)     experiments/run_validation_tune.py
-  4. Main experiment matrix (10 seeds)           experiments/run_main.py
+  4. Main experiment matrix (15 seeds)           experiments/run_main.py
 
   PHASE 2 (RQ evidence, dual-protocol evaluation):
   5. Purged temporal evaluation (0.02 rad TimeRadians ~22s equiv.) experiments/run_purged_temporal.py
@@ -31,8 +31,8 @@ Usage:
     # or skip the slow Phase-2 block:
     python3 run_all.py --no-phase2
 
-Takes roughly 10-14 hours on a single CPU core (several thousand runs); the
-expanded per-method tuning grid dominates runtime.
+Uses 4 worker processes by default (CL_JOBS or --jobs overrides); each worker
+is pinned to one BLAS thread.  Expect roughly 4-6 hours on a 4-core laptop.
 All outputs are written to results/ and figures/.
 """
 import subprocess
@@ -42,10 +42,14 @@ import os
 
 
 STEPS_CORE = [
+    ("BiC composition regression test", [sys.executable, "tests/test_bic.py"]),
+    ("Exact p-value floor test", [sys.executable, "tests/test_stats_pvalue.py"]),
+    ("Task-order split/scaler invariance", [sys.executable, "tests/test_task_order.py"]),
+    ("Disjoint calibration/selection split", [sys.executable, "tests/test_calib_split.py"]),
     ("Gradient checks", [sys.executable, "tests/test_gradients.py"]),
     ("Hyperparameter sweep (STIN, val-based)", [sys.executable, "experiments/run_hparam_sweep.py"]),
     ("Per-method/arch validation tuning (NEW)", [sys.executable, "experiments/run_validation_tune.py"]),
-    ("Main experiment matrix (10 seeds)", [sys.executable, "experiments/run_main.py"]),
+    ("Main experiment matrix (15 seeds)", [sys.executable, "experiments/run_main.py"]),
 ]
 
 STEPS_PHASE2 = [
@@ -55,6 +59,7 @@ STEPS_PHASE2 = [
     ("Disentangled task-order study (frozen)", [sys.executable, "experiments/run_task_order.py"]),
     ("Exploratory CNN arch tune (validation-scored, not applied)", [sys.executable, "experiments/run_arch_tune.py"]),
     ("Ablation studies", [sys.executable, "experiments/run_ablation.py"]),
+    ("Matched-memory / EWC-lambda controls", [sys.executable, "experiments/run_baseline_controls.py"]),
     ("Per-class F1 / confusion matrix analysis", [sys.executable, "experiments/run_per_class_analysis.py"]),
     ("Paired stats (ACC + Macro-F1, exact permutation + Holm)", [sys.executable, "experiments/run_stats.py"]),
     ("Robustness/quant/memory ledger", [sys.executable, "experiments/run_robustness.py"]),
@@ -72,6 +77,14 @@ STEPS_REPORT = [
 def main():
     root = os.path.dirname(os.path.abspath(__file__))
     os.chdir(root)
+
+    os.environ.setdefault("CL_JOBS", "4")
+    for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+                "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
+                "BLIS_NUM_THREADS"):
+        os.environ[var] = "1"
+    print(f"Parallel pipeline: CL_JOBS={os.environ['CL_JOBS']}, "
+          "one BLAS thread per worker")
     steps = list(STEPS_CORE)
     if "--no-phase2" not in sys.argv:
         steps += STEPS_PHASE2

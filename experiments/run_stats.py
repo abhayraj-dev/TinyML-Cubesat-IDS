@@ -1,15 +1,17 @@
 """Paired statistical comparisons (exact paired permutation test + Holm).
 
 Reads results/main_results_runs.csv and writes:
-  results/stats_permutation.csv          — ACC headline comparisons
+  results/stats_permutation.csv          — ACC all-pairwise comparisons
   results/stats_permutation_macrof1.csv  — Macro-F1 (primary metric) comparisons
 
-Both files cover CuCD-ID and STIN across matched seeds (n=10), with mean diff,
-95% CI, Cohen's d, exact permutation p-value, and Holm-adjusted p-value.
-Holm correction is applied across every comparison within a metric.
+The family is every unordered method pair within each dataset x architecture
+(216 comparisons per metric), fixed before looking at results. Both files
+cover CuCD-ID and STIN across matched seeds (n=15), with mean diff, 95% CI,
+Cohen's d, exact permutation p-value, and Holm-adjusted p-value. Holm is
+applied across the whole metric-specific family.
 
 The p-value is computed by EXACT enumeration over all 2^n sign-flip
-permutations (n=10 -> 1024, trivial). No SciPy dependency, no Monte Carlo.
+permutations (n=15 -> 32768). No SciPy dependency, no Monte Carlo.
 """
 import sys
 import os
@@ -26,7 +28,7 @@ from config import RESULTS_DIR
 def paired_permutation_test(x, y):
     """Exact paired permutation test (sign-flip test for paired differences).
     Enumerates all 2^n sign assignments (exact for n <= 20; falls back to
-    full enumeration regardless since headline n=10 -> 1024 permutations).
+    full enumeration regardless since n=15 -> 32768 permutations).
     Returns p-value, 95% CI for mean difference, Cohen's d."""
     x = np.asarray(x, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
@@ -45,11 +47,15 @@ def paired_permutation_test(x, y):
     n_perms = 2 ** n
     count = 0
     abs_obs = abs(mean_diff)
+    # Exact enumeration is still floating point. Without a tolerance the
+    # all-positive/all-negative assignments can miss the observed statistic by
+    # one ulp, producing the impossible p=0. The minimum exact p is 2/2^n.
+    tol = 1e-12 * max(1.0, abs_obs)
     for mask in range(n_perms):
         s = 0.0
         for i in range(n):
             s += diff[i] if (mask >> i) & 1 else -diff[i]
-        if abs(s / n) >= abs_obs:
+        if abs(s / n) >= abs_obs - tol:
             count += 1
     p = float(count) / float(n_perms)
 
@@ -80,38 +86,34 @@ def holm_correction(p_values):
     return result
 
 
-HEADLINE_COMPARISONS = [
-    ("CuCD-ID", "MLP", "icarl", "replay"),
-    ("CuCD-ID", "MLP", "icarl", "full"),
-    ("CuCD-ID", "MLP", "icarl", "bic"),
-    ("CuCD-ID", "MLP", "replay", "finetune"),
-    ("CuCD-ID", "MLP", "full", "finetune"),
-    ("CuCD-ID", "GRU", "icarl", "replay"),
-    ("CuCD-ID", "GRU", "icarl", "full"),
-    ("CuCD-ID", "CNN1D", "bic", "replay"),
-    ("CuCD-ID", "CNN1D", "bic", "icarl"),
-    ("STIN", "MLP", "bic", "replay"),
-    ("STIN", "MLP", "bic", "joint_scratch"),
-    ("STIN", "MLP", "replay", "finetune"),
-    ("STIN", "MLP", "full", "finetune"),
-    ("STIN", "MLP", "bic", "full"),
-    ("STIN", "GRU", "icarl", "replay"),
-    ("STIN", "GRU", "icarl", "full"),
-    ("STIN", "GRU", "replay", "finetune"),
-    ("STIN", "GRU", "joint", "joint_scratch"),
-    ("STIN", "CNN1D", "bic", "replay"),
-    ("STIN", "CNN1D", "bic", "icarl"),
-    ("STIN", "CNN1D", "icarl", "replay"),
-    ("STIN", "CNN1D", "replay", "finetune"),
-    ("STIN", "CNN1D", "joint", "joint_scratch"),
-]
+COMPARISON_FAMILY = "all_pairwise_within_dataset_arch"
+
+
+def build_comparisons(df):
+    """Every unordered method pair within each dataset x architecture.
+
+    The confirmatory family is fixed by design, not selected after looking at
+    which differences were largest.  Holm correction is applied across the
+    whole metric-specific family.
+    """
+    comparisons = []
+    for dset in ["CuCD-ID", "STIN"]:
+        for arch in sorted(df[df.dataset == dset].arch.unique()):
+            methods = [m for m in [
+                "finetune", "replay", "ewc", "full", "lwf",
+                "bic", "icarl", "joint", "joint_scratch",
+            ] if m in set(df[(df.dataset == dset) & (df.arch == arch)].method)]
+            for method_a, method_b in itertools.combinations(methods, 2):
+                comparisons.append((dset, arch, method_a, method_b))
+    return comparisons
 
 
 def run_metric(df, metric, suffix):
     rows = []
     all_p_values = []
+    comparisons = build_comparisons(df)
 
-    for dset, arch, method_a, method_b in HEADLINE_COMPARISONS:
+    for dset, arch, method_a, method_b in comparisons:
         g = df[(df.dataset == dset) & (df.arch == arch)]
         if len(g) == 0:
             continue
@@ -127,6 +129,7 @@ def run_metric(df, metric, suffix):
         all_p_values.append(res["p"])
 
         rows.append(dict(
+            comparison_family=COMPARISON_FAMILY,
             dataset=dset, arch=arch, method_a=method_a, method_b=method_b,
             metric=metric, n=len(seeds),
             mean_a=float(xa.mean()), mean_b=float(xb.mean()),
@@ -144,8 +147,11 @@ def run_metric(df, metric, suffix):
     out_path = os.path.join(RESULTS_DIR, f"stats_permutation{suffix}.csv")
     out.to_csv(out_path, index=False)
 
-    print(f"\nWrote {len(out)} headline comparisons to {out_path}")
-    for _, row in out.iterrows():
+    n_sig = int((out["p_holm"] < 0.05).sum()) if len(out) else 0
+    print(f"\nWrote {len(out)} pre-specified pairwise comparisons to {out_path}")
+    print(f"  {n_sig}/{len(out)} survive Holm p<0.05")
+    top = out.reindex(out["mean_diff"].abs().sort_values(ascending=False).index).head(12)
+    for _, row in top.iterrows():
         sig = "**" if row["p_holm"] < 0.05 else ("*" if row["p_holm"] < 0.1 else "")
         print(f"  {row['dataset']:7s} {row['arch']:5s} {row['method_a']:8s} vs "
               f"{row['method_b']:8s}: Δ={row['mean_diff']:+.3f} "

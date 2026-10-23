@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
+from config import SEEDS
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
@@ -48,7 +50,7 @@ def main():
             if h:
                 print(f"  Frozen: {arch:5s}/{method:10s} -> {h}")
 
-    print("\n2. MAIN vs FEW-SHOT (K=150) CONSISTENCY CHECK")
+    print("\n2. MAIN vs FEW-SHOT (K=150, fixed-calibration) CONSISTENCY CHECK")
     print("-" * 70)
     # K=150 in few-shot (CuCD-ID only) should correspond to main matrix
     # CuCD-ID uplink_n_per_class=150; filter dataset to avoid STIN mixing.
@@ -62,7 +64,10 @@ def main():
     for arch, methods in PLAN_CHECK:
         for method in methods:
             main_rows = main_runs[(main_runs.dataset == "CuCD-ID") & (main_runs.arch == arch) & (main_runs.method == method)]
-            fs_rows = fewshot[(fewshot.arch == arch) & (fewshot.method == method) & (fewshot.K == 150)]
+            fs_rows = fewshot[
+                (fewshot.arch == arch) & (fewshot.method == method)
+                & (fewshot.K == 150)
+                & (fewshot.calibration_protocol == "fixed")]
 
             if len(main_rows) > 0 and len(fs_rows) > 0:
                 # Compare on intersecting seeds only (main has 10, few-shot has 5)
@@ -90,14 +95,14 @@ def main():
 
     print("\n3. SEED CONSISTENCY CHECK")
     print("-" * 70)
-    # Check that main experiment used 10 seeds
+    # Check that main experiment used the pre-specified seed set
     main_seeds = sorted(main_runs.seed.unique())
     print(f"Main experiment seeds: {main_seeds}")
-    if main_seeds != list(range(10)):
-        print(f"  *** WARNING: Expected seeds 0-9, got {main_seeds} ***")
+    if main_seeds != list(SEEDS):
+        print(f"  *** WARNING: Expected seeds {SEEDS}, got {main_seeds} ***")
         mismatch_count += 1
     else:
-        print("  OK: 10 seeds (0-9) used")
+        print(f"  OK: {len(SEEDS)} seeds used")
 
     # Check few-shot used 5 seeds
     fs_seeds = sorted(fewshot.seed.unique())

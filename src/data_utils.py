@@ -22,7 +22,7 @@ unambiguous). The mapping from local index to the model's actual global
 head-column index is resolved dynamically, at training time, in
 `src/train.py`, based on the order tasks are actually processed in -- this
 is what allows the same TaskSequence to be safely replayed in a different
-task order (see experiments/run_ablation.py's task-order-sensitivity study)
+task order (see experiments/run_task_order.py's task-order-sensitivity study)
 without corrupting label alignment.
 
 Design rationale for the sample budgets: the operational concept behind
@@ -42,8 +42,68 @@ import json
 from dataclasses import dataclass
 from typing import List
 
+import hashlib
+
 import numpy as np
 import pandas as pd
+
+
+def permute_task_features(task: "Task", perm) -> None:
+    """Apply the same feature permutation to every array attached to a task."""
+    perm = np.asarray(perm)
+    for name in ("X_train", "X_test", "X_val", "X_calib", "X_select"):
+        arr = getattr(task, name, None)
+        if arr is not None:
+            setattr(task, name, arr[:, perm])
+
+
+def _stable_seed(class_names) -> int:
+    """Stable 32-bit seed from class identity (not task position).
+
+    Task-order permutations reuse the same class-level split, so the seed must
+    not depend on task_id/position.  Python's hash() is salted per process, so
+    use SHA-256 instead.
+    """
+    key = "|".join(str(c) for c in class_names).encode("utf-8")
+    return int.from_bytes(hashlib.sha256(key).digest()[:4], "big")
+
+
+def _split_calib_select(X_val: np.ndarray, y_val: np.ndarray, class_names,
+                        calib_frac: float = 0.5):
+    """Deterministically split validation rows into disjoint calibration and
+    selection halves, stratified by class.
+
+    The split must be identical for every method/architecture and for every
+    task-order permutation; it must not consume the caller's RNG.  The seed is
+    derived from the task's class identity, not its position.
+    """
+    X_val = np.asarray(X_val)
+    y_val = np.asarray(y_val)
+    if X_val.size == 0:
+        return None, None, None, None
+    rng = np.random.default_rng(0xC0FFEE ^ _stable_seed(class_names))
+    calib_idx, select_idx = [], []
+    for c in np.unique(y_val):
+        idx = np.flatnonzero(y_val == c)
+        perm = rng.permutation(len(idx))
+        idx = idx[perm]
+        n = len(idx)
+        if n == 1:
+            # One row cannot be split; use it for calibration (the only
+            # consumer that can fail loudly if empty) and leave selection empty.
+            n_cal = 1
+        else:
+            n_cal = int(round(n * float(calib_frac)))
+            n_cal = min(max(1, n_cal), n - 1)
+        calib_idx.extend(idx[:n_cal].tolist())
+        select_idx.extend(idx[n_cal:].tolist())
+    calib_idx = np.asarray(calib_idx, dtype=np.int64)
+    select_idx = np.asarray(select_idx, dtype=np.int64)
+    X_calib = X_val[calib_idx] if len(calib_idx) else None
+    y_calib = y_val[calib_idx] if len(calib_idx) else None
+    X_select = X_val[select_idx] if len(select_idx) else None
+    y_select = y_val[select_idx] if len(select_idx) else None
+    return X_calib, y_calib, X_select, y_select
 
 
 # --------------------------------------------------------------------------- #
@@ -64,10 +124,36 @@ class Task:
     # + calibration). Optional so old Task(...) call sites keep working.
     X_val: np.ndarray = None
     y_val: np.ndarray = None         # LOCAL ids, same convention
+    # Confirmatory split of X_val into two disjoint halves.  Calibration is
+    # used to fit BiC / EWC Fisher; selection is used only for hyperparameter
+    # scoring.  Builders may populate them explicitly; otherwise
+    # __post_init__ performs a deterministic stratified split.
+    X_calib: np.ndarray = None
+    y_calib: np.ndarray = None
+    X_select: np.ndarray = None
+    y_select: np.ndarray = None
+    calib_frac: float = 0.5
+
+    def __post_init__(self):
+        if self.X_val is None or len(self.X_val) == 0:
+            return
+        if self.X_calib is not None and self.X_select is not None:
+            return
+        self.X_calib, self.y_calib, self.X_select, self.y_select = \
+            _split_calib_select(self.X_val, self.y_val, self.class_names,
+                                self.calib_frac)
 
     @property
     def has_val(self) -> bool:
         return self.X_val is not None and len(self.X_val) > 0
+
+    @property
+    def has_calib(self) -> bool:
+        return self.X_calib is not None and len(self.X_calib) > 0
+
+    @property
+    def has_select(self) -> bool:
+        return self.X_select is not None and len(self.X_select) > 0
 
     @property
     def n_new_classes(self) -> int:
@@ -89,16 +175,17 @@ class Task:
         onboard by BiC calibration and val-balanced Fisher estimation. These
         must be uplinked alongside the adaptation CSV for the onboard update
         to reproduce the reported results."""
-        if self.X_val is None or len(self.X_val) == 0:
+        if self.X_calib is None or len(self.X_calib) == 0:
             return 0
-        return int(self.X_val.nbytes + self.y_val.nbytes)
+        return int(self.X_calib.nbytes + self.y_calib.nbytes)
 
     @property
     def uplink_calib_bytes_int8(self) -> int:
-        """Packed INT8 calibration payload (val features + labels)."""
-        if self.X_val is None or len(self.X_val) == 0:
+        """Packed INT8 calibration payload (calibration features + labels)."""
+        if self.X_calib is None or len(self.X_calib) == 0:
             return 0
-        return int(self.X_val.shape[0] * self.X_val.shape[1] * 1 + self.X_val.shape[0] * 1)
+        return int(self.X_calib.shape[0] * self.X_calib.shape[1] * 1
+                   + self.X_calib.shape[0] * 1)
 
 
 @dataclass
@@ -316,6 +403,12 @@ def _assert_split_integrity(tasks):
         if task.has_val:
             assert task.X_val.shape[0] == task.y_val.shape[0], \
                 f"Task {i}: X_val/y_val shape mismatch"
+        if task.has_calib:
+            assert task.X_calib.shape[0] == task.y_calib.shape[0], \
+                f"Task {i}: X_calib/y_calib shape mismatch"
+        if task.has_select:
+            assert task.X_select.shape[0] == task.y_select.shape[0], \
+                f"Task {i}: X_select/y_select shape mismatch"
 
 
 # --------------------------------------------------------------------------- #
@@ -335,8 +428,8 @@ def build_cucd_id_tasks(
     test_frac: float = 0.30,
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
     split_mode: str = "random",
 ) -> TaskSequence:
     rng = np.random.default_rng(seed)
@@ -403,26 +496,56 @@ def build_cucd_id_tasks_order(
     test_frac: float = 0.30,
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
     budget_mode: str = "fixed_position",
 ) -> TaskSequence:
-    """Phase 2c: disentangled task-order builder for CuCD-ID.
+    """Disentangled task-order builder for CuCD-ID.
 
     order: permutation of [0,1,2,3] giving which canonical task's classes are
     introduced at each position. budget_mode:
       - "fixed_position": position 0 always gets initial_n_per_class, later
-        positions get uplink_n_per_class (isolates class-order effects).
+        positions get uplink_n_per_class.
       - "moves_with_task": each task keeps its original budget wherever it is
-        processed (reproduces the confounded legacy ablation).
-    Scaler is fit on position-0 train (launch preprocessor), as before.
+        processed.
+
+    To isolate processing order, every order reuses the *same* per-class
+    train/val/test indices and the *same* pre-launch scaler. The scaler is fit
+    once on the canonical launch corpus (normal + command_flooding), not on
+    whichever task happens to occupy position 0. Each class has a common
+    700-row train draw; later positions take a prefix of that same draw, so a
+    class's 150-row uplink subset is nested inside its 700-row pool across
+    orders. This removes the previous order-dependent split/scaler confound.
     """
+    order = [int(x) for x in order]
     assert sorted(order) == [0, 1, 2, 3], order
     assert budget_mode in ("fixed_position", "moves_with_task")
     rng = np.random.default_rng(seed)
     feature_cols = [c for c in df.columns if c not in ("Label", "label_name")]
+    base_n = max(int(initial_n_per_class), int(uplink_n_per_class))
+
+    # One canonical draw per class, independent of processing order.
+    base = {}
+    for _, class_list in CUCD_TASK_DEFS:
+        for lbl in class_list:
+            idx = df.index[df["label_name"] == lbl].to_numpy().copy()
+            train_pool, val_pool, test_idx = _stratified_train_val_test_split(
+                idx, test_frac, val_frac, rng)
+            base[lbl] = {
+                "train": _draw(train_pool, base_n, rng),
+                "val": _draw(val_pool, min(len(val_pool), val_cap_per_class), rng),
+                "test": test_idx,
+            }
+
+    # Fixed pre-launch normalizer: canonical task-0 training rows only.
+    launch_class_list = CUCD_TASK_DEFS[0][1]
+    launch_X = np.concatenate([
+        df.loc[base[lbl]["train"][:initial_n_per_class], feature_cols].to_numpy(dtype=np.float32)
+        for lbl in launch_class_list
+    ], axis=0)
+    scaler_mean, scaler_std = _fit_scaler(launch_X)
+
     tasks, class_names_global = [], []
-    scaler_mean = scaler_std = None
     for pos, t_orig in enumerate(order):
         tname, class_list = CUCD_TASK_DEFS[t_orig]
         if budget_mode == "fixed_position":
@@ -432,11 +555,9 @@ def build_cucd_id_tasks_order(
         Xs_train, ys_train, Xs_test, ys_test, Xs_val, ys_val = [], [], [], [], [], []
         for local_c, lbl in enumerate(class_list):
             class_names_global.append(lbl)
-            idx = df.index[df["label_name"] == lbl].to_numpy().copy()
-            train_pool, val_pool, test_idx = _stratified_train_val_test_split(
-                idx, test_frac, val_frac, rng)
-            train_idx = _draw(train_pool, n_per_class, rng)
-            val_idx = _draw(val_pool, min(len(val_pool), val_cap_per_class), rng)
+            train_idx = base[lbl]["train"][:n_per_class]
+            val_idx = base[lbl]["val"]
+            test_idx = base[lbl]["test"]
             Xs_train.append(df.loc[train_idx, feature_cols].to_numpy(dtype=np.float32))
             ys_train.append(np.full(len(train_idx), local_c, dtype=np.int64))
             Xs_test.append(df.loc[test_idx, feature_cols].to_numpy(dtype=np.float32))
@@ -450,20 +571,17 @@ def build_cucd_id_tasks_order(
         y_test = np.concatenate(ys_test, axis=0)
         X_val = np.concatenate(Xs_val, axis=0) if Xs_val else None
         y_val = np.concatenate(ys_val, axis=0) if ys_val else None
-        if pos == 0:
-            scaler_mean, scaler_std = _fit_scaler(X_train)
         X_train = _apply_scaler(X_train, scaler_mean, scaler_std)
         X_test = _apply_scaler(X_test, scaler_mean, scaler_std)
         if X_val is not None:
             X_val = _apply_scaler(X_val, scaler_mean, scaler_std)
-        perm = rng.permutation(len(X_train))
-        X_train, y_train = X_train[perm], y_train[perm]
         tasks.append(Task(task_id=pos, name=f"pos{pos}_{tname}", class_names=class_list,
                           X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
                           X_val=X_val, y_val=y_val))
     _assert_split_integrity(tasks)
+    order_tag = "-".join(str(x) for x in order)
     return TaskSequence("CuCD-ID", tasks, feature_cols, scaler_mean, scaler_std,
-                        class_names_global, split_mode=f"random-order{list(order)}-{budget_mode}",
+                        class_names_global, split_mode=f"random-order{order_tag}-{budget_mode}",
                         val_frac=val_frac)
 
 
@@ -484,8 +602,8 @@ def build_stin_tasks(
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
     max_test_per_class: int = 1200,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
     split_mode: str = "random",
 ) -> TaskSequence:
     rng = np.random.default_rng(seed)
@@ -569,8 +687,8 @@ def build_cucd_id_tasks_temporal(
     test_frac: float = 0.30,
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
 ) -> TaskSequence:
     rng = np.random.default_rng(seed)
     feature_cols = [c for c in df.columns if c not in ("Label", "label_name")]
@@ -623,8 +741,8 @@ def build_stin_tasks_temporal(
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
     max_test_per_class: int = 1200,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
 ) -> TaskSequence:
     rng = np.random.default_rng(seed)
     feature_cols = [c for c in df.columns if c not in ("id", "Label", "label_name")]
@@ -680,9 +798,10 @@ def build_cucd_id_tasks_purged_temporal(
     test_frac: float = 0.30,
     initial_n_per_class: int = 700,
     uplink_n_per_class: int = 150,
-    val_frac: float = 0.10,
-    val_cap_per_class: int = 150,
+    val_frac: float = 0.20,
+    val_cap_per_class: int = 300,
     purge_time_rad: float = 0.02,
+    feature_drop=None,
 ) -> TaskSequence:
     """Leakage-safe temporal split with purge gaps on TimeRadians.
     Layout per class: [train_pool | purge | val | purge | test]
@@ -691,7 +810,9 @@ def build_cucd_id_tasks_purged_temporal(
     and the documented 20-22s window-clearing pauses in CuCD-ID."""
     import warnings
     rng = np.random.default_rng(seed)
-    feature_cols = [c for c in df.columns if c not in ("Label", "label_name")]
+    drop = set(feature_drop or [])
+    feature_cols = [c for c in df.columns
+                    if c not in ("Label", "label_name") and c not in drop]
     tasks, class_names_global = [], []
     scaler_mean = scaler_std = None
     for t, (tname, class_list) in enumerate(CUCD_TASK_DEFS):

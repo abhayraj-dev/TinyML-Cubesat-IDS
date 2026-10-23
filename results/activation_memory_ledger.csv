@@ -1,0 +1,4 @@
+arch,act_fwd_floats,SIM_act_fwd_KB,SIM_act_train_KB,seq_len,SIM_act_fwd_KB_batch32,SIM_act_train_KB_batch32
+MLP,101,0.395,0.789,,12.625,25.25
+GRU,775,3.027,6.055,11.0,96.875,193.75
+CNN1D,719,2.809,5.617,,89.875,179.75

@@ -14,13 +14,17 @@ import sys, os, json, itertools, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
 
+from parallel import configure_single_thread, describe, parallel_map, get_jobs
+configure_single_thread()
+
 import numpy as np
 import pandas as pd
 
 import data_utils as du
 from train import train_continual
 from metrics import compute_cl_metrics
-from config import MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR, BASE_TRAIN_HPARAMS
+from config import (MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR,
+                    BASE_TRAIN_HPARAMS, VAL_FRAC)
 
 GRID = dict(
     lr=[1e-3, 3e-3],
@@ -30,31 +34,42 @@ GRID = dict(
 )
 
 
+_TS = None
+_MK = None
+
+
+def _run_combo(hp):
+    full_hp = {**BASE_TRAIN_HPARAMS, **hp}
+    out = train_continual(MODEL_CLASSES["MLP"], _MK, _TS, "full", full_hp, seed=0)
+    if out.get("V") is None or np.all(np.isnan(out["V"])):
+        raise RuntimeError("No selection rows for STIN sweep")
+    m = compute_cl_metrics(out["V"])
+    score = m["ACC"] - max(m["FM"], 0.0)
+    return {**hp, **m, "score": score}
+
+
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     df = du.load_stin(os.path.join(DATA_DIR, "STIN", "SAT20.csv"),
                        os.path.join(DATA_DIR, "STIN", "TER20.csv"))
-    ts = du.build_stin_tasks(df, seed=0, val_frac=0.10)
+    ts = du.build_stin_tasks(df, seed=0, val_frac=VAL_FRAC)
     model_kwargs = model_kwargs_for("MLP", ts.n_features)
 
     rows = []
     keys = list(GRID.keys())
     combos = list(itertools.product(*[GRID[k] for k in keys]))
-    print(f"Running {len(combos)} hyperparameter combinations on STIN (MLP, method=full, val_frac=0.10)...")
+    global _TS, _MK
+    _TS, _MK = ts, model_kwargs
+    items = [dict(zip(keys, combo)) for combo in combos]
+    jobs = get_jobs()
+    print(f"Running {len(items)} hyperparameter combinations on STIN "
+          f"(MLP, method=full, val_frac={VAL_FRAC}); {describe(jobs)}")
     t0 = time.perf_counter()
-    for i, combo in enumerate(combos):
-        hp = dict(zip(keys, combo))
-        full_hp = {**BASE_TRAIN_HPARAMS, **hp}
-        out = train_continual(MODEL_CLASSES["MLP"], model_kwargs, ts, "full", full_hp, seed=0)
-        # Use VALIDATION metrics for selection (no test leakage)
-        if "V" in out and out["V"] is not None:
-            m = compute_cl_metrics(out["V"])
-        else:
-            m = compute_cl_metrics(out["R"])
-        score = m["ACC"] - max(m["FM"], 0.0)
-        rows.append({**hp, **m, "score": score})
-        if (i + 1) % 20 == 0:
-            print(f"  {i+1}/{len(combos)} done ({time.perf_counter()-t0:.1f}s elapsed)")
+    rows = []
+    for i, row in enumerate(parallel_map(_run_combo, items, jobs=jobs), 1):
+        rows.append(row)
+        if i % 20 == 0 or i == len(items):
+            print(f"  {i}/{len(items)} done ({time.perf_counter()-t0:.1f}s elapsed)")
 
     res = pd.DataFrame(rows).sort_values("score", ascending=False).reset_index(drop=True)
     res.to_csv(os.path.join(RESULTS_DIR, "hparam_sweep_stin.csv"), index=False)

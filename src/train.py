@@ -56,8 +56,9 @@ DEFAULT_HPARAMS = dict(
     batch_size=32,
     ewc_lambda=1000.0,
     ewc_gamma=1.0,  # fallback only: frozen per-arch configs always override
-                    # (MLP 0.5 / GRU 2.0 / CNN 0.5); gamma is treated as a
-                    # validation-tuned weighting parameter, not a decay factor
+                    # (EWC-only: MLP 0.5 / GRU 1.0 / CNN 0.5); gamma is
+                    # treated as a validation-tuned weighting parameter, not
+                    # a decay factor
     fisher_n_samples=200,
     buffer_capacity=128,
     replay_frac=0.5,
@@ -181,6 +182,10 @@ class BiasCorrector:
             alphas = np.concatenate([[1.0], np.linspace(0.1, 2.0, 12)])
         if betas is None:
             betas = np.array([0.0])
+        # Apply corrections from earlier stages before fitting this stage.
+        # Otherwise stage t is selected against uncorrected logits, so the
+        # deployed sequence of corrections is not the sequence that was fitted.
+        logits_val = self.apply(logits_val)
         best = {"n_old": n_old, "n_new": n_new, "alpha": 1.0, "beta": 0.0, "acc": -1.0}
         for a in alphas:
             for b in betas:
@@ -225,8 +230,8 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
     per_task_train_seconds = []
     joint_pool = []          # for method="joint"/"joint_scratch": list of (X, y_global)
     seen_tasks = []          # list of (X_test, y_test_global) for tasks processed so far
-    seen_val_tasks = []      # list of (X_val, y_val_global) for validation evaluation
-    seen_val = []            # Phase 0: (X_val, y_val_global) for BiasCorrector fitting
+    seen_val_tasks = []      # list of (X_select, y_select_global) for validation SCORING
+    seen_val = []            # list of (X_calib, y_calib_global) for BiC/Fisher fitting
     class_offset = 0         # cumulative #classes introduced so far, in PROCESSING order
     n_classes_before = []    # n_old at each stage (for bias correction)
     last_teacher = None      # frozen teacher from the most recent incremental stage (for peak-RAM accounting)
@@ -253,7 +258,8 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
             model.expand_head(task.n_new_classes)
         y_train_global = task.y_train + class_offset
         y_test_global = task.y_test + class_offset
-        y_val_global = task.y_val + class_offset if task.y_val is not None else None
+        y_calib_global = task.y_calib + class_offset if task.y_calib is not None else None
+        y_select_global = task.y_select + class_offset if task.y_select is not None else None
         class_offset += task.n_new_classes
 
         if method in ("joint", "joint_scratch"):
@@ -300,9 +306,10 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
         #      shared head (no task ID / no restriction to a subset of
         #      classes -- this is the crux of the class-incremental setting) ----
         seen_tasks.append((task.X_test, y_test_global))
-        if task.X_val is not None and y_val_global is not None:
-            seen_val.append((task.X_val, y_val_global))
-            seen_val_tasks.append((task.X_val, y_val_global))
+        if task.X_calib is not None and y_calib_global is not None:
+            seen_val.append((task.X_calib, y_calib_global))
+        if task.X_select is not None and y_select_global is not None:
+            seen_val_tasks.append((task.X_select, y_select_global))
         # Phase 1 BiC: fit one bias stage on held-out val (frozen model) before
         # eval; full (alpha,beta) grid for method="bic", alpha-only for the
         # generic bias_correction hook.
@@ -321,7 +328,7 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
                 logits = corrector.apply(logits)
             preds = logits.argmax(axis=1)
             R[t, j] = float((preds == yj).mean())
-        # Validation accuracy matrix (for hyperparameter selection, no test leakage)
+        # Validation accuracy matrix on the DISJOINT selection half only.
         for j, (Xj, yj) in enumerate(seen_val_tasks):
             logits, _ = model.forward(Xj)
             if corrector is not None and corrector.fitted:
@@ -350,8 +357,8 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
             else:
                 buffer.add_batch(task.X_train, y_train_global, t)
         if ewc is not None:
-            # Use the cumulative validation pool (all tasks seen so far), not
-            # only the current task's val slice. The old behaviour estimated
+            # Use the cumulative calibration pool (all tasks seen so far), not
+            # only the current task's calibration slice. The old behaviour estimated
             # Fisher on one new class at a time, which understated old-task
             # curvature and made the running estimate depend on task order.
             if seen_val:

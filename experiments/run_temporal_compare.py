@@ -23,17 +23,17 @@ import data_utils as du
 from train import train_continual
 from metrics import compute_cl_metrics
 from config import (MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR,
-                    BASE_TRAIN_HPARAMS)
-from run_main import load_best_hparams, final_detection_metrics
+                    BASE_TRAIN_HPARAMS, VAL_FRAC,
+                    load_frozen_hparams_strict)
+from run_main import final_detection_metrics
 
 METHODS = ["replay", "icarl", "bic", "joint_scratch"]
 SEEDS = [0, 1, 2, 3, 4]
-VAL_FRAC = 0.10
 
 
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    best_hp = load_best_hparams()
+    frozen = load_frozen_hparams_strict()
     cucd_df = du.load_cucd_id(os.path.join(DATA_DIR, "CuCD-ID", "noised_dataset.csv"),
                               os.path.join(DATA_DIR, "CuCD-ID", "label_schema.json"))
     rows = []
@@ -48,7 +48,8 @@ def main():
                 else:
                     ts = du.build_cucd_id_tasks_temporal(cucd_df, seed=seed, val_frac=VAL_FRAC)
                 mk = model_kwargs_for("MLP", ts.n_features)
-                hp = {**BASE_TRAIN_HPARAMS, **best_hp}
+                hp = {**BASE_TRAIN_HPARAMS,
+                      **frozen.get("MLP", {}).get(method, {}).get("hparams", {})}
                 out = train_continual(MODEL_CLASSES["MLP"], mk, ts, method, hp, seed=seed)
                 m = compute_cl_metrics(out["R"])
                 det = final_detection_metrics(ts, out)

@@ -1,0 +1,562 @@
+test_bic: OK
+test_stats_pvalue: OK 0.001953125
+test_task_order: OK
+test_calib_split: OK
+== CubeSatMLP ==
+  -> worst combined error: 0.000000 over 42 checked entries (0 failing)
+== CubeSatGRU ==
+  -> worst combined error: 0.000000 over 77 checked entries (0 failing)
+== CubeSat1DCNN ==
+  -> worst combined error: 0.000533 over 36 checked entries (0 failing)
+== Growing head (class-incremental) gradient check ==
+  -> worst combined error: 0.000000 over 41 checked entries (0 failing)
+  -> worst combined error: 0.000000 over 43 checked entries (0 failing)
+
+== KD gradient ==
+  -> KD gradient worst error: 9.19e-11
+
+== EWC penalty gradient ==
+  -> EWC penalty gradient worst error: 0.00e+00
+
+ALL GRADIENT CHECKS PASSED
+Running 160 hyperparameter combinations on STIN (MLP, method=full, val_frac=0.2); 4 worker process(es), one BLAS thread per worker
+  20/160 done (10.4s elapsed)
+  40/160 done (20.3s elapsed)
+  60/160 done (29.9s elapsed)
+  80/160 done (40.3s elapsed)
+  100/160 done (48.3s elapsed)
+  120/160 done (57.8s elapsed)
+  140/160 done (68.6s elapsed)
+  160/160 done (78.5s elapsed)
+
+Top 5 configurations:
+   lr  ewc_lambda  buffer_capacity  replay_frac      ACC       BWT       FM    score
+0.001        1000              256          0.9 0.682222 -0.145556 0.145556 0.536667
+0.001         100             1024          0.9 0.692593 -0.163333 0.163333 0.529259
+0.001         100              128          0.9 0.651111 -0.185556 0.185556 0.465556
+0.003         100             1024          0.7 0.700741 -0.237778 0.237778 0.462963
+0.003         100             1024          0.9 0.698519 -0.247778 0.247778 0.450741
+
+Selected optimal hyperparameters (frozen for all further experiments):
+{
+  "lr": 0.001,
+  "ewc_lambda": 1000.0,
+  "buffer_capacity": 256,
+  "replay_frac": 0.9
+}
+
+Total sweep time: 78.6s
+Total tuning runs: 2268 (252 combos x 3 archs x 3 seeds)
+Parallelism: 4 worker process(es), one BLAS thread per worker
+Selection uses the disjoint selection half only; BiC/EWC fit on the calibration half.
+  [100/2268] MLP ewc seed=0 ACC=0.303 (38.9s)
+  [200/2268] MLP ewc seed=1 ACC=0.250 (80.1s)
+  [300/2268] MLP full seed=2 ACC=0.867 (124.6s)
+  [400/2268] MLP lwf seed=0 ACC=0.250 (171.9s)
+  [500/2268] MLP lwf seed=1 ACC=0.250 (210.8s)
+  [600/2268] MLP bic seed=2 ACC=0.989 (331.2s)
+  [700/2268] MLP icarl seed=0 ACC=0.943 (458.9s)
+  [800/2268] GRU replay seed=1 ACC=0.551 (637.4s)
+  [900/2268] GRU ewc seed=2 ACC=0.460 (906.5s)
+  [1000/2268] GRU ewc seed=0 ACC=0.292 (1190.0s)
+  [1100/2268] GRU full seed=1 ACC=0.473 (1391.2s)
+  [1200/2268] GRU lwf seed=2 ACC=0.250 (1550.3s)
+  [1300/2268] GRU bic seed=0 ACC=0.828 (1717.3s)
+  [1400/2268] GRU icarl seed=1 ACC=0.412 (1937.5s)
+  [1500/2268] GRU joint_scratch seed=2 ACC=0.987 (2222.4s)
+  [1600/2268] CNN1D replay seed=0 ACC=0.850 (2370.0s)
+  [1700/2268] CNN1D ewc seed=1 ACC=0.250 (2523.3s)
+  [1800/2268] CNN1D full seed=2 ACC=0.287 (2684.0s)
+  [1900/2268] CNN1D full seed=0 ACC=0.631 (2851.6s)
+  [2000/2268] CNN1D lwf seed=1 ACC=0.250 (2986.2s)
+  [2100/2268] CNN1D bic seed=2 ACC=0.867 (3205.7s)
+  [2200/2268] CNN1D icarl seed=0 ACC=0.758 (3427.4s)
+  [2268/2268] CNN1D joint_scratch seed=2 ACC=0.980 (3655.0s)
+    MLP/finetune: best_val_score=-0.7468, hparams={'lr': 0.001, 'epochs': 25}
+    MLP/replay: best_val_score=0.9814, hparams={'lr': 0.003, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+    MLP/ewc: best_val_score=-0.7046, hparams={'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 50}
+    MLP/full: best_val_score=0.9706, hparams={'lr': 0.01, 'buffer_capacity': 256, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+    MLP/lwf: best_val_score=-0.7383, hparams={'lr': 0.001, 'distill_lambda': 1.0, 'distill_T': 1.5, 'epochs': 50}
+    MLP/bic: best_val_score=0.9919, hparams={'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 1.0, 'epochs': 50}
+    MLP/icarl: best_val_score=0.9853, hparams={'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    MLP/joint: best_val_score=0.9964, hparams={'lr': 0.001, 'epochs': 50}
+    MLP/joint_scratch: best_val_score=0.9956, hparams={'lr': 0.003, 'epochs': 25}
+    GRU/finetune: best_val_score=-0.7339, hparams={'lr': 0.001, 'epochs': 25}
+    GRU/replay: best_val_score=0.8555, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+    GRU/ewc: best_val_score=0.0894, hparams={'lr': 0.001, 'ewc_lambda': 5000, 'ewc_gamma': 1.0, 'epochs': 25}
+    GRU/full: best_val_score=0.1166, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+    GRU/lwf: best_val_score=-0.6471, hparams={'lr': 0.001, 'distill_lambda': 2.0, 'distill_T': 3.0, 'epochs': 25}
+    GRU/bic: best_val_score=0.9119, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    GRU/icarl: best_val_score=0.8443, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    GRU/joint: best_val_score=0.9701, hparams={'lr': 0.003, 'epochs': 25}
+    GRU/joint_scratch: best_val_score=0.9945, hparams={'lr': 0.003, 'epochs': 50}
+    CNN1D/finetune: best_val_score=-0.6931, hparams={'lr': 0.001, 'epochs': 50}
+    CNN1D/replay: best_val_score=0.5628, hparams={'lr': 0.01, 'buffer_capacity': 128, 'replay_frac': 0.9, 'epochs': 50}
+    CNN1D/ewc: best_val_score=-0.7252, hparams={'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+    CNN1D/full: best_val_score=0.3061, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+    CNN1D/lwf: best_val_score=-0.7252, hparams={'lr': 0.001, 'distill_lambda': 0.5, 'distill_T': 1.5, 'epochs': 25}
+    CNN1D/bic: best_val_score=0.7702, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    CNN1D/icarl: best_val_score=0.5342, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    CNN1D/joint: best_val_score=0.9919, hparams={'lr': 0.01, 'epochs': 50}
+    CNN1D/joint_scratch: best_val_score=0.9696, hparams={'lr': 0.01, 'epochs': 50}
+
+=== Tuning Complete (3655.1s) ===
+Best configs saved to: /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/best_hparams_per_method_arch.json
+Summary of best validation scores:
+
+  MLP:
+    finetune  : val_score=-0.7468, hparams={'lr': 0.001, 'epochs': 25}
+    replay    : val_score=0.9814, hparams={'lr': 0.003, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+    ewc       : val_score=-0.7046, hparams={'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 50}
+    full      : val_score=0.9706, hparams={'lr': 0.01, 'buffer_capacity': 256, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+    lwf       : val_score=-0.7383, hparams={'lr': 0.001, 'distill_lambda': 1.0, 'distill_T': 1.5, 'epochs': 50}
+    bic       : val_score=0.9919, hparams={'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 1.0, 'epochs': 50}
+    icarl     : val_score=0.9853, hparams={'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    joint     : val_score=0.9964, hparams={'lr': 0.001, 'epochs': 50}
+    joint_scratch: val_score=0.9956, hparams={'lr': 0.003, 'epochs': 25}
+
+  GRU:
+    finetune  : val_score=-0.7339, hparams={'lr': 0.001, 'epochs': 25}
+    replay    : val_score=0.8555, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+    ewc       : val_score=0.0894, hparams={'lr': 0.001, 'ewc_lambda': 5000, 'ewc_gamma': 1.0, 'epochs': 25}
+    full      : val_score=0.1166, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+    lwf       : val_score=-0.6471, hparams={'lr': 0.001, 'distill_lambda': 2.0, 'distill_T': 3.0, 'epochs': 25}
+    bic       : val_score=0.9119, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    icarl     : val_score=0.8443, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    joint     : val_score=0.9701, hparams={'lr': 0.003, 'epochs': 25}
+    joint_scratch: val_score=0.9945, hparams={'lr': 0.003, 'epochs': 50}
+
+  CNN1D:
+    finetune  : val_score=-0.6931, hparams={'lr': 0.001, 'epochs': 50}
+    replay    : val_score=0.5628, hparams={'lr': 0.01, 'buffer_capacity': 128, 'replay_frac': 0.9, 'epochs': 50}
+    ewc       : val_score=-0.7252, hparams={'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+    full      : val_score=0.3061, hparams={'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+    lwf       : val_score=-0.7252, hparams={'lr': 0.001, 'distill_lambda': 0.5, 'distill_T': 1.5, 'epochs': 25}
+    bic       : val_score=0.7702, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    icarl     : val_score=0.5342, hparams={'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+    joint     : val_score=0.9919, hparams={'lr': 0.01, 'epochs': 50}
+    joint_scratch: val_score=0.9696, hparams={'lr': 0.01, 'epochs': 50}
+Using nested-validation frozen hyperparameters
+Validation protocol: 20% total, split 50/50 into disjoint calibration and selection halves
+Main matrix: 810 runs; 4 worker process(es), one BLAS thread per worker
+  [10/810] CuCD-ID MLP finetune seed=9 ACC=0.288 BWT=-0.950 (1.7s)
+  [20/810] CuCD-ID MLP replay seed=4 ACC=0.997 BWT=-0.002 (4.3s)
+  [30/810] CuCD-ID MLP replay seed=14 ACC=0.989 BWT=-0.007 (7.8s)
+  [40/810] CuCD-ID MLP ewc seed=9 ACC=0.250 BWT=-1.000 (11.7s)
+  [50/810] CuCD-ID MLP full seed=4 ACC=0.990 BWT=-0.012 (15.5s)
+  [60/810] CuCD-ID MLP full seed=14 ACC=0.959 BWT=-0.053 (18.6s)
+  [70/810] CuCD-ID MLP lwf seed=9 ACC=0.252 BWT=-0.997 (21.1s)
+  [80/810] CuCD-ID MLP bic seed=4 ACC=0.994 BWT=0.001 (30.7s)
+  [90/810] CuCD-ID MLP bic seed=14 ACC=0.990 BWT=-0.002 (47.3s)
+  [100/810] CuCD-ID MLP icarl seed=9 ACC=0.989 BWT=-0.006 (69.1s)
+  [110/810] CuCD-ID MLP joint seed=4 ACC=0.997 BWT=-0.002 (76.5s)
+  [120/810] CuCD-ID MLP joint seed=14 ACC=0.994 BWT=-0.001 (87.3s)
+  [130/810] CuCD-ID MLP joint_scratch seed=9 ACC=0.996 BWT=-0.003 (90.0s)
+  [140/810] CuCD-ID GRU finetune seed=4 ACC=0.259 BWT=-0.987 (97.4s)
+  [150/810] CuCD-ID GRU finetune seed=14 ACC=0.354 BWT=-0.860 (110.8s)
+  [160/810] CuCD-ID GRU replay seed=9 ACC=0.913 BWT=-0.097 (128.4s)
+  [170/810] CuCD-ID GRU ewc seed=4 ACC=0.465 BWT=-0.352 (148.2s)
+  [180/810] CuCD-ID GRU ewc seed=14 ACC=0.456 BWT=-0.403 (170.3s)
+  [190/810] CuCD-ID GRU full seed=9 ACC=0.594 BWT=-0.528 (193.0s)
+  [200/810] CuCD-ID GRU lwf seed=4 ACC=0.275 BWT=-0.961 (213.3s)
+  [210/810] CuCD-ID GRU lwf seed=14 ACC=0.311 BWT=-0.911 (230.4s)
+  [220/810] CuCD-ID GRU bic seed=9 ACC=0.900 BWT=-0.068 (281.3s)
+  [230/810] CuCD-ID GRU icarl seed=4 ACC=0.909 BWT=-0.105 (332.6s)
+  [240/810] CuCD-ID GRU icarl seed=14 ACC=0.884 BWT=-0.125 (395.3s)
+  [250/810] CuCD-ID GRU joint seed=9 ACC=0.956 BWT=-0.023 (444.7s)
+  [260/810] CuCD-ID GRU joint_scratch seed=4 ACC=0.992 BWT=-0.003 (520.5s)
+  [270/810] CuCD-ID GRU joint_scratch seed=14 ACC=0.984 BWT=-0.011 (618.1s)
+  [280/810] CuCD-ID CNN1D finetune seed=9 ACC=0.258 BWT=-0.983 (649.7s)
+  [290/810] CuCD-ID CNN1D replay seed=4 ACC=0.743 BWT=-0.335 (678.0s)
+  [300/810] CuCD-ID CNN1D replay seed=14 ACC=0.703 BWT=-0.388 (708.1s)
+  [310/810] CuCD-ID CNN1D ewc seed=9 ACC=0.250 BWT=-0.980 (727.7s)
+  [320/810] CuCD-ID CNN1D full seed=4 ACC=0.461 BWT=-0.683 (755.3s)
+  [330/810] CuCD-ID CNN1D full seed=14 ACC=0.440 BWT=-0.711 (791.2s)
+  [340/810] CuCD-ID CNN1D lwf seed=9 ACC=0.250 BWT=-0.980 (806.3s)
+  [350/810] CuCD-ID CNN1D bic seed=4 ACC=0.923 BWT=-0.042 (840.1s)
+  [360/810] CuCD-ID CNN1D bic seed=14 ACC=0.863 BWT=-0.116 (890.5s)
+  [370/810] CuCD-ID CNN1D icarl seed=9 ACC=0.827 BWT=-0.226 (939.8s)
+  [380/810] CuCD-ID CNN1D joint seed=4 ACC=0.992 BWT=-0.004 (1025.6s)
+  [390/810] CuCD-ID CNN1D joint seed=14 ACC=0.989 BWT=0.000 (1112.8s)
+  [400/810] CuCD-ID CNN1D joint_scratch seed=9 ACC=0.988 BWT=-0.002 (1220.5s)
+  [410/810] STIN MLP finetune seed=4 ACC=0.283 BWT=-0.949 (1265.4s)
+  [420/810] STIN MLP finetune seed=14 ACC=0.285 BWT=-0.928 (1265.4s)
+  [430/810] STIN MLP replay seed=9 ACC=0.636 BWT=-0.371 (1265.4s)
+  [440/810] STIN MLP ewc seed=4 ACC=0.240 BWT=-0.930 (1268.2s)
+  [450/810] STIN MLP ewc seed=14 ACC=0.271 BWT=-0.927 (1276.8s)
+  [460/810] STIN MLP full seed=9 ACC=0.641 BWT=-0.378 (1286.7s)
+  [470/810] STIN MLP lwf seed=4 ACC=0.285 BWT=-0.937 (1295.4s)
+  [480/810] STIN MLP lwf seed=14 ACC=0.285 BWT=-0.927 (1303.1s)
+  [490/810] STIN MLP bic seed=9 ACC=0.682 BWT=-0.082 (1328.1s)
+  [500/810] STIN MLP icarl seed=4 ACC=0.640 BWT=-0.417 (1354.8s)
+  [510/810] STIN MLP icarl seed=14 ACC=0.669 BWT=-0.366 (1380.4s)
+  [520/810] STIN MLP joint seed=9 ACC=0.681 BWT=-0.047 (1403.5s)
+  [530/810] STIN MLP joint_scratch seed=4 ACC=0.672 BWT=-0.192 (1412.7s)
+  [540/810] STIN MLP joint_scratch seed=14 ACC=0.671 BWT=-0.164 (1421.8s)
+  [550/810] STIN GRU finetune seed=9 ACC=0.333 BWT=-0.628 (1444.5s)
+  [560/810] STIN GRU replay seed=4 ACC=0.669 BWT=-0.335 (1480.4s)
+  [570/810] STIN GRU replay seed=14 ACC=0.675 BWT=-0.365 (1526.6s)
+  [580/810] STIN GRU ewc seed=9 ACC=0.329 BWT=-0.460 (1552.4s)
+  [590/810] STIN GRU full seed=4 ACC=0.566 BWT=-0.407 (1584.8s)
+  [600/810] STIN GRU full seed=14 ACC=0.585 BWT=-0.421 (1611.1s)
+  [610/810] STIN GRU lwf seed=9 ACC=0.266 BWT=-0.467 (1635.2s)
+  [620/810] STIN GRU bic seed=4 ACC=0.688 BWT=-0.245 (1695.9s)
+  [630/810] STIN GRU bic seed=14 ACC=0.700 BWT=-0.045 (1771.4s)
+  [640/810] STIN GRU icarl seed=9 ACC=0.681 BWT=-0.362 (1832.1s)
+  [650/810] STIN GRU joint seed=4 ACC=0.689 BWT=0.003 (1878.8s)
+  [660/810] STIN GRU joint seed=14 ACC=0.686 BWT=-0.156 (1940.3s)
+  [670/810] STIN GRU joint_scratch seed=9 ACC=0.667 BWT=-0.052 (2046.6s)
+  [680/810] STIN CNN1D finetune seed=4 ACC=0.271 BWT=-0.881 (2126.7s)
+  [690/810] STIN CNN1D finetune seed=14 ACC=0.230 BWT=-0.791 (2173.8s)
+  [700/810] STIN CNN1D replay seed=9 ACC=0.610 BWT=-0.406 (2223.1s)
+  [710/810] STIN CNN1D ewc seed=4 ACC=0.229 BWT=-0.779 (2269.1s)
+  [720/810] STIN CNN1D ewc seed=14 ACC=0.214 BWT=-0.775 (2300.5s)
+  [730/810] STIN CNN1D full seed=9 ACC=0.541 BWT=-0.404 (2348.1s)
+  [740/810] STIN CNN1D lwf seed=4 ACC=0.279 BWT=-0.781 (2386.6s)
+  [750/810] STIN CNN1D lwf seed=14 ACC=0.280 BWT=-0.789 (2412.2s)
+  [760/810] STIN CNN1D bic seed=9 ACC=0.578 BWT=-0.443 (2485.6s)
+  [770/810] STIN CNN1D icarl seed=4 ACC=0.626 BWT=-0.417 (2569.4s)
+  [780/810] STIN CNN1D icarl seed=14 ACC=0.579 BWT=-0.416 (2656.2s)
+  [790/810] STIN CNN1D joint seed=9 ACC=0.604 BWT=-0.012 (2809.6s)
+  [800/810] STIN CNN1D joint_scratch seed=4 ACC=0.604 BWT=0.000 (2941.5s)
+  [810/810] STIN CNN1D joint_scratch seed=14 ACC=0.641 BWT=-0.170 (3085.7s)
+
+Done. Total time: 3085.9s
+810 runs written to results/main_results_runs.csv
+
+Summary (ACC_mean):
+method           bic    ewc  finetune  ...  joint_scratch    lwf  replay
+dataset arch                           ...                              
+CuCD-ID CNN1D  0.873  0.250     0.280  ...          0.984  0.250   0.709
+        GRU    0.919  0.438     0.262  ...          0.989  0.296   0.922
+        MLP    0.992  0.274     0.263  ...          0.997  0.259   0.989
+STIN    CNN1D  0.629  0.241     0.262  ...          0.616  0.248   0.589
+        GRU    0.673  0.309     0.294  ...          0.649  0.270   0.659
+        MLP    0.687  0.269     0.288  ...          0.654  0.285   0.648
+
+[6 rows x 9 columns]
+Purged temporal: 270 runs; 4 worker process(es), one BLAS thread per worker
+  [20/270] finetune temporal_purged seed=9 ACC=0.188 (6.4s)
+  [40/270] replay iid seed=9 ACC=0.988 (14.3s)
+  [60/270] replay temporal_purged_no_leaky_features seed=9 ACC=0.125 (24.5s)
+  [80/270] ewc temporal_purged seed=9 ACC=0.243 (35.5s)
+  [100/270] full iid seed=9 ACC=0.984 (46.7s)
+  [120/270] full temporal_purged_no_leaky_features seed=9 ACC=0.043 (58.6s)
+  [140/270] lwf temporal_purged seed=9 ACC=0.249 (69.7s)
+  [160/270] bic iid seed=9 ACC=0.989 (102.3s)
+  [180/270] bic temporal_purged_no_leaky_features seed=9 ACC=0.154 (145.3s)
+  [200/270] icarl temporal_purged seed=9 ACC=0.280 (194.3s)
+  [220/270] joint iid seed=9 ACC=0.993 (231.7s)
+  [240/270] joint temporal_purged_no_leaky_features seed=9 ACC=0.186 (264.5s)
+  [260/270] joint_scratch temporal_purged seed=9 ACC=0.219 (277.4s)
+  [270/270] joint_scratch temporal_purged_no_leaky_features seed=9 ACC=0.036 (285.1s)
+
+Mean ACC by (method, protocol):
+                                                  mean    std
+method        protocol                                       
+bic           iid                                0.993  0.002
+              temporal_purged                    0.251  0.077
+              temporal_purged_no_leaky_features  0.171  0.117
+ewc           iid                                0.286  0.067
+              temporal_purged                    0.209  0.104
+              temporal_purged_no_leaky_features  0.250  0.000
+finetune      iid                                0.269  0.045
+              temporal_purged                    0.218  0.044
+              temporal_purged_no_leaky_features  0.250  0.000
+full          iid                                0.945  0.079
+              temporal_purged                    0.251  0.086
+              temporal_purged_no_leaky_features  0.184  0.083
+icarl         iid                                0.992  0.003
+              temporal_purged                    0.245  0.091
+              temporal_purged_no_leaky_features  0.155  0.110
+joint         iid                                0.996  0.002
+              temporal_purged                    0.202  0.104
+              temporal_purged_no_leaky_features  0.132  0.093
+joint_scratch iid                                0.996  0.001
+              temporal_purged                    0.139  0.066
+              temporal_purged_no_leaky_features  0.152  0.093
+lwf           iid                                0.263  0.038
+              temporal_purged                    0.209  0.063
+              temporal_purged_no_leaky_features  0.250  0.000
+replay        iid                                0.991  0.003
+              temporal_purged                    0.184  0.091
+              temporal_purged_no_leaky_features  0.066  0.037
+
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/temporal_purged_compare.csv (270 runs, 285.2s)
+Few-shot sweep: 420 runs; 4 worker process(es), one BLAS thread per worker
+  [20/420] fixed MLP bic K=5 seed=4 ACC=0.709 (26s)
+  [40/420] fixed MLP bic K=10 seed=4 ACC=0.907 (47s)
+  [60/420] fixed MLP bic K=25 seed=4 ACC=0.913 (69s)
+  [80/420] fixed MLP bic K=50 seed=4 ACC=0.982 (95s)
+  [100/420] fixed MLP bic K=100 seed=4 ACC=0.986 (119s)
+  [120/420] fixed MLP bic K=150 seed=4 ACC=0.994 (151s)
+  [140/420] fixed MLP bic K=300 seed=4 ACC=0.991 (184s)
+  [160/420] fixed GRU icarl K=10 seed=4 ACC=0.517 (248s)
+  [180/420] fixed GRU icarl K=50 seed=4 ACC=0.868 (315s)
+  [200/420] fixed GRU icarl K=150 seed=4 ACC=0.909 (390s)
+  [220/420] scaled MLP full K=5 seed=4 ACC=0.452 (448s)
+  [240/420] scaled MLP full K=10 seed=4 ACC=0.489 (467s)
+  [260/420] scaled MLP full K=25 seed=4 ACC=0.550 (490s)
+  [280/420] scaled MLP full K=50 seed=4 ACC=0.660 (513s)
+  [300/420] scaled MLP full K=100 seed=4 ACC=0.945 (535s)
+  [320/420] scaled MLP full K=150 seed=4 ACC=0.990 (561s)
+  [340/420] scaled MLP full K=300 seed=4 ACC=0.972 (590s)
+  [360/420] scaled GRU icarl K=5 seed=4 ACC=0.442 (651s)
+  [380/420] scaled GRU icarl K=25 seed=4 ACC=0.822 (718s)
+  [400/420] scaled GRU icarl K=100 seed=4 ACC=0.827 (792s)
+  [420/420] scaled GRU icarl K=300 seed=4 ACC=0.907 (874s)
+
+Mean ACC per (protocol, arch, method, K):
+calibration_protocol  arch  method  K  
+fixed                 GRU   icarl   5      0.471
+                                    10     0.604
+                                    25     0.744
+                                    50     0.868
+                                    100    0.901
+                                    150    0.918
+                                    300    0.940
+                            replay  5      0.428
+                                    10     0.489
+                                    25     0.492
+                                    50     0.681
+                                    100    0.828
+                                    150    0.925
+                                    300    0.971
+                      MLP   bic     5      0.590
+                                    10     0.880
+                                    25     0.890
+                                    50     0.954
+                                    100    0.984
+                                    150    0.994
+                                    300    0.993
+                            full    5      0.514
+                                    10     0.500
+                                    25     0.629
+                                    50     0.752
+                                    100    0.887
+                                    150    0.935
+                                    300    0.982
+                            icarl   5      0.497
+                                    10     0.733
+                                    25     0.775
+                                    50     0.901
+                                    100    0.979
+                                    150    0.992
+                                    300    0.993
+                            replay  5      0.513
+                                    10     0.524
+                                    25     0.506
+                                    50     0.721
+                                    100    0.895
+                                    150    0.991
+                                    300    0.996
+scaled                GRU   icarl   5      0.443
+                                    10     0.644
+                                    25     0.711
+                                    50     0.841
+                                    100    0.850
+                                    150    0.918
+                                    300    0.921
+                            replay  5      0.495
+                                    10     0.476
+                                    25     0.512
+                                    50     0.563
+                                    100    0.799
+                                    150    0.925
+                                    300    0.966
+                      MLP   bic     5      0.654
+                                    10     0.893
+                                    25     0.914
+                                    50     0.970
+                                    100    0.988
+                                    150    0.994
+                                    300    0.995
+                            full    5      0.460
+                                    10     0.498
+                                    25     0.522
+                                    50     0.717
+                                    100    0.909
+                                    150    0.935
+                                    300    0.939
+                            icarl   5      0.503
+                                    10     0.692
+                                    25     0.802
+                                    50     0.911
+                                    100    0.972
+                                    150    0.992
+                                    300    0.995
+                            replay  5      0.523
+                                    10     0.504
+                                    25     0.544
+                                    50     0.748
+                                    100    0.922
+                                    150    0.991
+                                    300    0.995
+
+Wrote results/fewshot.csv (420 runs, 874s)
+Feature-order stability: 96 runs; 4 worker process(es), one BLAS thread per worker
+  [24/96] MLP perm=2 bic seed=1 ACC=0.989 (37.2s)
+  [48/96] GRU perm=1 bic seed=1 ACC=0.980 (116.2s)
+  [72/96] CNN1D perm=0 bic seed=1 ACC=0.882 (213.4s)
+  [96/96] CNN1D perm=3 bic seed=1 ACC=0.879 (309.7s)
+
+=== Feature Order Stability Summary (BiC-corrected) ===
+
+MLP:
+  replay    : orig=0.961 perm=0.993 drop=-0.032
+  full      : orig=0.859 perm=0.939 drop=-0.080
+  icarl     : orig=0.992 perm=0.991 drop=+0.000
+  bic       : orig=0.990 perm=0.989 drop=+0.001
+
+GRU:
+  replay    : orig=0.936 perm=0.968 drop=-0.032
+  full      : orig=0.613 perm=0.728 drop=-0.114
+  icarl     : orig=0.931 perm=0.971 drop=-0.039
+  bic       : orig=0.944 perm=0.964 drop=-0.020
+
+CNN1D:
+  replay    : orig=0.760 perm=0.693 drop=+0.067
+  full      : orig=0.716 perm=0.586 drop=+0.129
+  icarl     : orig=0.804 perm=0.807 drop=-0.003
+  bic       : orig=0.881 perm=0.883 drop=-0.002
+
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/feature_order_stability.csv (96 runs, 309.7s)
+Task-order study: 144 runs; 4 worker process(es), one BLAS thread per worker
+  [24/144] order=[0, 1, 3, 2] moves_with_task icarl seed=2 ACC=0.991 (36s)
+  [48/144] order=[0, 2, 3, 1] moves_with_task icarl seed=2 ACC=0.971 (74s)
+  [72/144] order=[0, 3, 2, 1] moves_with_task icarl seed=2 ACC=0.995 (104s)
+  [96/144] order=[1, 3, 0, 2] moves_with_task icarl seed=2 ACC=0.995 (130s)
+  [120/144] order=[3, 0, 2, 1] moves_with_task icarl seed=2 ACC=0.997 (159s)
+  [144/144] order=[2, 3, 0, 1] moves_with_task icarl seed=2 ACC=0.995 (185s)
+
+Mean ACC by (budget_mode, method):
+                         mean    std
+budget_mode     method              
+fixed_position  icarl   0.990  0.014
+                replay  0.989  0.014
+moves_with_task icarl   0.993  0.004
+                replay  0.986  0.019
+
+Mean ACC by (budget_mode, degenerate_single_class_first):
+                                                mean    std
+budget_mode     degenerate_single_class_first              
+fixed_position  False                          0.988  0.014
+                True                           0.991  0.014
+moves_with_task False                          0.988  0.014
+                True                           0.991  0.014
+
+PRIMARY (two-class T0 first): per-order mean spread=0.0146 across 6 orders
+DEGENERATE (single-class first, no-op update): per-order mean spread=0.0089 across 6 orders
+
+Wrote results/task_order_disentangled.csv (144 runs, 185s)
+CNN tune: 54 runs; 4 worker process(es), one BLAS thread per worker
+  [9/54] lr=0.001 epochs=25 joint_scratch seed=2 ACC=0.670 (40s)
+  [18/54] lr=0.001 epochs=50 joint_scratch seed=2 ACC=0.805 (92s)
+  [27/54] lr=0.003 epochs=25 joint_scratch seed=2 ACC=0.878 (121s)
+  [36/54] lr=0.003 epochs=50 joint_scratch seed=2 ACC=0.941 (186s)
+  [45/54] lr=0.01 epochs=25 joint_scratch seed=2 ACC=0.932 (204s)
+  [54/54] lr=0.01 epochs=50 joint_scratch seed=2 ACC=0.980 (255s)
+
+Mean ACC per (method, lr, epochs):
+method         lr     epochs
+icarl          0.001  25        0.274
+                      50        0.336
+               0.003  25        0.383
+                      50        0.571
+               0.010  25        0.677
+                      50        0.798
+joint_scratch  0.001  25        0.698
+                      50        0.811
+               0.003  25        0.869
+                      50        0.923
+               0.010  25        0.931
+                      50        0.980
+replay         0.001  25        0.387
+                      50        0.448
+               0.003  25        0.472
+                      50        0.519
+               0.010  25        0.618
+                      50        0.812
+
+Wrote results/arch_tune.csv (54 runs, 255s)
+Ablations: 1170 runs; 4 worker process(es), one BLAS thread per worker
+Traceback (most recent call last):
+  File "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/run_ablation.py", line 124, in <module>
+    main()
+    ~~~~^^
+  File "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/run_ablation.py", line 98, in main
+    t0 = time.perf_counter()
+         ^^^^
+NameError: name 'time' is not defined. Did you forget to import 'time'?
+Parallel pipeline: CL_JOBS=4, one BLAS thread per worker
+
+======================================================================
+BiC composition regression test
+======================================================================
+[done in 0.3s]
+
+======================================================================
+Exact p-value floor test
+======================================================================
+[done in 1.2s]
+
+======================================================================
+Task-order split/scaler invariance
+======================================================================
+[done in 1.4s]
+
+======================================================================
+Disjoint calibration/selection split
+======================================================================
+[done in 0.9s]
+
+======================================================================
+Gradient checks
+======================================================================
+[done in 0.5s]
+
+======================================================================
+Hyperparameter sweep (STIN, val-based)
+======================================================================
+[done in 81.1s]
+
+======================================================================
+Per-method/arch validation tuning (NEW)
+======================================================================
+[done in 3656.7s]
+
+======================================================================
+Main experiment matrix (15 seeds)
+======================================================================
+[done in 3094.8s]
+
+======================================================================
+Purged temporal evaluation (0.02 rad TimeRadians purge)
+======================================================================
+[done in 289.6s]
+
+======================================================================
+Few-shot uplink sweep (ENHANCED)
+======================================================================
+[done in 881.7s]
+
+======================================================================
+Feature-order stability (NEW)
+======================================================================
+[done in 311.6s]
+
+======================================================================
+Disentangled task-order study (frozen)
+======================================================================
+[done in 191.7s]
+
+======================================================================
+Exploratory CNN arch tune (validation-scored, not applied)
+======================================================================
+[done in 255.5s]
+
+======================================================================
+Ablation studies
+======================================================================
+
+[FAILED] step 'Ablation studies' exited with code 1

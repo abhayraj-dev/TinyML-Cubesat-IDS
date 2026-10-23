@@ -1,0 +1,797 @@
+=== experiments/run_ablation.py ===
+Ablations: 1170 runs; 4 worker process(es), one BLAS thread per worker
+  [30/1170] CuCD-ID MLP (17s)
+  [60/1170] CuCD-ID MLP (36s)
+  [90/1170] CuCD-ID MLP (55s)
+  [120/1170] CuCD-ID GRU (120s)
+  [150/1170] CuCD-ID GRU (183s)
+  [180/1170] CuCD-ID GRU (245s)
+  [210/1170] CuCD-ID CNN1D (352s)
+  [240/1170] CuCD-ID CNN1D (454s)
+  [270/1170] CuCD-ID CNN1D (554s)
+  [300/1170] STIN MLP (578s)
+  [330/1170] STIN MLP (607s)
+  [360/1170] STIN MLP (632s)
+  [390/1170] STIN GRU (719s)
+  [420/1170] STIN GRU (804s)
+  [450/1170] STIN GRU (889s)
+  [480/1170] STIN CNN1D (1081s)
+  [510/1170] STIN CNN1D (1271s)
+  [540/1170] STIN CNN1D (1470s)
+  [570/1170] CuCD-ID MLP (1472s)
+  [600/1170] CuCD-ID MLP (1489s)
+  [630/1170] CuCD-ID MLP (1508s)
+  [660/1170] CuCD-ID GRU (1548s)
+  [690/1170] CuCD-ID GRU (1616s)
+  [720/1170] CuCD-ID GRU (1683s)
+  [750/1170] CuCD-ID GRU (1743s)
+  [780/1170] CuCD-ID CNN1D (1847s)
+  [810/1170] CuCD-ID CNN1D (1951s)
+  [840/1170] CuCD-ID CNN1D (2050s)
+  [870/1170] STIN MLP (2114s)
+  [900/1170] STIN MLP (2142s)
+  [930/1170] STIN MLP (2171s)
+  [960/1170] STIN MLP (2200s)
+  [990/1170] STIN GRU (2282s)
+  [1020/1170] STIN GRU (2367s)
+  [1050/1170] STIN GRU (2447s)
+  [1080/1170] STIN CNN1D (2590s)
+  [1110/1170] STIN CNN1D (2779s)
+  [1140/1170] STIN CNN1D (2974s)
+  [1170/1170] STIN CNN1D (3163s)
+
+[Ablation A] Buffer capacity sensitivity, all 3 architectures (mean over seeds):
+                                  ACC     BWT      FM
+dataset arch  buffer_capacity                        
+CuCD-ID CNN1D 32.0             0.6200 -0.4911  0.4911
+              64.0             0.6154 -0.4950  0.4950
+              128.0            0.6141 -0.4993  0.4993
+              256.0            0.6257 -0.4825  0.4825
+              512.0            0.6194 -0.4905  0.4905
+              1024.0           0.6223 -0.4887  0.4887
+        GRU   32.0             0.4741 -0.6579  0.6579
+              64.0             0.5051 -0.6179  0.6179
+              128.0            0.5613 -0.5509  0.5509
+              256.0            0.6409 -0.4503  0.4503
+              512.0            0.6275 -0.4681  0.4681
+              1024.0           0.6588 -0.4260  0.4260
+        MLP   32.0             0.7742 -0.2971  0.2971
+              64.0             0.8235 -0.2307  0.2307
+              128.0            0.9254 -0.0958  0.0958
+              256.0            0.9531 -0.0602  0.0602
+              512.0            0.9710 -0.0358  0.0359
+              1024.0           0.9796 -0.0242  0.0242
+STIN    CNN1D 32.0             0.5162 -0.4896  0.4896
+              64.0             0.5423 -0.4474  0.4474
+              128.0            0.5357 -0.4568  0.4568
+              256.0            0.5438 -0.4352  0.4352
+              512.0            0.5416 -0.4483  0.4483
+              1024.0           0.5513 -0.4362  0.4362
+        GRU   32.0             0.5603 -0.4204  0.4204
+              64.0             0.6003 -0.3716  0.3716
+              128.0            0.5958 -0.3866  0.3866
+              256.0            0.6036 -0.3776  0.3776
+              512.0            0.5889 -0.3981  0.3981
+              1024.0           0.6063 -0.3647  0.3647
+        MLP   32.0             0.6120 -0.4082  0.4082
+              64.0             0.6241 -0.3906  0.3906
+              128.0            0.6378 -0.3722  0.3722
+              256.0            0.6509 -0.3832  0.3832
+              512.0            0.6508 -0.3702  0.3702
+              1024.0           0.6563 -0.3645  0.3645
+
+[Ablation B] EWC lambda sensitivity, both datasets x 3 architectures (mean over seeds):
+                             ACC     BWT      FM
+dataset arch  ewc_lambda                        
+CuCD-ID CNN1D 0.0         0.6819 -0.4202  0.4202
+              10.0        0.6356 -0.4784  0.4785
+              100.0       0.6194 -0.4905  0.4905
+              1000.0      0.5871 -0.5248  0.5248
+              5000.0      0.5667 -0.5529  0.5529
+              20000.0     0.5596 -0.5630  0.5630
+              50000.0     0.5570 -0.5670  0.5670
+        GRU   0.0         0.8612 -0.1730  0.1730
+              10.0        0.7710 -0.2839  0.2839
+              100.0       0.6275 -0.4681  0.4681
+              1000.0      0.5527 -0.5570  0.5570
+              5000.0      0.5080 -0.6087  0.6087
+              20000.0     0.4918 -0.6216  0.6216
+              50000.0     0.4759 -0.6349  0.6349
+        MLP   0.0         0.9467 -0.0689  0.0689
+              10.0        0.9570 -0.0546  0.0546
+              100.0       0.9531 -0.0602  0.0602
+              1000.0      0.9513 -0.0621  0.0621
+              5000.0      0.9517 -0.0612  0.0612
+              20000.0     0.9491 -0.0637  0.0637
+              50000.0     0.9318 -0.0850  0.0851
+STIN    CNN1D 0.0         0.6116 -0.3882  0.3888
+              10.0        0.5621 -0.4411  0.4411
+              100.0       0.5416 -0.4483  0.4483
+              1000.0      0.5215 -0.4642  0.4642
+              5000.0      0.5177 -0.4571  0.4571
+              20000.0     0.5163 -0.4613  0.4613
+              50000.0     0.5154 -0.4627  0.4627
+        GRU   0.0         0.6195 -0.3852  0.3852
+              10.0        0.6273 -0.3729  0.3729
+              100.0       0.5889 -0.3981  0.3981
+              1000.0      0.5590 -0.4252  0.4252
+              5000.0      0.5229 -0.4492  0.4492
+              20000.0     0.4712 -0.4615  0.4615
+              50000.0     0.4577 -0.4843  0.4843
+        MLP   0.0         0.6098 -0.4201  0.4201
+              10.0        0.6464 -0.3577  0.3577
+              100.0       0.6509 -0.3832  0.3832
+              1000.0      0.6545 -0.3724  0.3724
+              5000.0      0.6433 -0.3661  0.3661
+              20000.0     0.6463 -0.3881  0.3881
+              50000.0     0.6550 -0.3615  0.3615
+
+Done (3164s)
+=== experiments/run_baseline_controls.py ===
+Baseline controls: 450 runs; 4 worker process(es), one BLAS thread per worker
+  [10/450] CuCD-ID MLP replay_matched seed=9 (5s)
+  [20/450] CuCD-ID MLP ewc_l0 seed=4 (10s)
+  [30/450] CuCD-ID MLP ewc_l0 seed=14 (16s)
+  [40/450] CuCD-ID MLP full_l0 seed=9 (22s)
+  [50/450] CuCD-ID MLP ewc_l10 seed=4 (29s)
+  [60/450] CuCD-ID MLP ewc_l10 seed=14 (34s)
+  [70/450] CuCD-ID MLP full_l10 seed=9 (40s)
+  [80/450] CuCD-ID GRU replay_matched seed=4 (58s)
+  [90/450] CuCD-ID GRU replay_matched seed=14 (89s)
+  [100/450] CuCD-ID GRU ewc_l0 seed=9 (112s)
+  [110/450] CuCD-ID GRU full_l0 seed=4 (137s)
+  [120/450] CuCD-ID GRU full_l0 seed=14 (158s)
+  [130/450] CuCD-ID GRU ewc_l10 seed=9 (178s)
+  [140/450] CuCD-ID GRU full_l10 seed=4 (199s)
+  [150/450] CuCD-ID GRU full_l10 seed=14 (220s)
+  [160/450] CuCD-ID CNN1D replay_matched seed=9 (249s)
+  [170/450] CuCD-ID CNN1D ewc_l0 seed=4 (272s)
+  [180/450] CuCD-ID CNN1D ewc_l0 seed=14 (290s)
+  [190/450] CuCD-ID CNN1D full_l0 seed=9 (323s)
+  [200/450] CuCD-ID CNN1D ewc_l10 seed=4 (351s)
+  [210/450] CuCD-ID CNN1D ewc_l10 seed=14 (373s)
+  [220/450] CuCD-ID CNN1D full_l10 seed=9 (405s)
+  [230/450] STIN MLP replay_matched seed=4 (424s)
+  [240/450] STIN MLP replay_matched seed=14 (432s)
+  [250/450] STIN MLP ewc_l0 seed=9 (440s)
+  [260/450] STIN MLP full_l0 seed=4 (449s)
+  [270/450] STIN MLP full_l0 seed=14 (459s)
+  [280/450] STIN MLP ewc_l10 seed=9 (467s)
+  [290/450] STIN MLP full_l10 seed=4 (476s)
+  [300/450] STIN MLP full_l10 seed=14 (486s)
+  [310/450] STIN GRU replay_matched seed=9 (531s)
+  [320/450] STIN GRU ewc_l0 seed=4 (568s)
+  [330/450] STIN GRU ewc_l0 seed=14 (595s)
+  [340/450] STIN GRU full_l0 seed=9 (628s)
+  [350/450] STIN GRU ewc_l10 seed=4 (654s)
+  [360/450] STIN GRU ewc_l10 seed=14 (681s)
+  [370/450] STIN GRU full_l10 seed=9 (707s)
+  [380/450] STIN CNN1D replay_matched seed=4 (749s)
+  [390/450] STIN CNN1D replay_matched seed=14 (823s)
+  [400/450] STIN CNN1D ewc_l0 seed=9 (839s)
+  [410/450] STIN CNN1D full_l0 seed=4 (890s)
+  [420/450] STIN CNN1D full_l0 seed=14 (955s)
+  [430/450] STIN CNN1D ewc_l10 seed=9 (987s)
+  [440/450] STIN CNN1D full_l10 seed=4 (1033s)
+  [450/450] STIN CNN1D full_l10 seed=14 (1097s)
+
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/baseline_controls.csv (450 runs)
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_baseline_controls.csv (30 comparisons)
+metric               comparison dataset  arch  mean_diff        p   p_holm
+   ACC replay_matched vs replay CuCD-ID CNN1D  -0.027063 0.092896 1.000000
+   ACC replay_matched vs replay CuCD-ID   GRU  -0.009994 0.673035 1.000000
+   ACC replay_matched vs replay CuCD-ID   MLP  -0.014036 0.101013 1.000000
+   ACC replay_matched vs replay    STIN CNN1D   0.022426 0.008850 0.177002
+   ACC replay_matched vs replay    STIN   GRU  -0.009099 0.370605 1.000000
+   ACC replay_matched vs replay    STIN   MLP  -0.022130 0.004028 0.087280
+   ACC            ewc_l0 vs ewc CuCD-ID CNN1D   0.003320 0.125000 1.000000
+   ACC            ewc_l0 vs ewc CuCD-ID   GRU  -0.176261 0.000061 0.001831
+   ACC            ewc_l0 vs ewc CuCD-ID   MLP  -0.013582 0.125000 1.000000
+   ACC            ewc_l0 vs ewc    STIN CNN1D   0.003704 0.661682 1.000000
+   ACC            ewc_l0 vs ewc    STIN   GRU  -0.015012 0.386963 1.000000
+   ACC            ewc_l0 vs ewc    STIN   MLP   0.025525 0.000916 0.022888
+   ACC           ewc_l10 vs ewc CuCD-ID CNN1D   0.000399 0.375000 1.000000
+   ACC           ewc_l10 vs ewc CuCD-ID   GRU  -0.146425 0.000061 0.001831
+   ACC           ewc_l10 vs ewc CuCD-ID   MLP   0.012427 0.093750 1.000000
+   ACC           ewc_l10 vs ewc    STIN CNN1D   0.000525 0.889526 1.000000
+   ACC           ewc_l10 vs ewc    STIN   GRU   0.012117 0.599060 1.000000
+   ACC           ewc_l10 vs ewc    STIN   MLP   0.013846 0.183655 1.000000
+   ACC          full_l0 vs full CuCD-ID CNN1D   0.062496 0.019165 0.364136
+   ACC          full_l0 vs full CuCD-ID   GRU   0.233735 0.000061 0.001831
+   ACC          full_l0 vs full CuCD-ID   MLP  -0.006352 0.476074 1.000000
+   ACC          full_l0 vs full    STIN CNN1D   0.069981 0.000061 0.001831
+   ACC          full_l0 vs full    STIN   GRU   0.030605 0.019287 0.364136
+   ACC          full_l0 vs full    STIN   MLP  -0.041056 0.003967 0.087280
+   ACC         full_l10 vs full CuCD-ID CNN1D   0.016176 0.383789 1.000000
+   ACC         full_l10 vs full CuCD-ID   GRU   0.143504 0.000061 0.001831
+   ACC         full_l10 vs full CuCD-ID   MLP   0.003906 0.550232 1.000000
+   ACC         full_l10 vs full    STIN CNN1D   0.020457 0.001892 0.045410
+   ACC         full_l10 vs full    STIN   GRU   0.038444 0.002258 0.051941
+   ACC         full_l10 vs full    STIN   MLP  -0.004500 0.644958 1.000000
+=== experiments/run_per_class_analysis.py ===
+Per-class analysis: 270 runs; 4 worker process(es), one BLAS thread per worker
+  [1/270] STIN|GRU|finetune|0 mean-F1=0.205
+  [2/270] STIN|GRU|finetune|1 mean-F1=0.197
+  [3/270] STIN|GRU|finetune|2 mean-F1=0.191
+  [4/270] STIN|GRU|finetune|3 mean-F1=0.261
+  [5/270] STIN|GRU|finetune|4 mean-F1=0.151
+  [6/270] STIN|GRU|finetune|5 mean-F1=0.084
+  [7/270] STIN|GRU|finetune|6 mean-F1=0.239
+  [8/270] STIN|GRU|finetune|7 mean-F1=0.219
+  [9/270] STIN|GRU|finetune|8 mean-F1=0.117
+  [10/270] STIN|GRU|finetune|9 mean-F1=0.200
+  [11/270] STIN|GRU|finetune|10 mean-F1=0.113
+  [12/270] STIN|GRU|finetune|11 mean-F1=0.094
+  [13/270] STIN|GRU|finetune|12 mean-F1=0.120
+  [14/270] STIN|GRU|finetune|13 mean-F1=0.213
+  [15/270] STIN|GRU|finetune|14 mean-F1=0.194
+  [16/270] STIN|GRU|replay|0 mean-F1=0.608
+  [17/270] STIN|GRU|replay|1 mean-F1=0.567
+  [18/270] STIN|GRU|replay|2 mean-F1=0.549
+  [19/270] STIN|GRU|replay|3 mean-F1=0.582
+  [20/270] STIN|GRU|replay|4 mean-F1=0.595
+  [21/270] STIN|GRU|replay|5 mean-F1=0.662
+  [22/270] STIN|GRU|replay|6 mean-F1=0.599
+  [23/270] STIN|GRU|replay|7 mean-F1=0.589
+  [24/270] STIN|GRU|replay|8 mean-F1=0.616
+  [25/270] STIN|GRU|replay|9 mean-F1=0.584
+  [26/270] STIN|GRU|replay|10 mean-F1=0.588
+  [27/270] STIN|GRU|replay|11 mean-F1=0.593
+  [28/270] STIN|GRU|replay|12 mean-F1=0.503
+  [29/270] STIN|GRU|replay|13 mean-F1=0.613
+  [30/270] STIN|GRU|replay|14 mean-F1=0.612
+  [31/270] STIN|GRU|ewc|0 mean-F1=0.250
+  [32/270] STIN|GRU|ewc|1 mean-F1=0.194
+  [33/270] STIN|GRU|ewc|2 mean-F1=0.192
+  [34/270] STIN|GRU|ewc|3 mean-F1=0.271
+  [35/270] STIN|GRU|ewc|4 mean-F1=0.127
+  [36/270] STIN|GRU|ewc|5 mean-F1=0.180
+  [37/270] STIN|GRU|ewc|6 mean-F1=0.154
+  [38/270] STIN|GRU|ewc|7 mean-F1=0.199
+  [39/270] STIN|GRU|ewc|8 mean-F1=0.132
+  [40/270] STIN|GRU|ewc|9 mean-F1=0.199
+  [41/270] STIN|GRU|ewc|10 mean-F1=0.226
+  [42/270] STIN|GRU|ewc|11 mean-F1=0.261
+  [43/270] STIN|GRU|ewc|12 mean-F1=0.107
+  [44/270] STIN|GRU|ewc|13 mean-F1=0.166
+  [45/270] STIN|GRU|ewc|14 mean-F1=0.163
+  [46/270] STIN|GRU|full|0 mean-F1=0.578
+  [47/270] STIN|GRU|full|1 mean-F1=0.483
+  [48/270] STIN|GRU|full|2 mean-F1=0.560
+  [49/270] STIN|GRU|full|3 mean-F1=0.493
+  [50/270] STIN|GRU|full|4 mean-F1=0.489
+  [51/270] STIN|GRU|full|5 mean-F1=0.418
+  [52/270] STIN|GRU|full|6 mean-F1=0.519
+  [53/270] STIN|GRU|full|7 mean-F1=0.542
+  [54/270] STIN|GRU|full|8 mean-F1=0.555
+  [55/270] STIN|GRU|full|9 mean-F1=0.558
+  [56/270] STIN|GRU|full|10 mean-F1=0.462
+  [57/270] STIN|GRU|full|11 mean-F1=0.517
+  [58/270] STIN|GRU|full|12 mean-F1=0.518
+  [59/270] STIN|GRU|full|13 mean-F1=0.522
+  [60/270] STIN|GRU|full|14 mean-F1=0.511
+  [61/270] STIN|GRU|lwf|0 mean-F1=0.127
+  [62/270] STIN|GRU|lwf|1 mean-F1=0.194
+  [63/270] STIN|GRU|lwf|2 mean-F1=0.096
+  [64/270] STIN|GRU|lwf|3 mean-F1=0.192
+  [65/270] STIN|GRU|lwf|4 mean-F1=0.143
+  [66/270] STIN|GRU|lwf|5 mean-F1=0.092
+  [67/270] STIN|GRU|lwf|6 mean-F1=0.189
+  [68/270] STIN|GRU|lwf|7 mean-F1=0.194
+  [69/270] STIN|GRU|lwf|8 mean-F1=0.119
+  [70/270] STIN|GRU|lwf|9 mean-F1=0.173
+  [71/270] STIN|GRU|lwf|10 mean-F1=0.279
+  [72/270] STIN|GRU|lwf|11 mean-F1=0.087
+  [73/270] STIN|GRU|lwf|12 mean-F1=0.130
+  [74/270] STIN|GRU|lwf|13 mean-F1=0.124
+  [75/270] STIN|GRU|lwf|14 mean-F1=0.100
+  [76/270] STIN|GRU|bic|0 mean-F1=0.545
+  [77/270] STIN|GRU|bic|1 mean-F1=0.590
+  [78/270] STIN|GRU|bic|2 mean-F1=0.580
+  [79/270] STIN|GRU|bic|3 mean-F1=0.609
+  [80/270] STIN|GRU|bic|4 mean-F1=0.634
+  [81/270] STIN|GRU|bic|5 mean-F1=0.610
+  [82/270] STIN|GRU|bic|6 mean-F1=0.657
+  [83/270] STIN|GRU|bic|7 mean-F1=0.601
+  [84/270] STIN|GRU|bic|8 mean-F1=0.634
+  [85/270] STIN|GRU|bic|9 mean-F1=0.606
+  [86/270] STIN|GRU|bic|10 mean-F1=0.630
+  [87/270] STIN|GRU|bic|11 mean-F1=0.673
+  [88/270] STIN|GRU|bic|12 mean-F1=0.644
+  [89/270] STIN|GRU|bic|13 mean-F1=0.647
+  [90/270] STIN|GRU|bic|14 mean-F1=0.647
+  [91/270] STIN|GRU|icarl|0 mean-F1=0.578
+  [92/270] STIN|GRU|icarl|1 mean-F1=0.584
+  [93/270] STIN|GRU|icarl|2 mean-F1=0.556
+  [94/270] STIN|GRU|icarl|3 mean-F1=0.606
+  [95/270] STIN|GRU|icarl|4 mean-F1=0.606
+  [96/270] STIN|GRU|icarl|5 mean-F1=0.553
+  [97/270] STIN|GRU|icarl|6 mean-F1=0.599
+  [98/270] STIN|GRU|icarl|7 mean-F1=0.602
+  [99/270] STIN|GRU|icarl|8 mean-F1=0.611
+  [100/270] STIN|GRU|icarl|9 mean-F1=0.608
+  [101/270] STIN|GRU|icarl|10 mean-F1=0.607
+  [102/270] STIN|GRU|icarl|11 mean-F1=0.596
+  [103/270] STIN|GRU|icarl|12 mean-F1=0.602
+  [104/270] STIN|GRU|icarl|13 mean-F1=0.598
+  [105/270] STIN|GRU|icarl|14 mean-F1=0.582
+  [106/270] STIN|GRU|joint|0 mean-F1=0.624
+  [107/270] STIN|GRU|joint|1 mean-F1=0.639
+  [108/270] STIN|GRU|joint|2 mean-F1=0.553
+  [109/270] STIN|GRU|joint|3 mean-F1=0.541
+  [110/270] STIN|GRU|joint|4 mean-F1=0.645
+  [111/270] STIN|GRU|joint|5 mean-F1=0.617
+  [112/270] STIN|GRU|joint|6 mean-F1=0.535
+  [113/270] STIN|GRU|joint|7 mean-F1=0.545
+  [114/270] STIN|GRU|joint|8 mean-F1=0.636
+  [115/270] STIN|GRU|joint|9 mean-F1=0.611
+  [116/270] STIN|GRU|joint|10 mean-F1=0.600
+  [117/270] STIN|GRU|joint|11 mean-F1=0.550
+  [118/270] STIN|GRU|joint|12 mean-F1=0.614
+  [119/270] STIN|GRU|joint|13 mean-F1=0.562
+  [120/270] STIN|GRU|joint|14 mean-F1=0.613
+  [121/270] STIN|GRU|joint_scratch|0 mean-F1=0.613
+  [122/270] STIN|GRU|joint_scratch|1 mean-F1=0.652
+  [123/270] STIN|GRU|joint_scratch|2 mean-F1=0.607
+  [124/270] STIN|GRU|joint_scratch|3 mean-F1=0.590
+  [125/270] STIN|GRU|joint_scratch|4 mean-F1=0.599
+  [126/270] STIN|GRU|joint_scratch|5 mean-F1=0.575
+  [127/270] STIN|GRU|joint_scratch|6 mean-F1=0.598
+  [128/270] STIN|GRU|joint_scratch|7 mean-F1=0.542
+  [129/270] STIN|GRU|joint_scratch|8 mean-F1=0.558
+  [130/270] STIN|GRU|joint_scratch|9 mean-F1=0.597
+  [131/270] STIN|GRU|joint_scratch|10 mean-F1=0.598
+  [132/270] STIN|GRU|joint_scratch|11 mean-F1=0.534
+  [133/270] STIN|GRU|joint_scratch|12 mean-F1=0.545
+  [134/270] STIN|GRU|joint_scratch|13 mean-F1=0.594
+  [135/270] STIN|GRU|joint_scratch|14 mean-F1=0.580
+  [136/270] CuCD-ID|MLP|finetune|0 mean-F1=0.072
+  [137/270] CuCD-ID|MLP|finetune|1 mean-F1=0.085
+  [138/270] CuCD-ID|MLP|finetune|2 mean-F1=0.074
+  [139/270] CuCD-ID|MLP|finetune|3 mean-F1=0.072
+  [140/270] CuCD-ID|MLP|finetune|4 mean-F1=0.287
+  [141/270] CuCD-ID|MLP|finetune|5 mean-F1=0.072
+  [142/270] CuCD-ID|MLP|finetune|6 mean-F1=0.072
+  [143/270] CuCD-ID|MLP|finetune|7 mean-F1=0.075
+  [144/270] CuCD-ID|MLP|finetune|8 mean-F1=0.072
+  [145/270] CuCD-ID|MLP|finetune|9 mean-F1=0.159
+  [146/270] CuCD-ID|MLP|finetune|10 mean-F1=0.078
+  [147/270] CuCD-ID|MLP|finetune|11 mean-F1=0.074
+  [148/270] CuCD-ID|MLP|finetune|12 mean-F1=0.072
+  [149/270] CuCD-ID|MLP|finetune|13 mean-F1=0.072
+  [150/270] CuCD-ID|MLP|finetune|14 mean-F1=0.072
+  [151/270] CuCD-ID|MLP|replay|0 mean-F1=0.993
+  [152/270] CuCD-ID|MLP|replay|1 mean-F1=0.991
+  [153/270] CuCD-ID|MLP|replay|2 mean-F1=0.993
+  [154/270] CuCD-ID|MLP|replay|3 mean-F1=0.986
+  [155/270] CuCD-ID|MLP|replay|4 mean-F1=0.997
+  [156/270] CuCD-ID|MLP|replay|5 mean-F1=0.992
+  [157/270] CuCD-ID|MLP|replay|6 mean-F1=0.990
+  [158/270] CuCD-ID|MLP|replay|7 mean-F1=0.993
+  [159/270] CuCD-ID|MLP|replay|8 mean-F1=0.994
+  [160/270] CuCD-ID|MLP|replay|9 mean-F1=0.990
+  [161/270] CuCD-ID|MLP|replay|10 mean-F1=0.994
+  [162/270] CuCD-ID|MLP|replay|11 mean-F1=0.996
+  [163/270] CuCD-ID|MLP|replay|12 mean-F1=0.974
+  [164/270] CuCD-ID|MLP|replay|13 mean-F1=0.988
+  [165/270] CuCD-ID|MLP|replay|14 mean-F1=0.989
+  [166/270] CuCD-ID|MLP|ewc|0 mean-F1=0.164
+  [167/270] CuCD-ID|MLP|ewc|1 mean-F1=0.072
+  [168/270] CuCD-ID|MLP|ewc|2 mean-F1=0.072
+  [169/270] CuCD-ID|MLP|ewc|3 mean-F1=0.153
+  [170/270] CuCD-ID|MLP|ewc|4 mean-F1=0.373
+  [171/270] CuCD-ID|MLP|ewc|5 mean-F1=0.072
+  [172/270] CuCD-ID|MLP|ewc|6 mean-F1=0.088
+  [173/270] CuCD-ID|MLP|ewc|7 mean-F1=0.072
+  [174/270] CuCD-ID|MLP|ewc|8 mean-F1=0.072
+  [175/270] CuCD-ID|MLP|ewc|9 mean-F1=0.072
+  [176/270] CuCD-ID|MLP|ewc|10 mean-F1=0.073
+  [177/270] CuCD-ID|MLP|ewc|11 mean-F1=0.086
+  [178/270] CuCD-ID|MLP|ewc|12 mean-F1=0.085
+  [179/270] CuCD-ID|MLP|ewc|13 mean-F1=0.072
+  [180/270] CuCD-ID|MLP|ewc|14 mean-F1=0.073
+  [181/270] CuCD-ID|MLP|full|0 mean-F1=0.979
+  [182/270] CuCD-ID|MLP|full|1 mean-F1=0.990
+  [183/270] CuCD-ID|MLP|full|2 mean-F1=0.987
+  [184/270] CuCD-ID|MLP|full|3 mean-F1=0.720
+  [185/270] CuCD-ID|MLP|full|4 mean-F1=0.991
+  [186/270] CuCD-ID|MLP|full|5 mean-F1=0.939
+  [187/270] CuCD-ID|MLP|full|6 mean-F1=0.972
+  [188/270] CuCD-ID|MLP|full|7 mean-F1=0.961
+  [189/270] CuCD-ID|MLP|full|8 mean-F1=0.950
+  [190/270] CuCD-ID|MLP|full|9 mean-F1=0.985
+  [191/270] CuCD-ID|MLP|full|10 mean-F1=0.968
+  [192/270] CuCD-ID|MLP|full|11 mean-F1=0.979
+  [193/270] CuCD-ID|MLP|full|12 mean-F1=0.973
+  [194/270] CuCD-ID|MLP|full|13 mean-F1=0.985
+  [195/270] CuCD-ID|MLP|full|14 mean-F1=0.965
+  [196/270] CuCD-ID|MLP|lwf|0 mean-F1=0.094
+  [197/270] CuCD-ID|MLP|lwf|1 mean-F1=0.082
+  [198/270] CuCD-ID|MLP|lwf|2 mean-F1=0.074
+  [199/270] CuCD-ID|MLP|lwf|3 mean-F1=0.072
+  [200/270] CuCD-ID|MLP|lwf|4 mean-F1=0.269
+  [201/270] CuCD-ID|MLP|lwf|5 mean-F1=0.072
+  [202/270] CuCD-ID|MLP|lwf|6 mean-F1=0.072
+  [203/270] CuCD-ID|MLP|lwf|7 mean-F1=0.072
+  [204/270] CuCD-ID|MLP|lwf|8 mean-F1=0.072
+  [205/270] CuCD-ID|MLP|lwf|9 mean-F1=0.078
+  [206/270] CuCD-ID|MLP|lwf|10 mean-F1=0.072
+  [207/270] CuCD-ID|MLP|lwf|11 mean-F1=0.072
+  [208/270] CuCD-ID|MLP|lwf|12 mean-F1=0.072
+  [209/270] CuCD-ID|MLP|lwf|13 mean-F1=0.072
+  [210/270] CuCD-ID|MLP|lwf|14 mean-F1=0.072
+  [211/270] CuCD-ID|MLP|bic|0 mean-F1=0.993
+  [212/270] CuCD-ID|MLP|bic|1 mean-F1=0.996
+  [213/270] CuCD-ID|MLP|bic|2 mean-F1=0.994
+  [214/270] CuCD-ID|MLP|bic|3 mean-F1=0.993
+  [215/270] CuCD-ID|MLP|bic|4 mean-F1=0.994
+  [216/270] CuCD-ID|MLP|bic|5 mean-F1=0.996
+  [217/270] CuCD-ID|MLP|bic|6 mean-F1=0.990
+  [218/270] CuCD-ID|MLP|bic|7 mean-F1=0.994
+  [219/270] CuCD-ID|MLP|bic|8 mean-F1=0.990
+  [220/270] CuCD-ID|MLP|bic|9 mean-F1=0.989
+  [221/270] CuCD-ID|MLP|bic|10 mean-F1=0.995
+  [222/270] CuCD-ID|MLP|bic|11 mean-F1=0.994
+  [223/270] CuCD-ID|MLP|bic|12 mean-F1=0.988
+  [224/270] CuCD-ID|MLP|bic|13 mean-F1=0.990
+  [225/270] CuCD-ID|MLP|bic|14 mean-F1=0.990
+  [226/270] CuCD-ID|MLP|icarl|0 mean-F1=0.991
+  [227/270] CuCD-ID|MLP|icarl|1 mean-F1=0.996
+  [228/270] CuCD-ID|MLP|icarl|2 mean-F1=0.988
+  [229/270] CuCD-ID|MLP|icarl|3 mean-F1=0.987
+  [230/270] CuCD-ID|MLP|icarl|4 mean-F1=0.992
+  [231/270] CuCD-ID|MLP|icarl|5 mean-F1=0.991
+  [232/270] CuCD-ID|MLP|icarl|6 mean-F1=0.991
+  [233/270] CuCD-ID|MLP|icarl|7 mean-F1=0.990
+  [234/270] CuCD-ID|MLP|icarl|8 mean-F1=0.993
+  [235/270] CuCD-ID|MLP|icarl|9 mean-F1=0.989
+  [236/270] CuCD-ID|MLP|icarl|10 mean-F1=0.992
+  [237/270] CuCD-ID|MLP|icarl|11 mean-F1=0.994
+  [238/270] CuCD-ID|MLP|icarl|12 mean-F1=0.985
+  [239/270] CuCD-ID|MLP|icarl|13 mean-F1=0.977
+  [240/270] CuCD-ID|MLP|icarl|14 mean-F1=0.983
+  [241/270] CuCD-ID|MLP|joint|0 mean-F1=0.995
+  [242/270] CuCD-ID|MLP|joint|1 mean-F1=0.996
+  [243/270] CuCD-ID|MLP|joint|2 mean-F1=0.996
+  [244/270] CuCD-ID|MLP|joint|3 mean-F1=0.998
+  [245/270] CuCD-ID|MLP|joint|4 mean-F1=0.997
+  [246/270] CuCD-ID|MLP|joint|5 mean-F1=0.997
+  [247/270] CuCD-ID|MLP|joint|6 mean-F1=0.994
+  [248/270] CuCD-ID|MLP|joint|7 mean-F1=0.998
+  [249/270] CuCD-ID|MLP|joint|8 mean-F1=0.996
+  [250/270] CuCD-ID|MLP|joint|9 mean-F1=0.993
+  [251/270] CuCD-ID|MLP|joint|10 mean-F1=0.997
+  [252/270] CuCD-ID|MLP|joint|11 mean-F1=0.997
+  [253/270] CuCD-ID|MLP|joint|12 mean-F1=0.996
+  [254/270] CuCD-ID|MLP|joint|13 mean-F1=0.997
+  [255/270] CuCD-ID|MLP|joint|14 mean-F1=0.995
+  [256/270] CuCD-ID|MLP|joint_scratch|0 mean-F1=0.996
+  [257/270] CuCD-ID|MLP|joint_scratch|1 mean-F1=0.997
+  [258/270] CuCD-ID|MLP|joint_scratch|2 mean-F1=0.997
+  [259/270] CuCD-ID|MLP|joint_scratch|3 mean-F1=0.996
+  [260/270] CuCD-ID|MLP|joint_scratch|4 mean-F1=0.998
+  [261/270] CuCD-ID|MLP|joint_scratch|5 mean-F1=0.997
+  [262/270] CuCD-ID|MLP|joint_scratch|6 mean-F1=0.994
+  [263/270] CuCD-ID|MLP|joint_scratch|7 mean-F1=0.998
+  [264/270] CuCD-ID|MLP|joint_scratch|8 mean-F1=0.998
+  [265/270] CuCD-ID|MLP|joint_scratch|9 mean-F1=0.997
+  [266/270] CuCD-ID|MLP|joint_scratch|10 mean-F1=0.998
+  [267/270] CuCD-ID|MLP|joint_scratch|11 mean-F1=0.997
+  [268/270] CuCD-ID|MLP|joint_scratch|12 mean-F1=0.995
+  [269/270] CuCD-ID|MLP|joint_scratch|13 mean-F1=0.998
+  [270/270] CuCD-ID|MLP|joint_scratch|14 mean-F1=0.997
+
+1890 per-class rows written to results/per_class_f1_runs.csv
+
+Mean F1 by (dataset, arch, method, task_name):
+method                           bic    ewc  ...    lwf  replay
+dataset task_name                            ...               
+CuCD-ID T0_launch              0.995  0.032  ...  0.037   0.995
+        T1_data_injection      0.996  0.000  ...  0.000   0.989
+        T2_defence_impairment  0.991  0.093  ...  0.000   0.991
+        T3_storage_exhaustion  0.986  0.375  ...  0.366   0.982
+STIN    T0_flood_base          0.730  0.195  ...  0.133   0.586
+        T1_flood_ext           0.616  0.031  ...  0.027   0.529
+        T2_app_layer           0.516  0.339  ...  0.288   0.657
+
+[7 rows x 9 columns]
+=== experiments/run_stats.py ===
+
+Wrote 216 pre-specified pairwise comparisons to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_permutation.csv
+  162/216 survive Holm p<0.05
+  CuCD-ID CNN1D lwf      vs joint   : Δ=-0.742 95%CI=[-0.743,-0.741] d=-345.81 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D ewc      vs joint   : Δ=-0.742 95%CI=[-0.743,-0.741] d=-356.74 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs joint_scratch: Δ=-0.738 95%CI=[-0.747,-0.722] d=-24.18 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs joint   : Δ=-0.737 95%CI=[-0.746,-0.721] d=-24.13 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs joint_scratch: Δ=-0.734 95%CI=[-0.746,-0.713] d=-19.91 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D lwf      vs joint_scratch: Δ=-0.734 95%CI=[-0.739,-0.727] d=-57.63 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D ewc      vs joint_scratch: Δ=-0.734 95%CI=[-0.739,-0.727] d=-57.65 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs bic     : Δ=-0.734 95%CI=[-0.742,-0.717] d=-24.07 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs joint   : Δ=-0.733 95%CI=[-0.746,-0.712] d=-19.78 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs icarl   : Δ=-0.732 95%CI=[-0.741,-0.715] d=-24.09 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   replay   vs lwf     : Δ=+0.731 95%CI=[+0.714,+0.740] d=+24.72 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs bic     : Δ=-0.730 95%CI=[-0.742,-0.709] d=-19.71 p=0.0001 p_holm=0.0132 **
+
+Wrote 216 pre-specified pairwise comparisons to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_permutation_macrof1.csv
+  164/216 survive Holm p<0.05
+  CuCD-ID CNN1D lwf      vs joint   : Δ=-0.920 95%CI=[-0.921,-0.919] d=-508.95 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D ewc      vs joint   : Δ=-0.920 95%CI=[-0.921,-0.919] d=-467.85 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D lwf      vs joint_scratch: Δ=-0.913 95%CI=[-0.917,-0.906] d=-81.21 p=0.0001 p_holm=0.0132 **
+  CuCD-ID CNN1D ewc      vs joint_scratch: Δ=-0.913 95%CI=[-0.917,-0.906] d=-81.51 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs joint_scratch: Δ=-0.909 95%CI=[-0.924,-0.882] d=-18.13 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs joint   : Δ=-0.908 95%CI=[-0.923,-0.881] d=-18.13 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs bic     : Δ=-0.905 95%CI=[-0.919,-0.877] d=-18.14 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs joint_scratch: Δ=-0.903 95%CI=[-0.923,-0.869] d=-15.68 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   replay   vs lwf     : Δ=+0.903 95%CI=[+0.876,+0.918] d=+18.52 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs joint   : Δ=-0.902 95%CI=[-0.923,-0.869] d=-15.60 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   lwf      vs icarl   : Δ=-0.901 95%CI=[-0.916,-0.875] d=-18.17 p=0.0001 p_holm=0.0132 **
+  CuCD-ID MLP   finetune vs bic     : Δ=-0.898 95%CI=[-0.919,-0.865] d=-15.59 p=0.0001 p_holm=0.0132 **
+=== experiments/run_robustness.py ===
+Robustness: 12 training runs x 7 corruptions; 4 worker process(es), one BLAS thread per worker
+  [1/12] replay seed=0 clean-matrix ACC=0.993 (3s)
+  [2/12] replay seed=1 clean-matrix ACC=0.990 (3s)
+  [3/12] replay seed=2 clean-matrix ACC=0.992 (3s)
+  [4/12] icarl seed=0 clean-matrix ACC=0.993 (7s)
+  [5/12] icarl seed=1 clean-matrix ACC=0.996 (13s)
+  [6/12] icarl seed=2 clean-matrix ACC=0.989 (13s)
+  [7/12] bic seed=0 clean-matrix ACC=0.992 (13s)
+  [8/12] bic seed=1 clean-matrix ACC=0.996 (14s)
+  [9/12] bic seed=2 clean-matrix ACC=0.993 (19s)
+  [10/12] joint_scratch seed=0 clean-matrix ACC=0.995 (19s)
+  [11/12] joint_scratch seed=1 clean-matrix ACC=0.996 (19s)
+  [12/12] joint_scratch seed=2 clean-matrix ACC=0.997 (19s)
+
+Mean pooled ACC by (method, corruption):
+method         corruption
+bic            clean         0.994
+               drop_0.1      0.937
+               drop_0.3      0.801
+               gauss_0.1     0.994
+               gauss_0.5     0.970
+               int8_sim      0.994
+               nowindow      0.748
+icarl          clean         0.992
+               drop_0.1      0.938
+               drop_0.3      0.805
+               gauss_0.1     0.992
+               gauss_0.5     0.962
+               int8_sim      0.992
+               nowindow      0.643
+joint_scratch  clean         0.996
+               drop_0.1      0.939
+               drop_0.3      0.804
+               gauss_0.1     0.996
+               gauss_0.5     0.975
+               int8_sim      0.996
+               nowindow      0.728
+replay         clean         0.992
+               drop_0.1      0.932
+               drop_0.3      0.795
+               gauss_0.1     0.991
+               gauss_0.5     0.946
+               int8_sim      0.993
+               nowindow      0.712
+
+Activation ledger (analytic, batch=1 and batch=32):
+ arch  act_fwd_floats  SIM_act_fwd_KB  SIM_act_train_KB  seq_len  SIM_act_fwd_KB_batch32  SIM_act_train_KB_batch32
+  MLP             101           0.395             0.789      NaN                  12.625                     25.25
+  GRU             775           3.027             6.055     11.0                  96.875                    193.75
+CNN1D             719           2.809             5.617      NaN                  89.875                    179.75
+
+Full persistent/update memory ledger:
+dataset  arch        method  persistent_total_KB  retained_update_state_KB  SIM_peak_update_KB
+CuCD-ID CNN1D           bic            12.262695                   70.3125          223.234375
+CuCD-ID CNN1D           ewc             1.313477                   70.3125          126.343750
+CuCD-ID CNN1D      finetune             0.262695                    0.0000           53.929688
+CuCD-ID CNN1D          full            13.313477                   70.3125          180.406250
+CuCD-ID CNN1D         icarl            12.262695                    0.0000          152.921875
+CuCD-ID CNN1D         joint             0.262695                    0.0000           53.929688
+CuCD-ID CNN1D joint_scratch             0.262695                    0.0000           53.929688
+CuCD-ID CNN1D           lwf             0.262695                    0.0000           99.437500
+CuCD-ID CNN1D        replay             3.262695                    0.0000           69.554688
+CuCD-ID   GRU           bic            12.434570                   70.3125          334.179688
+CuCD-ID   GRU           ewc             2.172852                   70.3125          184.093750
+CuCD-ID   GRU      finetune             0.434570                    0.0000          110.304688
+CuCD-ID   GRU          full            14.172852                   70.3125          238.156250
+CuCD-ID   GRU         icarl            12.434570                    0.0000          263.867188
+CuCD-ID   GRU         joint             0.434570                    0.0000          110.304688
+CuCD-ID   GRU joint_scratch             0.434570                    0.0000          110.304688
+CuCD-ID   GRU           lwf             0.434570                    0.0000          208.750000
+CuCD-ID   GRU        replay            12.434570                    0.0000          164.929688
+CuCD-ID   MLP           bic            13.317383                   70.3125          175.554688
+CuCD-ID   MLP           ewc             6.586914                   70.3125          122.093750
+CuCD-ID   MLP      finetune             1.317383                    0.0000           41.242188
+CuCD-ID   MLP          full            12.586914                   70.3125          150.156250
+CuCD-ID   MLP         icarl            13.317383                    0.0000          105.242188
+CuCD-ID   MLP         joint             1.317383                    0.0000           41.242188
+CuCD-ID   MLP joint_scratch             1.317383                    0.0000           41.242188
+CuCD-ID   MLP           lwf             1.317383                    0.0000           52.945312
+CuCD-ID   MLP        replay            13.317383                    0.0000           95.867188
+   STIN CNN1D           bic            16.305664                  168.7500          373.078125
+   STIN CNN1D           ewc             1.528320                  168.7500          243.656250
+   STIN CNN1D      finetune             0.305664                    0.0000           72.460938
+   STIN CNN1D          full            17.528320                  168.7500          314.406250
+   STIN CNN1D         icarl            16.305664                    0.0000          204.328125
+   STIN CNN1D         joint             0.305664                    0.0000           72.460938
+   STIN CNN1D joint_scratch             0.305664                    0.0000           72.460938
+   STIN CNN1D           lwf             0.305664                    0.0000          134.304688
+   STIN CNN1D        replay             4.305664                    0.0000           92.960938
+   STIN   GRU           bic            16.506836                  168.7500          434.570312
+   STIN   GRU           ewc             2.534180                  168.7500          277.593750
+   STIN   GRU      finetune             0.506836                    0.0000          104.789062
+   STIN   GRU          full            18.534180                  168.7500          348.343750
+   STIN   GRU         icarl            16.506836                    0.0000          265.820312
+   STIN   GRU         joint             0.506836                    0.0000          104.789062
+   STIN   GRU joint_scratch             0.506836                    0.0000          104.789062
+   STIN   GRU           lwf             0.506836                    0.0000          194.937500
+   STIN   GRU        replay            16.506836                    0.0000          176.289062
+   STIN   MLP           bic            17.633789                  168.7500          300.507812
+   STIN   MLP           ewc             8.168945                  168.7500          232.156250
+   STIN   MLP      finetune             1.633789                    0.0000           50.335938
+   STIN   MLP          full            16.168945                  168.7500          268.906250
+   STIN   MLP         icarl            17.633789                    0.0000          131.757812
+   STIN   MLP         joint             1.633789                    0.0000           50.335938
+   STIN   MLP joint_scratch             1.633789                    0.0000           50.335938
+   STIN   MLP           lwf             1.633789                    0.0000           63.421875
+   STIN   MLP        replay            17.633789                    0.0000          121.835938
+
+Done (19s)
+=== experiments/run_leakage_ablation.py ===
+Leakage ablation: 225 runs; 4 worker process(es), one BLAS thread per worker
+  [10/225] all replay seed=9 ACC=0.988 F1=0.990 (6s)
+  [20/225] all bic seed=4 ACC=0.994 F1=0.994 (23s)
+  [30/225] all bic seed=14 ACC=0.990 F1=0.990 (46s)
+  [40/225] all joint_scratch seed=9 ACC=0.996 F1=0.997 (54s)
+  [50/225] no_time replay seed=4 ACC=0.995 F1=0.995 (59s)
+  [60/225] no_time replay seed=14 ACC=0.980 F1=0.983 (64s)
+  [70/225] no_time bic seed=9 ACC=0.987 F1=0.986 (86s)
+  [80/225] no_time joint_scratch seed=4 ACC=0.994 F1=0.995 (102s)
+  [90/225] no_time joint_scratch seed=14 ACC=0.993 F1=0.993 (110s)
+  [100/225] no_ids replay seed=9 ACC=0.990 F1=0.991 (115s)
+  [110/225] no_ids bic seed=4 ACC=0.996 F1=0.996 (129s)
+  [120/225] no_ids bic seed=14 ACC=0.983 F1=0.983 (153s)
+  [130/225] no_ids joint_scratch seed=9 ACC=0.990 F1=0.992 (163s)
+  [140/225] no_window replay seed=4 ACC=0.838 F1=0.868 (168s)
+  [150/225] no_window replay seed=14 ACC=0.886 F1=0.908 (172s)
+  [160/225] no_window bic seed=9 ACC=0.924 F1=0.931 (198s)
+  [170/225] no_window joint_scratch seed=4 ACC=0.994 F1=0.995 (215s)
+  [180/225] no_window joint_scratch seed=14 ACC=0.995 F1=0.995 (223s)
+  [190/225] no_time_ids_window replay seed=9 ACC=0.912 F1=0.919 (227s)
+  [200/225] no_time_ids_window bic seed=4 ACC=0.920 F1=0.905 (240s)
+  [210/225] no_time_ids_window bic seed=14 ACC=0.862 F1=0.863 (265s)
+  [220/225] no_time_ids_window joint_scratch seed=9 ACC=0.972 F1=0.975 (273s)
+  [225/225] no_time_ids_window joint_scratch seed=14 ACC=0.965 F1=0.968 (277s)
+
+Mean pooled ACC / Macro-F1 by variant and method:
+           variant        method  n_features  ACC_mean  MacroF1_mean  ACC_mean_delta_vs_all  MacroF1_mean_delta_vs_all
+               all           bic          22    0.9923        0.9924                 0.0000                     0.0000
+               all joint_scratch          22    0.9966        0.9969                 0.0000                     0.0000
+               all        replay          22    0.9894        0.9906                 0.0000                     0.0000
+            no_ids           bic          19    0.9903        0.9906                -0.0020                    -0.0018
+            no_ids joint_scratch          19    0.9956        0.9960                -0.0011                    -0.0009
+            no_ids        replay          19    0.9658        0.9693                -0.0236                    -0.0213
+           no_time           bic          21    0.9889        0.9890                -0.0034                    -0.0034
+           no_time joint_scratch          21    0.9949        0.9953                -0.0017                    -0.0015
+           no_time        replay          21    0.9901        0.9907                 0.0007                     0.0001
+no_time_ids_window           bic           9    0.9153        0.8980                -0.0771                    -0.0944
+no_time_ids_window joint_scratch           9    0.9723        0.9757                -0.0243                    -0.0211
+no_time_ids_window        replay           9    0.9229        0.9338                -0.0666                    -0.0569
+         no_window           bic          13    0.9384        0.9421                -0.0539                    -0.0503
+         no_window joint_scratch          13    0.9912        0.9922                -0.0054                    -0.0047
+         no_window        replay          13    0.9042        0.9220                -0.0852                    -0.0686
+
+Wrote results/leakage_ablation.csv (225 runs, 277s)
+=== experiments/check_consistency.py ===
+======================================================================
+CONSISTENCY CHECK: Main Experiment vs Few-Shot
+======================================================================
+
+1. HYPERPARAMETER CONSISTENCY CHECK
+----------------------------------------------------------------------
+  Frozen: MLP  /finetune   -> {'lr': 0.001, 'epochs': 25}
+  Frozen: MLP  /replay     -> {'lr': 0.003, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+  Frozen: MLP  /ewc        -> {'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 50}
+  Frozen: MLP  /full       -> {'lr': 0.01, 'buffer_capacity': 256, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+  Frozen: MLP  /lwf        -> {'lr': 0.001, 'distill_lambda': 1.0, 'distill_T': 1.5, 'epochs': 50}
+  Frozen: MLP  /bic        -> {'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 1.0, 'epochs': 50}
+  Frozen: MLP  /icarl      -> {'lr': 0.003, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+  Frozen: MLP  /joint      -> {'lr': 0.001, 'epochs': 50}
+  Frozen: MLP  /joint_scratch -> {'lr': 0.003, 'epochs': 25}
+  Frozen: GRU  /finetune   -> {'lr': 0.001, 'epochs': 25}
+  Frozen: GRU  /replay     -> {'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.9, 'epochs': 50}
+  Frozen: GRU  /ewc        -> {'lr': 0.001, 'ewc_lambda': 5000, 'ewc_gamma': 1.0, 'epochs': 25}
+  Frozen: GRU  /full       -> {'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+  Frozen: GRU  /lwf        -> {'lr': 0.001, 'distill_lambda': 2.0, 'distill_T': 3.0, 'epochs': 25}
+  Frozen: GRU  /bic        -> {'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+  Frozen: GRU  /icarl      -> {'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+  Frozen: GRU  /joint      -> {'lr': 0.003, 'epochs': 25}
+  Frozen: GRU  /joint_scratch -> {'lr': 0.003, 'epochs': 50}
+  Frozen: CNN1D/finetune   -> {'lr': 0.001, 'epochs': 50}
+  Frozen: CNN1D/replay     -> {'lr': 0.01, 'buffer_capacity': 128, 'replay_frac': 0.9, 'epochs': 50}
+  Frozen: CNN1D/ewc        -> {'lr': 0.001, 'ewc_lambda': 100, 'ewc_gamma': 0.5, 'epochs': 25}
+  Frozen: CNN1D/full       -> {'lr': 0.01, 'buffer_capacity': 512, 'replay_frac': 0.7, 'ewc_lambda': 100, 'ewc_gamma': 1.0, 'epochs': 50}
+  Frozen: CNN1D/lwf        -> {'lr': 0.001, 'distill_lambda': 0.5, 'distill_T': 1.5, 'epochs': 25}
+  Frozen: CNN1D/bic        -> {'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+  Frozen: CNN1D/icarl      -> {'lr': 0.01, 'buffer_capacity': 512, 'distill_lambda': 0.5, 'epochs': 50}
+  Frozen: CNN1D/joint      -> {'lr': 0.01, 'epochs': 50}
+  Frozen: CNN1D/joint_scratch -> {'lr': 0.01, 'epochs': 50}
+
+2. MAIN vs FEW-SHOT (K=150, fixed-calibration) CONSISTENCY CHECK
+----------------------------------------------------------------------
+
+  MLP   / replay     (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9910 (n=5)
+    FewShot ACC: 0.9910 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+  MLP   / full       (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9349 (n=5)
+    FewShot ACC: 0.9349 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+  MLP   / icarl      (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9916 (n=5)
+    FewShot ACC: 0.9916 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+  MLP   / bic        (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9937 (n=5)
+    FewShot ACC: 0.9937 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+  GRU   / replay     (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9249 (n=5)
+    FewShot ACC: 0.9249 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+  GRU   / icarl      (K=150, seeds [0, 1, 2, 3, 4]):
+    Main ACC:   0.9180 (n=5)
+    FewShot ACC: 0.9180 (n=5)
+    Diff:       0.0000
+    OK: Difference <= 0.05
+
+3. SEED CONSISTENCY CHECK
+----------------------------------------------------------------------
+Main experiment seeds: [np.int64(0), np.int64(1), np.int64(2), np.int64(3), np.int64(4), np.int64(5), np.int64(6), np.int64(7), np.int64(8), np.int64(9), np.int64(10), np.int64(11), np.int64(12), np.int64(13), np.int64(14)]
+  OK: 15 seeds used
+Few-shot seeds: [np.int64(0), np.int64(1), np.int64(2), np.int64(3), np.int64(4)]
+  OK: 5 seeds (0-4) used
+
+4. HYPERPARAMETER SOURCE CHECK
+----------------------------------------------------------------------
+  OK: frozen configs cover 3 archs x 9 methods
+
+======================================================================
+ALL CHECKS PASSED - No inconsistencies detected
+=== analysis/plots.py ===
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/method_comparison_CuCD-ID.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/method_comparison_STIN.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/forgetting_curve_task0_CuCD-ID.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/forgetting_curve_task0_STIN.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/accuracy_heatmap_CuCD-ID.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/accuracy_heatmap_STIN.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/memory_footprint.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/hparam_sweep_heatmap.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/ewc_lambda_sensitivity.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/buffer_size_sensitivity.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/task_order_sensitivity.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/architecture_comparison.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/per_class_f1_STIN_GRU.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/per_class_f1_CuCD-ID_MLP.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/confusion_matrix_STIN_GRU.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/confusion_matrix_CuCD-ID_MLP.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/fewshot_pareto.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/arch_tune.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/temporal_bracket.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/robustness.png
+wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/leakage_ablation.png
+=== experiments/generate_summary_report.py ===
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/RESULTS_SUMMARY.md (113404 chars)
+Wrote v5_4_project_report_final.md (115442 chars, auto-generated)
+=== experiments/create_manifest.py ===
+Manifest written to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/final_experiment_manifest.json

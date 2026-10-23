@@ -1,6 +1,85 @@
 # DATALOG — data & experiment provenance (cubesat-cl-ids)
 
+> **Historical log.** Entries below record the run that produced them; numeric
+> claims in older entries (especially the 2026-09-21 K~50 knee and temporal
+> figures) are superseded by the current `results/` CSVs and
+> `results/RESULTS_SUMMARY.md`. Do not cite an old entry without checking the
+> current manifest, which derives run counts/grids from the executable code.
+
 Purpose: log **what data/split/config produced which results**, so the journal reproducibility checklist can be answered. Append-only: newest entries on top.
+
+## 2026-10-23 — v6.2 packaging + claim reframing (no rerun)
+- **Artifact identity:** package/report version set to **v6.2**; current report
+  is `v6_2_project_report_final.md`. Historical v5.x entries remain below.
+- **Packaging:** removed the empty brace-expansion directory
+  `{src,experiments,tests,data`, Python caches, and the stale untracked generic
+  bundle.
+- **Frozen-hparam guard:** strict loader now validates coverage and required
+  keys for all 3 architectures x 9 methods; no frozen values changed.
+- **Claim boundary:** report/README reframed as a benchmark and negative-result
+  study. No CSV/JSON result values were regenerated; only reports/manifest and
+  documentation changed.
+
+## 2026-10-22 — Confirmatory 15-seed rerun (completed; supersedes the earlier same-day 540-run entry)
+- **Split protocol:** validation is 20% of each per-class pool, then split 50/50
+  into disjoint calibration and selection halves (150/150 per class at the
+  cap). BiC and the EWC Fisher use calibration only; all tuning scores use
+  selection only. The split is keyed by stable class identity so task-order
+  permutations preserve the same calibration/selection rows.
+- **Seeds/stats:** main matrix expanded from 10 to 15 seeds (810 runs). The
+  fixed all-pairwise family is 216 comparisons per metric, Holm-corrected
+  across the full family: **162/216 ACC** and **164/216 Macro-F1**
+  comparisons survive at p_holm<0.05. All stats are pre-specified and
+  exploratory, not selected after seeing results.
+- **Few-shot:** 420 runs covering `fixed` (150 calib + 150 select per class)
+  and `scaled` (K calib + K select per class) protocols; calibration payload
+  is charged only to methods that consume it.
+- **Task order:** 144 runs; two-class-T0-first permutations are primary and
+  single-class-first permutations are reported separately as degenerate
+  no-op updates. Current primary per-order mean spread is 0.0146.
+- **Temporal/leakage:** 270-run three-protocol temporal study and 225-run
+  feature-provenance leakage ablation. The current `no_window` numbers
+  supersede older temporal/leakage entries. Mean deployable-method ACC falls
+  from 0.6768 (IID) to 0.2240 (temporal-purged) and 0.1895 with
+  time/ID/window groups removed.
+- **Memory:** largest persistent `full` state is 18.53 KB; largest
+  host-estimated peak update RAM is 348.34 KB. The retained-update column is
+  the cumulative calibration half, not deployed inference state.
+- **Controls:** 450 matched-replay/EWC-lambda runs; exact paired Holm results
+  in `results/stats_baseline_controls.csv` (7/30 significant).
+- **Execution:** four worker processes with one BLAS thread each. Wall time
+  4h07m including an ~8 min restart after fixing a missing `time` import;
+  compute time 3h59m. Main-vs-few-shot consistency passes
+  (`k150_max_abs_acc_diff=0.0`).
+- **Full pipeline regenerated:** 810 main runs, 756 tuning rows (2268
+  seed-runs), figures, manifest, `RESULTS_SUMMARY.md`, and
+  `v5_4_project_report_final.md`. Current counts are recorded in
+  `results/final_experiment_manifest.json`. Do not mix these numbers with
+  older rows.
+
+## 2026-10-22 — Priority-1/2 correctness fixes + full rerun (completed; superseded by the 15-seed entry above)
+- **BiC composition:** `BiasCorrector.fit_stage` now applies the current
+  corrector to validation logits before fitting the next stage; BiC was
+  re-tuned separately and all BiC/EWC/full rows rerun. Added
+  `tests/test_bic.py`.
+- **Task order:** isolated canonical splits/scaler with 12 class permutations
+  x 2 budget modes (144 runs). Budget-mode gap 0.0015, per-order mean spread
+  0.0824; legacy confounded task-order headline retired.
+- **Temporal/leakage:** 270-run three-protocol temporal study and 150-run
+  feature-provenance rerun. Current temporal and `no_window` numbers
+  supersede the 2026-10-21 temporal/no_window entries.
+- **Memory:** peak RAM now includes batch-32 activations and retained
+  cumulative-validation state for EWC/full/BiC; activation and full ledgers
+  are separate. Largest persistent state 24.17 KB; retained validation
+  70.31 KB (CuCD-ID) / 168.75 KB (STIN); largest host-estimated peak
+  348.34 KB.
+- **Priority-2 controls:** 300 matched-replay/EWC-lambda runs; exact paired
+  Holm results in `results/stats_baseline_controls.csv` (0/30 significant).
+- **Stats:** exact p-value floor fixed; no zero p-values. Main/few-shot
+  consistency passes (`k150_max_abs_acc_diff=0.0`).
+- Full pipeline regenerated: 540 main runs, 756 tuning rows (2268
+  seed-runs), figures, manifest, `RESULTS_SUMMARY.md`, and
+  `v5_4_project_report_final.md`. Do not mix these numbers with older rows.
 
 ## 2026-10-21 — v5.4 Q2/Q3 correctness rerun (completed)
 - **Data provenance:** CuCD-ID is simulated NOS3/cFS software-in-the-loop

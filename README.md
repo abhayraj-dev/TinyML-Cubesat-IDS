@@ -13,6 +13,11 @@ references) are compared under the strict **class-incremental**
 protocol: no task ID is ever available at inference time, and every sample
 must be classified by a single, dynamically-growing shared softmax head.
 
+**Scope and claims.** This repository is a resource-aware benchmark and
+negative-result study, not a claim that the combined `full` method wins. The
+IID split is a benchmark estimand; temporal-purged and feature-provenance
+results are separate validity checks.
+
 This repository contains the full codebase; running `python3 run_all.py`
 reproduces every number and figure referenced below directly from the
 provided CSV data (no placeholder or hand-typed results anywhere in the
@@ -144,7 +149,7 @@ be recalibrated using data from attacks that haven't been seen yet.
 actual global head-column indices dynamically, based on the order tasks are
 *actually processed in*. This is what lets the task-order-sensitivity
 ablation safely replay the very same `TaskSequence` in a different order
-without corrupting label alignment (see `experiments/run_ablation.py`).
+without corrupting label alignment (see `experiments/run_task_order.py`).
 
 ---
 
@@ -164,18 +169,24 @@ output columns while leaving existing ones untouched).
 | **CubeSat 1-D CNN** | `Conv1D(1->6,k=3) -> ReLU -> Conv1D(6->10,k=3) -> ReLU -> GlobalAvgPool` | **Architectural stress test** -- feature vector treated as a length-F, 1-channel signal; conv implemented via an explicit (correct, gradient-checked) im2col-style loop. Not genuine sequence modelling. |
 
 A feature-order permutation study (`experiments/run_feature_order.py`)
-confirms this framing: the MLP is stable under random feature-column
-permutation, while the CNN and GRU change materially -- the
-convolution/recurrence depend on the imposed feature ordering, whereas the
-MLP does not. See the generated feature-order table for current values.
+supports this framing only as an exploratory check: the MLP has **no imposed
+feature-order inductive bias**, but retraining under a permutation is not
+mathematically invariant. The study uses one data split and two training
+seeds (96 runs total), so it does not estimate a stable permutation effect.
+The CNN and GRU move more materially because convolution/recurrence depend on
+the imposed ordering. Read the generated feature-order table for the actual
+spread rather than assuming permutation invariance.
 
 All configurations fit within the **assumed 60 KB TinyML persistent-state
 budget** imposed as a conservative study constraint (not a universal
 CubeSat hardware limit) -- see the generated memory ledger for the current
 largest configuration. Peak update RAM (FP32 weights, gradients, Adam
-states, activations, batches, teacher) is reported separately and is
-substantially larger -- persistent footprint and update RAM are different
-quantities and are never conflated in this report.
+states, **batch-32** activations, replay/teacher, and retained
+cumulative calibration state for EWC/full/BiC) is reported separately and is
+substantially larger. The cumulative calibration pool is update-time state,
+not deployed inference state; keeping it while fitting EWC/BiC/Fisher adds
+roughly 70.3 KB for CuCD-ID (750 calibration rows x 22 features x 4 bytes plus labels, as built), so persistent and
+update footprints are never conflated.
 
 ---
 
@@ -191,17 +202,14 @@ Two independent, combinable sub-mechanisms:
   al., 2018): a *single* running diagonal Fisher-information estimate and
   a *single* anchor-parameter snapshot are kept (O(1) memory in the number
   of tasks learned, unlike vanilla per-task EWC, which is essential under
-  a fixed onboard memory budget). The Fisher is estimated from the
-  **current task's training/validation samples** (online new-task Fisher
-  variant -- previous Fisher information is retained through the running
-  consolidation, not re-estimated from old data), accumulated as
-  `F_new = gamma * F_old + F_current` with per-architecture tuned weighting
-  (frozen configs: MLP `gamma = 0.5`, GRU `gamma = 2.0`, CNN `gamma = 0.5`).
-  Here `gamma` is treated as a validation-tuned weighting parameter rather
-  than a conventional decay factor: GRU's `gamma = 2.0` amplifies the
-  retained Fisher instead of decaying it, and was kept because validation
-  selected it. Restricting the grid to `gamma <= 1` would be a stricter EWC
-  formulation but would require rerunning the EWC-related experiments.
+  a fixed onboard memory budget). The Fisher is estimated from a
+  class-balanced mix of the current task's training data and the cumulative
+  calibration pool of all tasks seen so far (not the current task alone),
+  accumulated as `F_new = gamma * F_old + F_current` with per-architecture
+  EWC-only tuned weighting (frozen configs: MLP `gamma = 0.5`, GRU
+  `gamma = 1.0`, CNN `gamma = 0.5`). Here `gamma` is treated as a
+  validation-tuned weighting parameter rather than a conventional decay
+  factor; the combined `full` configuration is tuned separately.
   Under the
   class-incremental protocol, the shared head is just as susceptible to
   forgetting as the trunk (the logit-competition effect described above),
@@ -223,13 +231,15 @@ joint-training reference -- not a strict upper bound, since warm-start
 joint can exceed it). The `-lite` suffix marks resource-conscious variants,
 not exact reproductions of the original papers.
 
-**Validation/calibration accounting (Option A).** BiC bias correction is fit on
-held-out validation data and the EWC Fisher mixes in validation samples.
-Because the onboard update is defined to reproduce these results, those
-calibration samples are **counted inside the reported uplink budget**:
-every payload figure is adaptation data + calibration data
-(`uplink_KB_total_with_calib` in `fewshot.csv`, §4 table totals). The
-alternative -- a calibration-free onboard update -- is out of scope.
+**Validation/calibration accounting (Option A).** The validation pool is
+split into two **disjoint** halves per task/class: calibration (BiC fitting
+and the EWC Fisher mix) and selection (hyperparameter scoring only). Because
+the onboard update is defined to reproduce these results, calibration samples
+are **counted inside the reported uplink budget**: payload figures are
+adaptation data + calibration data (`uplink_KB_total_with_calib` in
+`fewshot.csv`, §4 table totals). The selection half is an experimental
+scoring artifact and is excluded from the onboard budget. The alternative --
+a calibration-free onboard update -- is out of scope.
 
 ---
 
@@ -264,7 +274,13 @@ expects to see alongside the aggregate numbers.
 
 Headline method comparisons use **exact paired permutation tests with Holm
 correction**, reported with mean difference, 95% CI, and Cohen's d
-(`experiments/run_stats.py`) -- never p-values alone.
+(`experiments/run_stats.py`) -- never p-values alone. The pre-specified
+family is **216 all-pairwise comparisons per metric** (all unordered method
+pairs within each dataset x architecture), with Holm applied across the full
+family. Current confirmatory results: **162/216 ACC** and **164/216
+Macro-F1** comparisons significant. Matched-replay and EWC-lambda controls
+are reported separately (`results/stats_baseline_controls.csv`; 7/30 survive
+Holm). These tests are exploratory, not winner-selected.
 
 ---
 
@@ -273,26 +289,28 @@ correction**, reported with mean difference, 95% CI, and Cohen's d
 1. **`experiments/run_hparam_sweep.py`** -- a 160-point grid search
    (learning rate x EWC lambda x replay-buffer capacity x replay fraction)
    over the **STIN** dataset using the MLP backbone as a fast proxy and
-   `method="full"`, scored on **validation** (`ACC_val - FM_val`,
-   `val_frac=0.10`). The winner is a coarse prior only
+   `method="full"`, scored on the **selection half** of validation
+   (`ACC_select - max(FM_select, 0)`, `val_frac=0.20`, disjoint from the
+   calibration half). The winner is a coarse prior only
    (`results/best_hparams.json`).
 2. **`experiments/run_validation_tune.py`** -- per-method x per-architecture
    validation tuning on **CuCD-ID** (9 methods x 3 architectures x 3
-   seeds), scored on validation. Winners are frozen to
+   seeds), scored only on the selection half. Winners are frozen to
    `results/best_hparams_per_method_arch.json` and used, unchanged, by
    every subsequent experiment -- test data is never used for selection.
 3. **`experiments/run_main.py`** -- the full matrix: 2 datasets x 3
    architectures x 9 methods (`finetune`/`replay`/`ewc`/`full`/`lwf`/
-   `bic`/`icarl`/`joint`/`joint_scratch`) x 10 seeds = **540 runs**, each
+   `bic`/`icarl`/`joint`/`joint_scratch`) x 15 seeds = **810 runs**, each
    producing a full accuracy matrix, CL + Macro-F1/Balanced-Accuracy
    metrics, detection metrics (CuCD-ID), training time, persistent vs peak
    memory accounting and MACs estimates.
 4. **Phase-2 evidence** -- purged temporal evaluation
    (`run_purged_temporal.py`: IID vs forward-temporal with a 0.02 rad
    TimeRadians purge), few-shot uplink sweep (`run_fewshot.py`: K =
-   5..300, frozen configs, only K varies), feature-order stability
+   5..300 under fixed and scaled calibration protocols), exploratory feature-order permutation
    (`run_feature_order.py`), disentangled task-order study
-   (`run_task_order.py`: `fixed_position` primary), ablations
+   (`run_task_order.py`: two-class-T0-first primary, single-class-first
+   degenerate runs reported separately), ablations
    (`run_ablation.py`: buffer capacity, EWC lambda, legacy task order),
    per-class analysis (`run_per_class_analysis.py`: frozen configs, BiC
    correction applied), exact permutation statistics on **ACC and
@@ -303,11 +321,11 @@ correction**, reported with mean difference, 95% CI, and Cohen's d
 5. **`experiments/check_consistency.py`** -- verifies main vs few-shot
    (K=150, intersecting seeds) hyperparameter and seed consistency.
 6. **`analysis/plots.py`** -- generates every figure in `figures/`
-   (21 PNGs, Macro-F1 primary, dual-protocol temporal bracket, leakage ablation).
+   (21 PNGs, Macro-F1 primary, three-protocol temporal bracket, leakage ablation).
 7. **`experiments/create_manifest.py`** -- writes
    `results/final_experiment_manifest.json` (machine-readable provenance).
 8. **`experiments/generate_summary_report.py`** -- writes
-   `results/RESULTS_SUMMARY.md` and `v5_4_project_report_final.md`, fully
+   `results/RESULTS_SUMMARY.md` and `v6_2_project_report_final.md`, fully
    auto-generated reports pulling every number directly out of the
    CSV/JSON result files.
 
@@ -324,10 +342,10 @@ or step by step (`python3 run_all.py --no-phase2` skips Phase-2):
 python3 tests/test_gradients.py                    # sanity check
 python3 experiments/run_hparam_sweep.py             # STIN coarse prior (validation-scored)
 python3 experiments/run_validation_tune.py          # per-method/arch tuning (validation, frozen)
-python3 experiments/run_main.py                     # 540-run matrix (test evaluation only)
+python3 experiments/run_main.py                     # 810-run matrix (test evaluation only)
 python3 experiments/run_purged_temporal.py          # IID vs purged-temporal
 python3 experiments/run_fewshot.py                  # uplink sweep
-python3 experiments/run_feature_order.py            # feature-order stability
+python3 experiments/run_feature_order.py            # exploratory feature-order permutation
 python3 experiments/run_task_order.py               # disentangled task order
 python3 experiments/run_ablation.py                 # buffer / lambda / order ablations
 python3 experiments/run_per_class_analysis.py       # per-class F1 + confusion matrices
@@ -359,26 +377,28 @@ a full run you should have:
 | `results/main_results_runs.csv`, `results/main_results_summary.csv`, `results/accuracy_matrices.json` | main matrix |
 | `results/temporal_purged_compare.csv` | purged temporal |
 | `results/fewshot.csv` | few-shot uplink sweep |
-| `results/feature_order_stability.csv` | feature-order stability |
+| `results/feature_order_stability.csv` | exploratory feature-order permutation |
 | `results/task_order_disentangled.csv` | task-order study |
 | `results/ablation_buffer_size.csv`, `results/ablation_ewc_lambda.csv`, `results/ablation_task_order.csv` | ablations |
 | `results/per_class_f1_runs.csv`, `results/per_class_f1_summary.csv`, `results/confusion_matrices.json` | per-class analysis |
 | `results/stats_permutation.csv`, `results/stats_permutation_macrof1.csv` | permutation stats (ACC + Macro-F1) |
-| `results/robustness.csv`, `results/memory_ledger.csv` | robustness |
+| `results/robustness.csv`, `results/memory_ledger.csv`, `results/activation_memory_ledger.csv` | robustness |
 | `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv` | leakage ablation |
 | `results/final_experiment_manifest.json` | manifest |
 | 21 PNG files under `figures/` | plots |
-| `results/RESULTS_SUMMARY.md`, `v5_4_project_report_final.md` | report |
+| `results/baseline_controls.csv`, `results/stats_baseline_controls.csv` | equal-buffer / EWC-lambda controls |
+| `results/RESULTS_SUMMARY.md`, `v6_2_project_report_final.md` | report |
 
 Nothing needs network access at run time (the two datasets are already
 included under `data/`); everything is deterministic given the fixed seeds
-in `experiments/config.py` (main matrix: seeds 0-9; few-shot: 0-4;
+in `experiments/config.py` (main matrix: seeds 0-14; few-shot: 0-4;
 validation tuning: 0-2), so re-running the whole pipeline should
 reproduce every number in `results/RESULTS_SUMMARY.md` and every figure
 exactly.
 
-(Full pipeline: ~10-14 hours on a single CPU core, dominated by validation
-tuning and the 540-run matrix; no GPU required.)
+(Full pipeline: about 4 hours on 4 CPU cores with `CL_JOBS=4`; the
+confirmatory run measured 3h59m compute / 4h07m wall, dominated by validation
+tuning, the 810-run matrix, and ablations. No GPU required.)
 
 ---
 
@@ -386,17 +406,20 @@ tuning and the 540-run matrix; no GPU required.)
 
 Every result value is written by the experiment pipeline; none is edited by
 hand. See `results/RESULTS_SUMMARY.md` and the auto-generated
-`v5_4_project_report_final.md` for the current tables, confidence intervals,
+`v6_2_project_report_final.md` for the current tables, confidence intervals,
 paired tests, ablations, and figures. `results/main_results_summary.csv` is
 the underlying source for the headline matrix.
 
-The stable qualitative findings are:
+The supported qualitative findings are:
 
 - Class-incremental naive fine-tuning collapses on the sequential benchmark;
   EWC/LwF alone do not rescue it.
 - Replay and replay-based methods substantially reduce forgetting, but their
   ranking depends on architecture and tuning; report the per-backbone matrix,
   not a single pooled winner.
+- The combined EWC+replay+BiC (`full`) configuration is **not** a uniform
+  improvement over replay. On CuCD-ID it is below replay for all three
+  architectures; treat it as a baseline, not the proposed winner.
 - BiC-lite and iCaRL-lite are competitive with replay on several backbones,
   while the offline joint references define the ceiling.
 - The STIN cross-domain stress test has a much lower ceiling than CuCD-ID.
@@ -431,13 +454,13 @@ consult those files rather than copying numbers into prose.
 |   |-- metrics.py        # ACC / BWT / FM / Macro-F1 / BalancedAccuracy, persistent vs peak memory, MACs, per-class F1
 |   `-- utils.py          # seeding
 |-- experiments/
-|   |-- config.py                      # 9 methods, 10 seeds, per-arch model kwargs
+|   |-- config.py                      # 9 methods, 15 seeds, per-arch model kwargs
 |   |-- run_hparam_sweep.py            # STIN coarse prior (validation-scored)
 |   |-- run_validation_tune.py         # per-method/arch validation tuning (frozen configs)
-|   |-- run_main.py                    # 540-run matrix (test evaluation only)
-|   |-- run_purged_temporal.py         # IID vs purged-temporal dual protocol
+|   |-- run_main.py                    # 810-run matrix (test evaluation only)
+|   |-- run_purged_temporal.py         # IID vs purged vs no-leaky-features temporal study
 |   |-- run_fewshot.py                 # uplink sweep (frozen configs, K varies)
-|   |-- run_feature_order.py           # feature-permutation stability
+|   |-- run_feature_order.py           # exploratory feature-permutation check
 |   |-- run_task_order.py              # disentangled task-order study
 |   |-- run_ablation.py                # buffer / lambda / order ablations
 |   |-- run_per_class_analysis.py      # per-class F1 + confusion matrices
@@ -476,9 +499,10 @@ consult those files rather than copying numbers into prose.
   intrinsically harder at this feature set and scale -- not merely a
   continual-learning artefact.
 * **GRU/CNN are architectural stress tests, not temporal models.** Both
-  operate on reshaped tabular feature vectors, not genuine sequences; the
-  feature-order study shows they depend on the imposed ordering while the
-  MLP does not. GRU is also one of the two architectures (with CNN1D)
+  operate on reshaped tabular feature vectors, not genuine sequences. The
+  exploratory feature-order study moves more for GRU/CNN, but it does not
+  establish that the MLP is permutation-invariant (one split, two training
+  seeds). GRU is also one of the two architectures (with CNN1D)
   most sensitive to EWC lambda -- confirmed on **both** CuCD-ID and STIN
   independently (Section 7 / `results/RESULTS_SUMMARY.md` Section 5.2) --
   reported as a finding, not adjusted away.
@@ -490,23 +514,40 @@ consult those files rather than copying numbers into prose.
   uplink constraint) mean per-seed variance can be non-trivial for some
   configurations (see the std columns in `results/main_results_runs.csv`
   and the buffer-size/task-order ablations); all headline numbers are
-  reported as means over 10 seeds with 95% CIs and effect sizes for key
+  reported as means over 15 seeds with 95% CIs and effect sizes for key
   comparisons.
-* **Empirical, new-task Fisher.** Online EWC here uses the empirical
-  Fisher (squared gradient of the true-label log-likelihood, estimated
-  from current-task train/val samples with the running estimate retained)
-  rather than the exact expected Fisher over old-task data; per-architecture
-  tuned decay applies (MLP 0.5 / GRU 2.0 / CNN 0.5).
-* **Validation data does double duty.** BiC calibration and the Fisher
-  mix consume validation samples that also feed the `V` matrix, so
-  validation metrics are not untouched; the test set is. Those calibration
-  samples are counted inside the reported uplink budget (see Section 2).
+* **Empirical Fisher from the cumulative calibration pool.** Online EWC
+  here uses the empirical Fisher (squared gradient of the true-label
+  log-likelihood, estimated from a class-balanced mix of current-task
+  training data and the cumulative calibration pool, with the running
+  estimate retained) rather than the exact expected Fisher over old-task
+  data; EWC-only per-architecture tuned decay applies (MLP 0.5 / GRU 1.0 /
+  CNN 0.5).
+* **Calibration and selection are disjoint.** BiC/Fisher use the calibration
+  half; hyperparameter scoring uses the selection half. Validation is
+  therefore not untouched by model fitting, but test data is. Calibration
+  samples are counted inside the reported uplink budget; selection samples
+  are experimental-only and excluded (see Section 2).
 * **Task-order effect is non-trivial and unexplained in mechanism.** The
   disentangled study reports budget-mode means and per-order spread in the
-  generated task-order table; individual runs vary more still. Whether the
-  remainder is class difficulty or order interaction is flagged as future
-  work rather than resolved here.
+  generated task-order table; individual runs vary more still. On primary
+  orders, `fixed_position` and `moves_with_task` are identical by construction
+  because every primary order starts with T0, so they are not independent
+  evidence. Whether the remaining variation is class difficulty or order
+  interaction is flagged as future work rather than resolved here.
 * **Temporal evaluation is a stress estimand, not ground truth.** The
   purged protocol reduces window overlap (0.02 rad TimeRadians purge) but
-  the data also exhibits mission-time drift and a T0-frozen scaler; IID
-  and temporal numbers are reported as separate regimes.
+  the data also exhibits mission-time drift and a T0-frozen scaler. The
+  temporal-purged arm falls to roughly four-class chance, and the stricter
+  no-leaky arm can fall below it; IID and temporal numbers are separate
+  regimes, and IID is not a deployment guarantee.
+* **No true scenario-level validation is possible.** CuCD-ID has no
+  scenario/run identifier in the released CSV. A grouped time-block proxy is
+  a sensitivity estimand only.
+* **Hyperparameters transfer across datasets and tuning/evaluation seeds
+  overlap.** All final configs are tuned on CuCD-ID validation; STIN is a
+  cross-dataset transfer test. Tuning seeds 0-2 overlap confirmatory seeds
+  0-14. Selection is validation-only (no test leakage), but the seeds are not
+  fully independent.
+* **Feature-order evidence is exploratory.** The study uses one split and two
+  training seeds; it does not establish permutation invariance.

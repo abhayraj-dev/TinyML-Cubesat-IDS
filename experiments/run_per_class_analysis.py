@@ -8,7 +8,7 @@ individual attack classes: for a small set of representative configs, the
 final trained model is evaluated on the full (all-tasks-seen) test set and
 a per-class precision/recall/F1 breakdown + confusion matrix is computed.
 
-Configs analysed (10 seeds each, frozen per-method/arch hyperparameters):
+Configs analysed (15 seeds each, frozen per-method/arch hyperparameters):
   * STIN,    GRU -- across all 9 methods (the secondary/stress-test dataset).
   * CuCD-ID, MLP -- across all 9 methods (the primary dataset's
     best-performing architecture, for a second, cleaner illustration).
@@ -22,6 +22,9 @@ import sys, os, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
 
+from parallel import configure_single_thread, describe, parallel_map, get_jobs
+configure_single_thread()
+
 import numpy as np
 import pandas as pd
 
@@ -29,7 +32,7 @@ import data_utils as du
 from train import train_continual
 from metrics import per_class_prf1
 from config import (MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR,
-                    METHODS, SEEDS, BASE_TRAIN_HPARAMS)
+                    METHODS, SEEDS, BASE_TRAIN_HPARAMS, VAL_FRAC)
 
 
 def load_frozen_hparams():
@@ -61,67 +64,86 @@ def evaluate_final_model_all_classes(model, task_seq, corrector=None):
     return y_all, preds, task_seq.class_names_global, task_of_class
 
 
-def run_config(dataset_name, arch, df, builder, frozen_hparams, rows_out, cm_out):
-    for method in METHODS:
-        arch_hparams = frozen_hparams.get(arch, {}).get(method, {}).get("hparams", {})
-        for seed in SEEDS:
-            ts = builder(df, seed=seed, val_frac=0.10)
-            mk = model_kwargs_for(arch, ts.n_features)
-            hp = {**BASE_TRAIN_HPARAMS, **arch_hparams}
-            out = train_continual(MODEL_CLASSES[arch], mk, ts, method, hp, seed=seed)
-            y_true, y_pred, class_names, task_of_class = evaluate_final_model_all_classes(
-                out["model"], ts, out.get("corrector"))
-            report = per_class_prf1(y_true, y_pred, len(class_names))
+_FROZEN = None
+_TS = {}
 
-            for c, cname in enumerate(class_names):
-                rows_out.append(dict(
-                    dataset=dataset_name, arch=arch, method=method, seed=seed,
-                    class_id=c, class_name=cname, task_name=task_of_class[c],
-                    precision=report["precision"][c], recall=report["recall"][c],
-                    f1=report["f1"][c], support=int(report["support"][c]),
-                ))
 
-            key = f"{dataset_name}|{arch}|{method}|{seed}"
-            cm_out[key] = {
-                "class_names": class_names,
-                "confusion_matrix": report["confusion_matrix"].tolist(),
-            }
-            print(f"  {key}  mean-F1={report['f1'].mean():.3f}")
+def _run_one(item):
+    dataset_name, arch, method, seed = item
+    ts = _TS[(dataset_name, seed)]
+    mk = model_kwargs_for(arch, ts.n_features)
+    arch_hparams = _FROZEN.get(arch, {}).get(method, {}).get("hparams", {})
+    hp = {**BASE_TRAIN_HPARAMS, **arch_hparams}
+    out = train_continual(MODEL_CLASSES[arch], mk, ts, method, hp, seed=seed)
+    y_true, y_pred, class_names, task_of_class = evaluate_final_model_all_classes(
+        out["model"], ts, out.get("corrector"))
+    report = per_class_prf1(y_true, y_pred, len(class_names))
+    class_rows = []
+    for c, cname in enumerate(class_names):
+        class_rows.append(dict(
+            dataset=dataset_name, arch=arch, method=method, seed=seed,
+            class_id=c, class_name=cname, task_name=task_of_class[c],
+            precision=report["precision"][c], recall=report["recall"][c],
+            f1=report["f1"][c], support=int(report["support"][c]),
+        ))
+    key = f"{dataset_name}|{arch}|{method}|{seed}"
+    cm = {
+        "class_names": class_names,
+        "confusion_matrix": report["confusion_matrix"].tolist(),
+    }
+    return class_rows, key, cm, float(np.mean(report["f1"]))
 
 
 def main():
-    frozen_hparams = load_frozen_hparams()
+    global _FROZEN, _TS
+    _FROZEN = load_frozen_hparams()
     cucd_df = du.load_cucd_id(os.path.join(DATA_DIR, "CuCD-ID", "noised_dataset.csv"),
                                os.path.join(DATA_DIR, "CuCD-ID", "label_schema.json"))
     stin_df = du.load_stin(os.path.join(DATA_DIR, "STIN", "SAT20.csv"),
                             os.path.join(DATA_DIR, "STIN", "TER20.csv"))
 
+    _TS = {}
+    for seed in SEEDS:
+        _TS[("STIN", seed)] = du.build_stin_tasks(
+            stin_df, seed=seed, val_frac=VAL_FRAC)
+        _TS[("CuCD-ID", seed)] = du.build_cucd_id_tasks(
+            cucd_df, seed=seed, val_frac=VAL_FRAC)
+
+    items = ([( "STIN", "GRU", method, seed)
+              for method in METHODS for seed in SEEDS]
+             + [("CuCD-ID", "MLP", method, seed)
+                for method in METHODS for seed in SEEDS])
+    jobs = get_jobs()
+    print(f"Per-class analysis: {len(items)} runs; {describe(jobs)}")
+
     rows, cms = [], {}
-
-    print("STIN + GRU (all methods):")
-    run_config("STIN", "GRU", stin_df, du.build_stin_tasks, frozen_hparams, rows, cms)
-
-    print("CuCD-ID + MLP (all methods):")
-    run_config("CuCD-ID", "MLP", cucd_df, du.build_cucd_id_tasks, frozen_hparams, rows, cms)
+    for i, (class_rows, key, cm, mean_f1) in enumerate(
+            parallel_map(_run_one, items, jobs=jobs), 1):
+        rows.extend(class_rows)
+        cms[key] = cm
+        print(f"  [{i}/{len(items)}] {key} mean-F1={mean_f1:.3f}")
 
     runs_df = pd.DataFrame(rows)
     runs_df.to_csv(os.path.join(RESULTS_DIR, "per_class_f1_runs.csv"), index=False)
 
-    summary = runs_df.groupby(["dataset", "arch", "method", "class_name", "task_name"]).agg(
+    summary = runs_df.groupby(
+        ["dataset", "arch", "method", "class_name", "task_name"]).agg(
         precision_mean=("precision", "mean"),
         recall_mean=("recall", "mean"),
         f1_mean=("f1", "mean"),
         f1_std=("f1", "std"),
         support_mean=("support", "mean"),
     ).reset_index()
-    summary.to_csv(os.path.join(RESULTS_DIR, "per_class_f1_summary.csv"), index=False)
+    summary.to_csv(os.path.join(RESULTS_DIR, "per_class_f1_summary.csv"),
+                   index=False)
 
     with open(os.path.join(RESULTS_DIR, "confusion_matrices.json"), "w") as f:
         json.dump(cms, f)
 
     print(f"\n{len(runs_df)} per-class rows written to results/per_class_f1_runs.csv")
     print("\nMean F1 by (dataset, arch, method, task_name):")
-    print(summary.groupby(["dataset", "method", "task_name"]).f1_mean.mean().unstack("method").round(3))
+    print(summary.groupby(["dataset", "method", "task_name"]).f1_mean.mean()
+          .unstack("method").round(3))
 
 
 if __name__ == "__main__":

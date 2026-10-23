@@ -4,6 +4,64 @@ All protocol/method changes are logged here with **why** (journal-review rationa
 Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
 No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
 
+## [2026-10-23] v6.2 packaging + claim reframing (no experiment rerun)
+- **Artifact identity:** package version/report set to **v6.2**
+  (`v6_2_project_report_final.md`); manifest and README/PROJECT_CONTEXT links
+  aligned. Historical v5.x entries are retained as history.
+- **Packaging cleanup:** removed the empty brace-expansion directory
+  `{src,experiments,tests,data` and all `__pycache__` directories.
+- **Frozen-hparam hardening:** `load_frozen_hparams_strict()` now validates
+  every architecture × method entry, non-empty `hparams`, and `lr`/`epochs`;
+  added `tests/test_frozen_hparams.py`. No config values changed.
+- **Claim reframing:** report and README now present a resource-aware benchmark
+  and negative-result study, not a claim that `full` wins. Added explicit
+  boundaries for `full` vs replay, temporal-purged collapse, feature-order
+  power (one split, two seeds), task-order budget-mode identity by
+  construction, CuCD-ID-only tuning with STIN transfer, tuning/confirmatory
+  seed overlap, and the λ=0 control. No CSV/JSON result values changed.
+
+## [2026-10-22] v6 confirmatory validity rerun (810 runs, 15 seeds)
+- **Calibration/selection split fixed:** validation is now 20% of each
+  per-class pool, then split 50/50 into disjoint halves. BiC/Fisher fit on
+  the calibration half; hyperparameter and model selection score only on the
+  selection half. The split seed uses stable class identity rather than
+  `task_id`, so task-order permutations cannot silently change which rows are
+  used for calibration. Added `tests/test_calib_split.py` and extended
+  `tests/test_task_order.py`.
+- **Seed count:** main matrix increased from 10 to 15 seeds (810 runs). With
+  216 all-pairwise comparisons per metric, n=10 could not reach Holm
+  significance; n=15 gives an exact-test floor of `6.1e-5`, so the full
+  family can be corrected honestly.
+- **Statistics:** fixed 216-comparison family per metric (all unordered
+  method pairs within dataset x architecture), Holm across the full family.
+  Current results: 162/216 ACC and 164/216 Macro-F1 significant. Added
+  matched-replay and EWC-lambda controls (450 runs); 7/30 control
+  comparisons survive Holm. All tests are pre-specified and exploratory.
+- **Few-shot:** 420 runs; both `fixed` (150 calib + 150 select per class) and
+  `scaled` (K calib + K select per class) protocols. Calibration payload is
+  charged only to BiC/EWC/full; selection payload is never charged.
+- **Task order:** 144 runs split into two-class-T0-first primary permutations
+  and single-class-first degenerate (no-op first update) permutations. Primary
+  per-order mean spread is 0.0146.
+- **Feature order:** BiC-corrected permutations now include
+  `X_calib`/`X_select`; 96 runs.
+- **Memory:** retained-update state is the cumulative calibration half;
+  selection arrays are excluded. Largest persistent state 18.53 KB; largest
+  host-estimated peak update RAM 348.34 KB.
+- **Parallel execution:** all heavy scripts run four fork-based workers with
+  one BLAS thread each (`CL_JOBS=4`). Full confirmatory run: 3h59m compute,
+  4h07m wall including restart. Fixed a missing `time` import in
+  `experiments/run_ablation.py` that stopped the first orchestration pass;
+  the remaining stages were resumed successfully.
+- **Artifacts regenerated:** 810 main runs, 756 tuning rows (2268 seed-runs),
+  420 few-shot, 270 temporal, 225 leakage, 1,890 per-class, 450 controls,
+  216+216 stats, 21 figures, manifest, `RESULTS_SUMMARY.md`, and
+  `v5_4_project_report_final.md`.
+- **Why:** the previous run shared one validation pool for calibration and
+  selection, could not support Holm correction over the full 216-comparison
+  family at 10 seeds, and did not report both few-shot calibration protocols.
+  These were validity issues, not presentation issues.
+
 ## [2026-10-21] v5.4 Q2/Q3 correctness + provenance hardening (results rerun)
 - **Temporal ordering:** `src/data_utils.py` now orders by unwrapped circular
   `TimeRadians`; the 0.02 rad purge remains a documented proxy. The old raw

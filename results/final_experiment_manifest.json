@@ -1,10 +1,10 @@
 {
   "project": "cubesat-cl-ids",
-  "version": "v5.4",
-  "timestamp_utc": "2026-10-21T19:56:15.849097Z",
+  "version": "v6.2",
+  "timestamp_utc": "2026-10-22T21:13:22.550861Z",
   "git": {
-    "commit": "118eb05e4c748a9b13275bbceddd4972ac5f6d59",
-    "status": "M .gitignore\n M CHANGELOG.md\n M DATALOG.md\n M PAPER_PLAN.md\n M PROJECT_CONTEXT.md\n M README.md\n M SUPERVISOR_SUMMARY.md\n M analysis/plots.py\n M experiments/check_consistency.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_ablation.py\n M experiments/run_robustness.py\n M experiments/run_stats.py\n M experiments/run_validation_tune.py\n M figures/accuracy_heatmap_CuCD-ID.png\n M figures/accuracy_heatmap_STIN.png\n M figures/architecture_comparison.png\n M figures/buffer_size_sensitivity.png\n M figures/confusion_matrix_STIN_GRU.png\n M figures/ewc_lambda_sensitivity.png\n M figures/fewshot_pareto.png\n M figures/forgetting_curve_task0_CuCD-ID.png\n M figures/forgetting_curve_task0_STIN.png\n M figures/hparam_sweep_heatmap.png\n M figures/memory_footprint.png\n M figures/method_comparison_CuCD-ID.png\n M figures/method_comparison_STIN.png\n M figures/per_class_f1_CuCD-ID_MLP.png\n M figures/per_class_f1_STIN_GRU.png\n M figures/robustness.png\n M figures/task_order_sensitivity.png\n M figures/temporal_bracket.png\n M results/RESULTS_SUMMARY.md\n M results/ablation_buffer_size.csv\n M results/ablation_ewc_lambda.csv\n M results/accuracy_matrices.json\n M results/best_hparams_per_method_arch.json\n M results/confusion_matrices.json\n M results/feature_order_stability.csv\n M results/fewshot.csv\n M results/final_experiment_manifest.json\n M results/hparam_sweep_stin.csv\n M results/main_results_runs.csv\n M results/main_results_summary.csv\n M results/per_class_f1_runs.csv\n M results/per_class_f1_summary.csv\n M results/robustness.csv\n M results/stats_permutation.csv\n M results/task_order_disentangled.csv\n M results/temporal_purged_compare.csv\n M results/validation_tuning_results.csv\n M run_all.py\n M src/cmmu.py\n M src/data_utils.py\n M src/train.py\n M v5_3_project_report_final.md\n?? experiments/run_leakage_ablation.py\n?? figures/leakage_ablation.png\n?? results/consistency_check.json\n?? results/leakage_ablation.csv\n?? results/leakage_ablation_summary.csv\n?? results/stats_permutation_macrof1.csv\n?? v5_4_project_report_final.md"
+    "commit": "c26a4513b9013e3f25d8332715d790a895a1a157",
+    "status": "M CHANGELOG.md\n D \"CubeSat_CL_Project_Progress_Report (1).docx\"\n M DATALOG.md\n D FULL_PROJECT_BUNDLE.txt\n M PROJECT_CONTEXT.md\n M README.md\n D SUPERVISOR_SUMMARY.md\n M analysis/plots.py\n M experiments/check_consistency.py\n M experiments/config.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_ablation.py\n M experiments/run_arch_tune.py\n M experiments/run_feature_order.py\n M experiments/run_fewshot.py\n M experiments/run_hparam_sweep.py\n M experiments/run_leakage_ablation.py\n M experiments/run_main.py\n M experiments/run_per_class_analysis.py\n M experiments/run_purged_temporal.py\n M experiments/run_robustness.py\n M experiments/run_stats.py\n M experiments/run_task_order.py\n M experiments/run_temporal_compare.py\n M experiments/run_validation_tune.py\n M figures/accuracy_heatmap_CuCD-ID.png\n M figures/accuracy_heatmap_STIN.png\n M figures/arch_tune.png\n M figures/architecture_comparison.png\n M figures/buffer_size_sensitivity.png\n M figures/confusion_matrix_CuCD-ID_MLP.png\n M figures/confusion_matrix_STIN_GRU.png\n M figures/ewc_lambda_sensitivity.png\n M figures/fewshot_pareto.png\n M figures/forgetting_curve_task0_CuCD-ID.png\n M figures/forgetting_curve_task0_STIN.png\n M figures/hparam_sweep_heatmap.png\n M figures/leakage_ablation.png\n M figures/memory_footprint.png\n M figures/method_comparison_CuCD-ID.png\n M figures/method_comparison_STIN.png\n M figures/per_class_f1_CuCD-ID_MLP.png\n M figures/per_class_f1_STIN_GRU.png\n M figures/robustness.png\n M figures/task_order_sensitivity.png\n M figures/temporal_bracket.png\n M results/RESULTS_SUMMARY.md\n M results/ablation_buffer_size.csv\n M results/ablation_ewc_lambda.csv\n M results/accuracy_matrices.json\n M results/arch_tune.csv\n M results/best_hparams.json\n M results/best_hparams_per_method_arch.json\n M results/confusion_matrices.json\n M results/consistency_check.json\n M results/feature_order_stability.csv\n M results/fewshot.csv\n M results/final_experiment_manifest.json\n M results/hparam_sweep_stin.csv\n M results/leakage_ablation.csv\n M results/leakage_ablation_summary.csv\n M results/main_results_runs.csv\n M results/main_results_summary.csv\n M results/memory_ledger.csv\n M results/per_class_f1_runs.csv\n M results/per_class_f1_summary.csv\n M results/robustness.csv\n M results/stats_permutation.csv\n M results/stats_permutation_macrof1.csv\n M results/task_order_disentangled.csv\n M results/temporal_purged_compare.csv\n M results/validation_tuning_results.csv\n M run_all.py\n M src/cmmu.py\n M src/data_utils.py\n M src/metrics.py\n M src/train.py\n M tests/test_gradients.py\n D v5_3_project_report_final.md\n D v5_4_project_report_final.md\n?? experiments/run_baseline_controls.py\n?? experiments/tuning_grids.py\n?? results/activation_memory_ledger.csv\n?? results/baseline_controls.csv\n?? results/run_all_confirmatory.log\n?? results/run_all_resume.log\n?? results/stats_baseline_controls.csv\n?? src/parallel.py\n?? tests/test_bic.py\n?? tests/test_calib_split.py\n?? tests/test_frozen_hparams.py\n?? tests/test_stats_pvalue.py\n?? tests/test_task_order.py\n?? v6_2_project_report_final.md"
   },
   "environment": {
     "python_version": "3.14.4",
@@ -19,10 +19,10 @@
       "features": 22,
       "classes": 5,
       "class_names": [
-        "normal",
         "command_flooding",
         "data_injection",
         "defence_impairment",
+        "normal",
         "storage_exhaustion"
       ],
       "provenance": "Fayyaz et al., Data in Brief (2026), doi:10.1016/j.dib.2026.112598; Mendeley Data doi:10.17632/7n2d42pm3n.3",
@@ -31,18 +31,18 @@
     "STIN": {
       "path": "data/STIN/SAT20.csv + TER20.csv",
       "rows": 209564,
-      "features": 30,
+      "features": 31,
       "classes": 9,
       "class_names": [
-        "Syn_DDoS",
-        "UDP_DDoS",
+        "Backdoor",
+        "Botnet",
         "LDAP_DDoS",
         "MSSQL_DDoS",
-        "Botnet",
+        "NetBIOS_DDoS",
         "Portmap_DDoS",
-        "Web Attack",
-        "Backdoor",
-        "NetBIOS_DDoS"
+        "Syn_DDoS",
+        "UDP_DDoS",
+        "Web Attack"
       ],
       "provenance": "Li et al., IEEE Access (2020), doi:10.1109/ACCESS.2020.3041641; data: github.com/kun9717/STIN-data-set",
       "collection": "Flow-based satellite/terrestrial network testbed (SAT20/TER20)"
@@ -102,7 +102,12 @@
       6,
       7,
       8,
-      9
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
     ],
     "few_shot": [
       0,
@@ -110,6 +115,10 @@
       2,
       3,
       4
+    ],
+    "few_shot_protocols": [
+      "fixed",
+      "scaled"
     ],
     "validation_tuning": [
       0,
@@ -126,7 +135,12 @@
       6,
       7,
       8,
-      9
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
     ],
     "robustness": [
       0,
@@ -139,21 +153,43 @@
     ]
   },
   "main_matrix": {
-    "runs": 540,
+    "runs": 810,
     "datasets": 2,
     "architectures": 3,
     "methods": 9,
-    "seeds": 10
+    "seeds": 15
+  },
+  "run_counts": {
+    "main_matrix": 810,
+    "validation_tuning_rows": 756,
+    "validation_tuning": 2268,
+    "few_shot": 420,
+    "robustness": 84,
+    "feature_order": 96,
+    "task_order": 144,
+    "temporal_purged": 270,
+    "leakage_ablation": 225,
+    "per_class": 1890,
+    "baseline_controls": 450,
+    "stats_acc": 216,
+    "stats_macrof1": 216,
+    "stats_baseline_controls": 30
   },
   "train_val_test_protocol": {
-    "val_frac": 0.1,
+    "val_frac": 0.2,
+    "val_cap_per_class": 300,
+    "calib_frac_of_val": 0.5,
+    "calib_cap_per_class": 150,
+    "select_cap_per_class": 150,
+    "calibration_use": "BiC fitting and val-balanced EWC Fisher",
+    "selection_use": "hyperparameter scoring only; excluded from onboard payload",
     "test_frac_cucd_id": 0.3,
     "test_frac_stin": 0.2,
     "split_mode_random": "random stratified (IID)",
     "split_mode_temporal": "temporal_purged",
     "initial_n_per_class_t0": 700,
     "uplink_n_per_class": 150,
-    "note": "Test locked first; val carved from train pool; no test leakage"
+    "note": "Test locked first; val carved from train pool and split into disjoint calibration/selection halves; no test leakage"
   },
   "temporal_purge": {
     "variable": "TimeRadians",
@@ -170,7 +206,8 @@
       1,
       2
     ],
-    "selection_metric": "ACC_val - FM_val",
+    "selection_metric": "ACC_select - max(FM_select, 0)",
+    "selection_split": "disjoint selection half (not the calibration half)",
     "frozen_config_file": "results/best_hparams_per_method_arch.json",
     "methods_tuned": [
       "finetune",
@@ -203,12 +240,10 @@
         ],
         "buffer_capacity": [
           128,
-          256,
           512
         ],
         "replay_frac": [
           0.5,
-          0.7,
           0.9
         ],
         "epochs": [
@@ -247,8 +282,7 @@
           512
         ],
         "replay_frac": [
-          0.7,
-          0.9
+          0.7
         ],
         "ewc_lambda": [
           100,
@@ -277,7 +311,6 @@
         ],
         "distill_T": [
           1.5,
-          2.0,
           3.0
         ],
         "epochs": [
@@ -293,7 +326,6 @@
         ],
         "buffer_capacity": [
           128,
-          256,
           512
         ],
         "distill_lambda": [
@@ -314,7 +346,6 @@
         ],
         "buffer_capacity": [
           128,
-          256,
           512
         ],
         "distill_lambda": [
@@ -383,7 +414,7 @@
     "test": "exact_paired_permutation",
     "multiple_comparison_correction": "holm",
     "effect_size": "cohens_d",
-    "confidence_interval": "95_percent_bootstrap"
+    "confidence_interval": "95_percent_t (figures); percentile bootstrap (stats CSV)"
   },
   "resource_accounting": {
     "persistent_deployment": {
@@ -434,7 +465,12 @@
     ],
     "robustness": [
       "results/robustness.csv",
-      "results/memory_ledger.csv"
+      "results/memory_ledger.csv",
+      "results/activation_memory_ledger.csv"
+    ],
+    "baseline_controls": [
+      "results/baseline_controls.csv",
+      "results/stats_baseline_controls.csv"
     ],
     "stats_acc": "results/stats_permutation.csv",
     "stats_macrof1": "results/stats_permutation_macrof1.csv",
@@ -445,7 +481,7 @@
     "consistency": "results/consistency_check.json",
     "figures_dir": "figures/",
     "report": "results/RESULTS_SUMMARY.md",
-    "final_report": "v5_4_project_report_final.md"
+    "final_report": "v6_2_project_report_final.md"
   },
   "consistency_checks": {
     "status": "pass",
@@ -459,7 +495,7 @@
       "GRU/replay": 0.0,
       "GRU/icarl": 0.0
     },
-    "seeds_main": 10,
+    "seeds_main": 15,
     "seeds_fewshot": 5,
     "hyperparameter_source": "results/best_hparams_per_method_arch.json"
   },
@@ -474,6 +510,20 @@
     "No radiation/orbit simulation",
     "Temporal purge uses TimeRadians proxy (not wall-clock seconds)",
     "Empirical Fisher approximation in EWC",
-    "Small per-task sample sizes (uplink budget constraint)"
+    "Small per-task sample sizes (uplink budget constraint)",
+    "BiC is a lite bias-correction hook (\u03b1,\u03b2 per stage), not the full two-stage BiC training procedure",
+    "iCaRL is a lite variant (herding + replay + distillation, softmax rather than nearest-mean evaluation)",
+    "Few-shot calibration is reported under both fixed (150/class) and scaled (K/class) protocols; calibration-using methods include the calibration payload, replay/iCaRL do not",
+    "Task-order study swaps class order only; task budgets/boundaries and the canonical split are fixed. Six permutations start with a single-class task, where the first softmax update has exactly zero gradient; these are reported separately as degenerate, with the two-class-T0-first permutations as the primary estimand",
+    "Peak RAM is host-estimated and includes batch-32 activations plus retained calibration state for EWC/full/BiC; it is not measured on hardware",
+    "Main method comparisons are not equal-memory; see baseline_controls.csv for the matched-replay and EWC \u03bb controls",
+    "Statistical comparisons are the full pre-specified family of all method pairs within dataset x architecture (216 per metric), Holm-corrected; they are exploratory, not a winner-selected headline list",
+    "CuCD-ID has no scenario/run identifiers; a true scenario-level split is not possible from the released CSV, so the grouped time-block proxy is a sensitivity estimand only",
+    "The combined `full` method is not a uniform improvement over replay: on CuCD-ID it is below replay for all three architectures, and the `full` tuning grid is smaller than the single-method grids",
+    "The lambda=0 control shows that the selected EWC strength can be harmful in some cells (notably CuCD-ID/GRU); this is a tuning/selection limitation, not evidence that the full combination is superior",
+    "The feature-order study uses one split and two training seeds; it is exploratory and does not establish permutation invariance",
+    "On primary task orders, `fixed_position` and `moves_with_task` are identical by construction (all primary orders start with T0); they are not independent evidence",
+    "Validation tuning uses CuCD-ID only and tuning seeds 0-2 overlap the confirmatory seeds; selection is validation-only (no test leakage), but the seeds are not fully independent",
+    "STIN is a cross-dataset transfer test for hyperparameters tuned on CuCD-ID; weak STIN results are not evidence that the same tuning is optimal in-domain"
   ]
 }

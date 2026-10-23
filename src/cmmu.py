@@ -147,7 +147,7 @@ class OnlineEWC:
     def __init__(self, lam: float = 1000.0, gamma: float = 1.0, fisher_n_samples: int = 256, seed: int = 0):
         # NOTE: gamma is a validation-tuned weighting on retained Fisher
         # (F_new = gamma*F_old + F_current), not necessarily a decay factor:
-        # frozen configs use MLP 0.5 / GRU 2.0 (amplifying) / CNN 0.5.
+        # frozen EWC-only configs use MLP 0.5 / GRU 1.0 / CNN 0.5.
         self.lam = lam
         self.gamma = gamma
         self.fisher_n_samples = fisher_n_samples
@@ -200,7 +200,7 @@ class OnlineEWC:
 
         When X_val/y_val are supplied, the Fisher sample is drawn from a
         class-balanced mix of (X_task, X_val). `train_continual` passes the
-        cumulative validation pool (old + new tasks), so old-task curvature
+        cumulative calibration pool (old + new tasks), so old-task curvature
         is represented rather than only the current task. Callers may omit
         them (legacy behaviour: Fisher on X_task only)."""
         protected_names = list(model.params.keys())

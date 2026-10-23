@@ -6,9 +6,11 @@ run_ablation.py. Run after all three have completed:
 """
 import sys, os, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "experiments"))
 
 import numpy as np
 import pandas as pd
+from config import SEEDS
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -30,7 +32,7 @@ COLORS = {"finetune": "#B0413E", "ewc": "#E1A94C", "lwf": "#9E9E9E",
           "replay": "#4C72B0", "full": "#2E7D32",
           "bic": "#AB47BC", "icarl": "#00897B",
           "joint": "#7B7B7B", "joint_scratch": "#424242"}
-SEEDS_ALL = list(range(10))
+SEEDS_ALL = SEEDS
 
 
 def savefig(name):
@@ -41,11 +43,26 @@ def savefig(name):
     print("wrote", path)
 
 
+# Two-sided 95% Student-t critical values for small samples. Using 1.96 with
+# n=10 would understate the interval by roughly 15%; the table is intentionally
+# explicit instead of adding a SciPy dependency.
+_T_CRIT_95 = {
+    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
+    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+    11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131,
+    16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086,
+    21: 2.080, 22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060,
+    26: 2.056, 27: 2.052, 28: 2.048, 29: 2.045, 30: 2.042,
+}
+
+
 def ci95(std, n):
-    """Half-width of the approximate normal 95% CI of a mean (1.96*SE)."""
+    """Half-width of the 95% CI of a mean (t critical * SE)."""
     std = np.asarray(std, dtype=float)
     n = np.asarray(n, dtype=float)
-    return 1.96 * std / np.sqrt(np.maximum(n, 1))
+    crit = np.array([_T_CRIT_95.get(int(x), 1.96) for x in np.atleast_1d(n)], dtype=float)
+    crit = crit.reshape(np.shape(n))
+    return crit * std / np.sqrt(np.maximum(n, 1))
 
 
 # --------------------------------------------------------------------------- #
@@ -53,26 +70,35 @@ def fig_method_comparison_bars():
     df = pd.read_csv(os.path.join(RESULTS_DIR, "main_results_runs.csv"))
     cols = ["ACC", "MacroF1", "BWT", "FM"]
     cols = [c for c in cols if c in df.columns]
+    archs = [a for a in ["MLP", "GRU", "CNN1D"] if a in set(df.arch)]
     for dset in df.dataset.unique():
         sub = df[df.dataset == dset]
-        agg = sub.groupby("method")[cols].agg(["mean", "std", "count"])
-        methods = [m for m in METHOD_ORDER if m in agg.index]
-
-        fig, axes = plt.subplots(1, len(cols), figsize=(4 * len(cols) + 1, 4))
-        if len(cols) == 1:
-            axes = [axes]
-        for ax, metric in zip(axes, cols):
-            means = [agg.loc[m, (metric, "mean")] for m in methods]
-            errs = [ci95(agg.loc[m, (metric, "std")], agg.loc[m, (metric, "count")]) for m in methods]
-            colors = [COLORS[m] for m in methods]
-            ax.bar(range(len(methods)), means, yerr=errs, color=colors, capsize=4)
-            ax.set_xticks(range(len(methods)))
-            ax.set_xticklabels([METHOD_LABELS[m].split(" (")[0] for m in methods], rotation=30, ha="right")
-            ax.set_title(metric)
-            ax.axhline(0, color="black", linewidth=0.6)
-            ax.grid(axis="y", alpha=0.3)
-        n_seeds = int(sub.seed.nunique()) if "seed" in sub.columns else 0
-        fig.suptitle(f"CL method comparison on {dset} (mean +/- 95% CI over archs x {n_seeds} seeds)")
+        fig, axes = plt.subplots(len(archs), len(cols),
+                                 figsize=(4 * len(cols) + 1, 3.0 * len(archs)),
+                                 squeeze=False)
+        for ai, arch in enumerate(archs):
+            arch_sub = sub[sub.arch == arch]
+            agg = arch_sub.groupby("method")[cols].agg(["mean", "std", "count"])
+            methods = [m for m in METHOD_ORDER if m in agg.index]
+            n_seeds = int(arch_sub.seed.nunique()) if "seed" in arch_sub.columns else 0
+            for mi, metric in enumerate(cols):
+                ax = axes[ai, mi]
+                means = [agg.loc[m, (metric, "mean")] for m in methods]
+                errs = [ci95(agg.loc[m, (metric, "std")], agg.loc[m, (metric, "count")])
+                        for m in methods]
+                colors = [COLORS[m] for m in methods]
+                ax.bar(range(len(methods)), means, yerr=errs, color=colors, capsize=4)
+                ax.set_xticks(range(len(methods)))
+                ax.set_xticklabels([METHOD_LABELS[m].split(" (")[0] for m in methods],
+                                   rotation=35, ha="right", fontsize=8)
+                if ai == 0:
+                    ax.set_title(metric)
+                if mi == 0:
+                    ax.set_ylabel(f"{arch}\nmean")
+                ax.axhline(0, color="black", linewidth=0.6)
+                ax.grid(axis="y", alpha=0.3)
+        fig.suptitle(f"CL method comparison on {dset} "
+                     f"(mean +/- 95% t CI over {n_seeds} seeds; faceted by architecture)")
         savefig(f"method_comparison_{dset}.png")
 
 
@@ -278,6 +304,8 @@ def fig_task_order():
     new_path = os.path.join(RESULTS_DIR, "task_order_disentangled.csv")
     if os.path.exists(new_path):
         df = pd.read_csv(new_path)
+        if "degenerate_single_class_first" in df.columns:
+            df = df[~df["degenerate_single_class_first"]].copy()
         agg = df.groupby(["budget_mode", "method"])["ACC"].agg(["mean", "std", "count"]).reset_index()
         fig, ax = plt.subplots(figsize=(7.5, 4.5))
         modes = agg.budget_mode.unique()
@@ -289,9 +317,15 @@ def fig_task_order():
             ax.bar(x + i * width, s["mean"], width, yerr=ci95(s["std"], s["count"]),
                    label=METHOD_LABELS.get(m, m), color=COLORS.get(m, "gray"), capsize=4)
         ax.set_xticks(x + width / 2); ax.set_xticklabels(modes)
-        ax.set_ylabel("ACC (mean +/- 95% CI)")
-        ax.set_title("Task-order study, disentangled (CuCD-ID, MLP, 12 perms x 2 budget modes)\n"
-                     "Budget modes ~0.01 apart; individual perms vary more (legacy headline retired)")
+        ax.set_ylabel("ACC (mean +/- 95% t CI)")
+        mode_means = df.groupby("budget_mode")["ACC"].mean()
+        budget_gap = float(mode_means.max() - mode_means.min())
+        order_means = df.groupby("order")["ACC"].mean()
+        order_spread = float(order_means.max() - order_means.min())
+        ax.set_title("Task-order study, primary two-class-first permutations "
+                     "(CuCD-ID, MLP, "
+                     f"{df.order.nunique()} perms x 2 budget modes)\n"
+                     f"Budget-mode gap={budget_gap:.4f}; per-order mean spread={order_spread:.4f}")
         ax.legend(fontsize=8)
         ax.grid(axis="y", alpha=0.3)
         savefig("task_order_sensitivity.png")
@@ -337,7 +371,7 @@ def fig_fewshot_pareto():
     df = pd.read_csv(path)
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
     for ax, arch in zip(axes, ["MLP", "GRU"]):
-        sub = df[df.arch == arch]
+        sub = df[(df.arch == arch) & (df.calibration_protocol == "scaled")]
         if sub.empty:
             ax.set_visible(False)
             continue
@@ -355,8 +389,8 @@ def fig_fewshot_pareto():
         ax.grid(alpha=0.3)
     axes[0].set_ylabel("Macro-F1")
     axes[0].legend(fontsize=8)
-    fig.suptitle("Few-shot uplink Pareto: Macro-F1 vs uplink KB per new attack\n"
-                 "point labels are K (samples/class); knee around K~50 for MLP/iCaRL")
+    fig.suptitle("Few-shot uplink Pareto (scaled calibration): Macro-F1 vs uplink KB per new attack\n"
+                 "point labels are K (samples/class); calibration data included in KB")
     savefig("fewshot_pareto.png")
 
 
