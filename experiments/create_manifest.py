@@ -145,7 +145,7 @@ def main():
     main_counts, run_counts = _counts()
     manifest = {
         "project": "cubesat-cl-ids",
-        "version": "v6.2",
+        "version": "v6.3",
         "timestamp_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "git": {
             "commit": get_git_commit(),
@@ -326,10 +326,22 @@ def main():
             "stats_acc": "results/stats_permutation.csv",
             "stats_macrof1": "results/stats_permutation_macrof1.csv",
             "leakage_ablation": ["results/leakage_ablation.csv", "results/leakage_ablation_summary.csv"],
+            "temporal_validity_audit": [
+                "results/temporal_leakage_audit.json",
+                "results/temporal_leakage_audit.csv",
+                "results/temporal_leakage_audit_summary.csv",
+                "results/temporal_leakage_histogram.csv",
+                "results/temporal_block_coverage.csv",
+                "results/temporal_class_occupancy.csv",
+                "results/temporal_class_block_ranges.csv",
+                "results/temporal_drift_by_class.csv",
+                "results/temporal_drift_features.csv",
+                "figures/temporal_leakage_audit.png"
+            ],
             "consistency": "results/consistency_check.json",
             "figures_dir": "figures/",
             "report": "results/RESULTS_SUMMARY.md",
-            "final_report": "v6_2_project_report_final.md"
+            "final_report": "v6_3_project_report_final.md"
         },
         "consistency_checks": _load_consistency(),
         "known_limitations": [
@@ -352,6 +364,8 @@ def main():
             "Main method comparisons are not equal-memory; see baseline_controls.csv for the matched-replay and EWC λ controls",
             "Statistical comparisons are the full pre-specified family of all method pairs within dataset x architecture (216 per metric), Holm-corrected; they are exploratory, not a winner-selected headline list",
             "CuCD-ID has no scenario/run identifiers; a true scenario-level split is not possible from the released CSV, so the grouped time-block proxy is a sensitivity estimand only",
+            "A read-only nearest-time audit shows dense random-split temporal adjacency (most test rows are within the 0.02 rad purge horizon of a drawn training row), but natural time blocks are class-incomplete and within-class feature drift is large; the audit is a validity boundary, not a leakage-free accuracy estimate",
+            "The temporal-purged collapse is a joint leakage + mission-time drift + T0-frozen scaler/prior-shift estimand, not a causal leakage correction",
             "The combined `full` method is not a uniform improvement over replay: on CuCD-ID it is below replay for all three architectures, and the `full` tuning grid is smaller than the single-method grids",
             "The lambda=0 control shows that the selected EWC strength can be harmful in some cells (notably CuCD-ID/GRU); this is a tuning/selection limitation, not evidence that the full combination is superior",
             "The feature-order study uses one split and two training seeds; it is exploratory and does not establish permutation invariance",

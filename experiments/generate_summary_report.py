@@ -461,6 +461,129 @@ def main():
         out.append("\n_(temporal_purged_compare.csv not found -- run "
                     "`experiments/run_purged_temporal.py` first)_\n")
 
+    if _present("temporal_leakage_audit_summary.csv"):
+        audit = pd.read_csv(os.path.join(
+            RESULTS_DIR, "temporal_leakage_audit_summary.csv"))
+        blocks = pd.read_csv(os.path.join(
+            RESULTS_DIR, "temporal_block_coverage.csv"))
+        occupancy = pd.read_csv(os.path.join(
+            RESULTS_DIR, "temporal_class_occupancy.csv"))
+        drift = pd.read_csv(os.path.join(
+            RESULTS_DIR, "temporal_drift_by_class.csv"))
+        with open(os.path.join(RESULTS_DIR,
+                               "temporal_leakage_audit.json")) as f:
+            audit_meta = json.load(f)
+
+        out.append("\n#### 7.4.1 Temporal leakage/validity audit "
+                   "(read-only, no models trained)\n")
+        out.append("This audit replays the exact random per-class splits used "
+                   "by `build_cucd_id_tasks` (including the per-task RNG "
+                   "advance) and verifies row-level parity before measuring "
+                   "the nearest training row **actually drawn for the model** "
+                   "(not the larger pre-draw train pool), using circular "
+                   "`TimeRadians` distance. It is diagnostic: it does not "
+                   "estimate a leakage-free accuracy.\n")
+
+        adjacency_rows = []
+        for _, row in audit.iterrows():
+            adjacency_rows.append({
+                "class": row.label,
+                "train/test rows": f"{int(row.n_train_draw)}/{int(row.n_test)}",
+                "median dt (rad)": f"{row.nn_median_rad:.2e}",
+                "IQR (rad)": (f"{row.nn_q25_rad:.2e}–"
+                              f"{row.nn_q75_rad:.2e}"),
+                "max (rad)": f"{row.nn_max_rad:.2e}",
+                "test rows <= 0.02 rad": (
+                    f"{100*row.frac_within_purge:.1f}% "
+                    f"({100*row.frac_within_purge_seed_min:.1f}–"
+                    f"{100*row.frac_within_purge_seed_max:.1f})"),
+            })
+        out.append(df_to_md(pd.DataFrame(adjacency_rows)))
+        out.append("\n`train` is the number of rows drawn per class (700 for "
+                   "T0, 150 for later tasks); `test` is the frozen random test "
+                   "split. Percentages are pooled over 15 splits, with the "
+                   "per-split range in parentheses.\n")
+
+        occupancy_rows = []
+        for _, row in occupancy.iterrows():
+            occupancy_rows.append({
+                "class": row.label,
+                "rows": int(row.n_rows),
+                "time span (rad)": (f"{row.time_min_rad:.3f}–"
+                                    f"{row.time_max_rad:.3f}"),
+                "blocks occupied": f"{int(row.n_blocks_occupied)} "
+                                   f"({row.block_ids})",
+                "largest within-class gap (rad)": (
+                    f"{row.largest_within_class_gap_rad:.4f}"),
+            })
+        out.append("\n**Class occupancy** (unwrapped chronological time).\n")
+        out.append(df_to_md(pd.DataFrame(occupancy_rows)))
+
+        block_rows = []
+        for _, row in blocks.iterrows():
+            block_rows.append({
+                "block": row.block_id,
+                "time span (rad)": (f"{row.time_min_rad:.3f}–"
+                                    f"{row.time_max_rad:.3f}"),
+                "rows": int(row.n_rows),
+                "classes": int(row.n_classes),
+                "class counts": row.class_counts,
+            })
+        out.append("\n**Natural time blocks** (gap > 0.02 rad; unwrapped "
+                   "chronological time).\n")
+        out.append(df_to_md(pd.DataFrame(block_rows)))
+
+        drift_rows = []
+        for _, row in drift.iterrows():
+            drift_rows.append({
+                "class": row.label,
+                "early/late rows": f"{int(row.early_n)}/{int(row.late_n)}",
+                "mean abs z": f"{row.mean_abs_z:.3f}",
+                "max abs z": f"{row.max_abs_z:.3f}",
+                "largest shift": (f"{row.top_feature} "
+                                  f"({row.top_feature_abs_z:.2f})"),
+            })
+        out.append("\n**Within-class early-vs-late feature drift** "
+                   "(split at each class's median time; pooled within-phase "
+                   "SD; `TimeRadians` excluded).\n")
+        out.append(df_to_md(pd.DataFrame(drift_rows)))
+
+        single_block = occupancy.loc[occupancy.n_blocks_occupied == 1,
+                                     "label"].tolist()
+        overall_frac = 100 * float(audit_meta["overall_frac_within_purge"])
+        min_frac = 100 * float(audit.frac_within_purge.min())
+        max_frac = 100 * float(audit.frac_within_purge.max())
+        drift_min = float(drift.mean_abs_z.min())
+        drift_max = float(drift.mean_abs_z.max())
+        drift_peak = float(drift.max_abs_z.max())
+        drift_top = drift.loc[drift.max_abs_z.idxmax(), "top_feature"]
+        out.append("\n**Reading.** "
+                   f"Across 15 random splits, **{overall_frac:.1f}%** of all "
+                   "test rows have a training row within the 0.02 rad purge "
+                   f"horizon (per-class {min_frac:.1f}–{max_frac:.1f}%). "
+                   "For `normal`, `command_flooding`, and `data_injection`, "
+                   "every test row is within that horizon. For "
+                   "`defence_impairment` and `storage_exhaustion`, the 150-row "
+                   "training draw leaves some tail rows beyond 0.02 rad, but "
+                   "their medians remain 0.003–0.005 rad and their maxima "
+                   "0.04–0.06 rad. This is interpolation inside the same "
+                   "telemetry window, before accounting for overlapping "
+                   "20-second aggregates.\n")
+        out.append(f"The split is also not a scenario split. There are only "
+                   f"**{len(blocks)}** natural time blocks under the 0.02 rad "
+                   "gap rule, and "
+                   f"**{', '.join(single_block)}** are confined to a single "
+                   "block. A leave-one-block-out estimate therefore cannot "
+                   "form a complete four-task scenario evaluation. Within-class "
+                   f"early/late drift is large (mean |z| {drift_min:.2f}–"
+                   f"{drift_max:.2f}; peak |z| {drift_peak:.2f} on "
+                   f"`{drift_top}`), so the temporal-purged collapse is a joint "
+                   "leakage + drift + scaler/prior-shift estimand. Neither the "
+                   "IID number nor the IID-minus-temporal gap should be read as "
+                   "a causal leakage correction.\n")
+        out.append("See `figures/temporal_leakage_audit.png` and "
+                   "`results/temporal_leakage_audit.json`.\n")
+
     if _present("robustness.csv"):
         rb = pd.read_csv(os.path.join(RESULTS_DIR, "robustness.csv"))
         out.append("\n### 7.5 Robustness + simulated-quantization ledger, CuCD-ID/MLP (RQ6/RQ7)\n")
@@ -527,6 +650,11 @@ def main():
                "time/identifier features can cross the random train/test "
                "boundary. Temporal-purged accuracy collapses, and the stricter "
                "no-leaky arm can fall below four-class chance.\n")
+    out.append("- **Leakage and drift are entangled.** The read-only audit in "
+               "Section 7.4.1 shows dense temporal adjacency in the random "
+               "split, but also class-incomplete time blocks and large "
+               "within-class feature drift. The audit is a validity boundary, "
+               "not a leakage-free estimate.\n")
     out.append("- **`full` is not the winner.** The combined EWC+replay+BiC "
                "configuration is below replay on CuCD-ID for all three "
                "architectures. Its tuning grid is smaller, and the lambda=0 "
@@ -545,7 +673,7 @@ def main():
                "pre-specified and Holm-corrected, but resamples the same finite "
                "dataset; it is not evidence about new operating conditions.\n")
 
-    # ---- dynamic executive summary for the v6.2 final report ----
+    # ---- dynamic executive summary for the v6.3 final report ----
     deployable = ["finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"]
     best_rows = []
     for dset in ["CuCD-ID", "STIN"]:
@@ -590,6 +718,25 @@ def main():
             else:
                 temporal_line += "."
 
+    audit_line = ""
+    apath = os.path.join(RESULTS_DIR, "temporal_leakage_audit_summary.csv")
+    if os.path.exists(apath):
+        ad = pd.read_csv(apath)
+        with open(os.path.join(RESULTS_DIR,
+                               "temporal_leakage_audit.json")) as f:
+            am = json.load(f)
+        single_blocks = 0
+        opath = os.path.join(RESULTS_DIR, "temporal_class_occupancy.csv")
+        if os.path.exists(opath):
+            occ = pd.read_csv(opath)
+            single_blocks = int((occ.n_blocks_occupied == 1).sum())
+        audit_line = (
+            f"Read-only temporal audit: "
+            f"{100*float(am['overall_frac_within_purge']):.1f}% of random-split "
+            f"test rows lie within 0.02 rad of a drawn training row; only "
+            f"{int(am['n_natural_blocks'])} natural blocks exist, with "
+            f"{single_blocks} classes confined to one block.")
+
     leak_line = ""
     lpath = os.path.join(RESULTS_DIR, "leakage_ablation_summary.csv")
     if os.path.exists(lpath):
@@ -612,7 +759,7 @@ def main():
                          f"{spread.max() - spread.min():.4f}.")
 
     exec_out = [
-        "# Project Report v6.2",
+        "# Project Report v6.3",
         "## Resource-Aware Class-Incremental Learning for TinyML-Based Intrusion Detection in CubeSats: A Benchmark and Negative-Result Study",
         "",
         "_Auto-generated by `experiments/generate_summary_report.py` from the "
@@ -656,6 +803,8 @@ def main():
                         f"(max |ACC diff| {cons.get('k150_max_abs_acc_diff')}).")
     if temporal_line:
         exec_out.append(f"- {temporal_line}")
+    if audit_line:
+        exec_out.append(f"- {audit_line}")
     if leak_line:
         exec_out.append(f"- {leak_line}")
     if task_line:
@@ -682,10 +831,10 @@ def main():
         f.write(report)
     final_report = "\n".join(exec_out) + "\n\n---\n\n" + report.replace(
         "# Results Summary\n", "# Detailed results\n", 1)
-    with open(os.path.join(RESULTS_DIR, "..", "v6_2_project_report_final.md"), "w") as f:
+    with open(os.path.join(RESULTS_DIR, "..", "v6_3_project_report_final.md"), "w") as f:
         f.write(final_report)
     print(f"Wrote {os.path.join(RESULTS_DIR, 'RESULTS_SUMMARY.md')} ({len(report)} chars)")
-    print("Wrote v6_2_project_report_final.md "
+    print("Wrote v6_3_project_report_final.md "
           f"({len(final_report)} chars, auto-generated)")
 
 

@@ -4,6 +4,32 @@ All protocol/method changes are logged here with **why** (journal-review rationa
 Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
 No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
 
+## [2026-10-23] v6.3 final packaging + Q3 temporal-validity audit (read-only; no retraining)
+- **Artifact identity:** package/report version set to **v6.3**
+  (`v6_3_project_report_final.md`); manifest and README/PROJECT_CONTEXT links
+  aligned. Historical v5.x/v6.2 entries are retained as history.
+- **New diagnostic:** added `experiments/run_temporal_leakage_audit.py`, which
+  replays the exact random per-class splits (including the builder's per-task
+  `rng.permutation` RNG advance) and measures nearest `TimeRadians` distance to
+  the training rows actually drawn (not the larger train pool). Its parity
+  check compares the actual scaled train/test/val rows, not just row counts.
+  It trains no models and overwrites no experiment result.
+- **Adjacency result:** pooled over 15 random splits, 98.6% of test rows have a
+  drawn training row within the 0.02 rad purge horizon. Per class: normal
+  100.0%, command_flooding 100.0%, data_injection 100.0%,
+  defence_impairment 94.6%, storage_exhaustion 98.6%.
+- **Block coverage:** only 5 natural blocks exist under a 0.02 rad gap rule
+  after unwrapping circular time; normal, command_flooding, data_injection,
+  and storage_exhaustion each occupy exactly one block, so leave-one-block-out
+  cannot form a complete four-task scenario split.
+- **Drift:** within-class early/late halves differ substantially
+  (mean |z| 0.20-0.82; peak |z| 4.87 on `SlidingWindowMeanIntervalSec` after
+  excluding the time index). Temporal collapse is therefore a joint
+  leakage + drift + scaler/prior-shift estimand.
+- **Reporting:** added report subsection 7.4.1, `figures/temporal_leakage_audit.png`,
+  audit CSV/JSON outputs, README/PROJECT_CONTEXT notes, manifest outputs, and
+  a `run_all.py` step. No model result CSV values changed.
+
 ## [2026-10-23] v6.2 packaging + claim reframing (no experiment rerun)
 - **Artifact identity:** package version/report set to **v6.2**
   (`v6_2_project_report_final.md`); manifest and README/PROJECT_CONTEXT links

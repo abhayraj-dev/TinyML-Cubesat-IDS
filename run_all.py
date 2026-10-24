@@ -10,6 +10,7 @@ Runs the complete experimental pipeline end-to-end for the confirmatory study:
 
   PHASE 2 (RQ evidence, dual-protocol evaluation):
   5. Purged temporal evaluation (0.02 rad TimeRadians ~22s equiv.) experiments/run_purged_temporal.py
+  5b. Temporal leakage/validity audit (read-only)   experiments/run_temporal_leakage_audit.py
   6. Few-shot uplink sweep (ENHANCED)            experiments/run_fewshot.py
   8. Feature-order stability (NEW)               experiments/run_feature_order.py
   9b. Disentangled task-order study (frozen)      experiments/run_task_order.py
@@ -54,6 +55,7 @@ STEPS_CORE = [
 
 STEPS_PHASE2 = [
     ("Purged temporal evaluation (0.02 rad TimeRadians purge)", [sys.executable, "experiments/run_purged_temporal.py"]),
+    ("Temporal leakage/validity audit (read-only)", [sys.executable, "experiments/run_temporal_leakage_audit.py"]),
     ("Few-shot uplink sweep (ENHANCED)", [sys.executable, "experiments/run_fewshot.py"]),
     ("Feature-order stability (NEW)", [sys.executable, "experiments/run_feature_order.py"]),
     ("Disentangled task-order study (frozen)", [sys.executable, "experiments/run_task_order.py"]),

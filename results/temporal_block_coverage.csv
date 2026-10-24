@@ -1,0 +1,6 @@
+block_id,time_min_rad,time_max_rad,gap_before_rad,n_rows,n_classes,labels_present,class_counts,n_normal,n_command_flooding,n_data_injection,n_defence_impairment,n_storage_exhaustion
+B0,5.155716,5.320646,0.0,4307,1,data_injection,data_injection=4307,0,0,4307,0,0
+B1,5.795096,7.451949307179586,0.47445000000000004,6299,2,defence_impairment|storage_exhaustion,defence_impairment=1350; storage_exhaustion=4949,0,0,0,1350,4949
+B2,7.478160307179586,8.710360307179586,0.026210999999999984,11292,3,normal|command_flooding|defence_impairment,normal=4878; command_flooding=3622; defence_impairment=2792,4878,3622,0,2792,0
+B3,8.735767307179586,8.793941307179587,0.025406999999999513,135,1,defence_impairment,defence_impairment=135,0,0,0,135,0
+B4,8.819354307179587,9.005822307179587,0.025413000000000352,432,1,defence_impairment,defence_impairment=432,0,0,0,432,0

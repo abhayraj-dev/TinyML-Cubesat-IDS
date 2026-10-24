@@ -571,6 +571,58 @@ IID = random-split benchmark; temporal-purged = forward temporal generalization 
 **Interpretation.** The temporal-purged arm is not a small perturbation: deployable-method accuracy falls to roughly the four-class chance level, and the stricter no-leaky arm can fall below it. The IID headline is a benchmark estimand, not deployment evidence; do not read the IID ordering as an operational recommendation.
 
 
+#### 7.4.1 Temporal leakage/validity audit (read-only, no models trained)
+
+This audit replays the exact random per-class splits used by `build_cucd_id_tasks` (including the per-task RNG advance) and verifies row-level parity before measuring the nearest training row **actually drawn for the model** (not the larger pre-draw train pool), using circular `TimeRadians` distance. It is diagnostic: it does not estimate a leakage-free accuracy.
+
+| class              | train/test rows   |   median dt (rad) | IQR (rad)         |   max (rad) | test rows <= 0.02 rad   |
+|:-------------------|:------------------|------------------:|:------------------|------------:|:------------------------|
+| normal             | 700/1463          |          8.2e-05  | 3.00e-05–1.35e-04 |     0.00087 | 100.0% (100.0–100.0)    |
+| command_flooding   | 700/1087          |          2.3e-05  | 1.50e-05–5.20e-05 |     0.00328 | 100.0% (100.0–100.0)    |
+| data_injection     | 150/1292          |          0.000356 | 1.63e-04–6.90e-04 |     0.00506 | 100.0% (100.0–100.0)    |
+| defence_impairment | 150/1413          |          0.0048   | 2.18e-03–9.61e-03 |     0.0547  | 94.6% (92.9–97.5)       |
+| storage_exhaustion | 150/1485          |          0.00343  | 1.48e-03–6.54e-03 |     0.0431  | 98.6% (95.5–100.0)      |
+
+`train` is the number of rows drawn per class (700 for T0, 150 for later tasks); `test` is the frozen random test split. Percentages are pooled over 15 splits, with the per-split range in parentheses.
+
+
+**Class occupancy** (unwrapped chronological time).
+
+| class              |   rows | time span (rad)   | blocks occupied   |   largest within-class gap (rad) |
+|:-------------------|-------:|:------------------|:------------------|---------------------------------:|
+| normal             |   4878 | 7.966–8.104       | 1 (B2)            |                           0.0007 |
+| command_flooding   |   3622 | 7.613–8.054       | 1 (B2)            |                           0.0724 |
+| data_injection     |   4307 | 5.156–5.321       | 1 (B0)            |                           0.0046 |
+| defence_impairment |   4709 | 6.894–9.006       | 4 (B1,B2,B3,B4)   |                           0.0262 |
+| storage_exhaustion |   4949 | 5.795–7.234       | 1 (B1)            |                           0.0041 |
+
+**Natural time blocks** (gap > 0.02 rad; unwrapped chronological time).
+
+| block   | time span (rad)   |   rows |   classes | class counts                                                |
+|:--------|:------------------|-------:|----------:|:------------------------------------------------------------|
+| B0      | 5.156–5.321       |   4307 |         1 | data_injection=4307                                         |
+| B1      | 5.795–7.452       |   6299 |         2 | defence_impairment=1350; storage_exhaustion=4949            |
+| B2      | 7.478–8.710       |  11292 |         3 | normal=4878; command_flooding=3622; defence_impairment=2792 |
+| B3      | 8.736–8.794       |    135 |         1 | defence_impairment=135                                      |
+| B4      | 8.819–9.006       |    432 |         1 | defence_impairment=432                                      |
+
+**Within-class early-vs-late feature drift** (split at each class's median time; pooled within-phase SD; `TimeRadians` excluded).
+
+| class              | early/late rows   |   mean abs z |   max abs z | largest shift                       |
+|:-------------------|:------------------|-------------:|------------:|:------------------------------------|
+| normal             | 2439/2439         |        0.452 |       3.233 | MemoryPercpuMB (3.23)               |
+| command_flooding   | 1811/1811         |        0.52  |       2.705 | SlidingWindowMinIntervalSec (2.70)  |
+| data_injection     | 2154/2153         |        0.824 |       4.866 | SlidingWindowMeanIntervalSec (4.87) |
+| defence_impairment | 2355/2354         |        0.465 |       2.689 | MemoryPercpuMB (2.69)               |
+| storage_exhaustion | 2475/2474         |        0.204 |       1.166 | MemoryPercpuMB (1.17)               |
+
+**Reading.** Across 15 random splits, **98.6%** of all test rows have a training row within the 0.02 rad purge horizon (per-class 94.6–100.0%). For `normal`, `command_flooding`, and `data_injection`, every test row is within that horizon. For `defence_impairment` and `storage_exhaustion`, the 150-row training draw leaves some tail rows beyond 0.02 rad, but their medians remain 0.003–0.005 rad and their maxima 0.04–0.06 rad. This is interpolation inside the same telemetry window, before accounting for overlapping 20-second aggregates.
+
+The split is also not a scenario split. There are only **5** natural time blocks under the 0.02 rad gap rule, and **normal, command_flooding, data_injection, storage_exhaustion** are confined to a single block. A leave-one-block-out estimate therefore cannot form a complete four-task scenario evaluation. Within-class early/late drift is large (mean |z| 0.20–0.82; peak |z| 4.87 on `SlidingWindowMeanIntervalSec`), so the temporal-purged collapse is a joint leakage + drift + scaler/prior-shift estimand. Neither the IID number nor the IID-minus-temporal gap should be read as a causal leakage correction.
+
+See `figures/temporal_leakage_audit.png` and `results/temporal_leakage_audit.json`.
+
+
 ### 7.5 Robustness + simulated-quantization ledger, CuCD-ID/MLP (RQ6/RQ7)
 
 _`int8_sim` is a simulated post-training INT8 round-trip accuracy proxy (FP32 weights only); no INT8 kernels were executed and no hardware deployment is claimed._
@@ -1073,6 +1125,8 @@ This report supports a benchmark/diagnostic reading, not a deployment or method-
 - **No scenario-level validation.** CuCD-ID has no scenario/run identifier in the released CSV. A true scenario split is not possible; the time-block proxy is a sensitivity estimand only.
 
 - **IID is not deployment.** Sliding-window aggregates and time/identifier features can cross the random train/test boundary. Temporal-purged accuracy collapses, and the stricter no-leaky arm can fall below four-class chance.
+
+- **Leakage and drift are entangled.** The read-only audit in Section 7.4.1 shows dense temporal adjacency in the random split, but also class-incomplete time blocks and large within-class feature drift. The audit is a validity boundary, not a leakage-free estimate.
 
 - **`full` is not the winner.** The combined EWC+replay+BiC configuration is below replay on CuCD-ID for all three architectures. Its tuning grid is smaller, and the lambda=0 control shows the selected EWC strength can be harmful.
 

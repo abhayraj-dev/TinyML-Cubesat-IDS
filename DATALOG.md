@@ -8,6 +8,39 @@
 
 Purpose: log **what data/split/config produced which results**, so the journal reproducibility checklist can be answered. Append-only: newest entries on top.
 
+## 2026-10-23 — v6.3 final packaging + temporal leakage/validity audit (read-only; no retraining)
+- **Artifact identity:** package/report version set to **v6.3**; current report
+  is `v6_3_project_report_final.md`. Historical v5.x/v6.2 entries remain below.
+- **Purpose:** quantify the random split's temporal adjacency and document why
+  a true scenario split is unavailable, without training models or changing
+  any confirmatory result.
+- **Split replay:** `experiments/run_temporal_leakage_audit.py` replays the
+  exact `build_cucd_id_tasks` random per-class splits for seeds 0-14, advances
+  the shared RNG with the same per-task `rng.permutation` call, and asserts
+  that the actual scaled train/test/val rows match the task builder (not just
+  row counts).
+- **Nearest-train distance:** measured on circular `TimeRadians` against the
+  training rows actually drawn (700/class for T0, 150/class for T1-T3), not
+  the full pre-draw train pool. Pooled over 15 splits, 98.6% of test rows are
+  within 0.02 rad of a drawn training row. Per class: normal 100.0%,
+  command_flooding 100.0%, data_injection 100.0%, defence_impairment 94.6%,
+  storage_exhaustion 98.6%; medians 2.3e-5 to 4.8e-3 rad.
+- **Natural blocks:** 5 blocks with gaps > 0.02 rad after unwrapping circular
+  time. Normal, command_flooding, data_injection, and storage_exhaustion each
+  occupy one block; defence occupies 4. Leave-one-block-out is therefore
+  class-incomplete and not a valid four-task scenario estimate.
+- **Feature drift:** within-class median-time split, pooled within-phase SD,
+  `TimeRadians` excluded. Mean |z| per class 0.20-0.82; peak |z| 4.87 on
+  `SlidingWindowMeanIntervalSec` (data_injection). The temporal-purged gap is
+  a joint leakage + drift + scaler/prior-shift estimand.
+- **Outputs:** `results/temporal_leakage_audit.{csv,json}`,
+  `temporal_leakage_audit_summary.csv`, `temporal_leakage_histogram.csv`,
+  `temporal_class_occupancy.csv`, `temporal_block_coverage.csv`,
+  `temporal_class_block_ranges.csv`, `temporal_drift_by_class.csv`,
+  `temporal_drift_features.csv`, and `figures/temporal_leakage_audit.png`.
+- **No retraining.** Confirmatory CSVs and run counts are unchanged; only
+  diagnostic outputs, reports, figure, docs, and manifest were updated.
+
 ## 2026-10-23 — v6.2 packaging + claim reframing (no rerun)
 - **Artifact identity:** package/report version set to **v6.2**; current report
   is `v6_2_project_report_final.md`. Historical v5.x entries remain below.

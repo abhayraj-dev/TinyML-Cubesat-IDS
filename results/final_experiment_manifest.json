@@ -1,10 +1,10 @@
 {
   "project": "cubesat-cl-ids",
-  "version": "v6.2",
-  "timestamp_utc": "2026-10-22T21:13:22.550861Z",
+  "version": "v6.3",
+  "timestamp_utc": "2026-10-24T14:02:44.620042Z",
   "git": {
-    "commit": "c26a4513b9013e3f25d8332715d790a895a1a157",
-    "status": "M CHANGELOG.md\n D \"CubeSat_CL_Project_Progress_Report (1).docx\"\n M DATALOG.md\n D FULL_PROJECT_BUNDLE.txt\n M PROJECT_CONTEXT.md\n M README.md\n D SUPERVISOR_SUMMARY.md\n M analysis/plots.py\n M experiments/check_consistency.py\n M experiments/config.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_ablation.py\n M experiments/run_arch_tune.py\n M experiments/run_feature_order.py\n M experiments/run_fewshot.py\n M experiments/run_hparam_sweep.py\n M experiments/run_leakage_ablation.py\n M experiments/run_main.py\n M experiments/run_per_class_analysis.py\n M experiments/run_purged_temporal.py\n M experiments/run_robustness.py\n M experiments/run_stats.py\n M experiments/run_task_order.py\n M experiments/run_temporal_compare.py\n M experiments/run_validation_tune.py\n M figures/accuracy_heatmap_CuCD-ID.png\n M figures/accuracy_heatmap_STIN.png\n M figures/arch_tune.png\n M figures/architecture_comparison.png\n M figures/buffer_size_sensitivity.png\n M figures/confusion_matrix_CuCD-ID_MLP.png\n M figures/confusion_matrix_STIN_GRU.png\n M figures/ewc_lambda_sensitivity.png\n M figures/fewshot_pareto.png\n M figures/forgetting_curve_task0_CuCD-ID.png\n M figures/forgetting_curve_task0_STIN.png\n M figures/hparam_sweep_heatmap.png\n M figures/leakage_ablation.png\n M figures/memory_footprint.png\n M figures/method_comparison_CuCD-ID.png\n M figures/method_comparison_STIN.png\n M figures/per_class_f1_CuCD-ID_MLP.png\n M figures/per_class_f1_STIN_GRU.png\n M figures/robustness.png\n M figures/task_order_sensitivity.png\n M figures/temporal_bracket.png\n M results/RESULTS_SUMMARY.md\n M results/ablation_buffer_size.csv\n M results/ablation_ewc_lambda.csv\n M results/accuracy_matrices.json\n M results/arch_tune.csv\n M results/best_hparams.json\n M results/best_hparams_per_method_arch.json\n M results/confusion_matrices.json\n M results/consistency_check.json\n M results/feature_order_stability.csv\n M results/fewshot.csv\n M results/final_experiment_manifest.json\n M results/hparam_sweep_stin.csv\n M results/leakage_ablation.csv\n M results/leakage_ablation_summary.csv\n M results/main_results_runs.csv\n M results/main_results_summary.csv\n M results/memory_ledger.csv\n M results/per_class_f1_runs.csv\n M results/per_class_f1_summary.csv\n M results/robustness.csv\n M results/stats_permutation.csv\n M results/stats_permutation_macrof1.csv\n M results/task_order_disentangled.csv\n M results/temporal_purged_compare.csv\n M results/validation_tuning_results.csv\n M run_all.py\n M src/cmmu.py\n M src/data_utils.py\n M src/metrics.py\n M src/train.py\n M tests/test_gradients.py\n D v5_3_project_report_final.md\n D v5_4_project_report_final.md\n?? experiments/run_baseline_controls.py\n?? experiments/tuning_grids.py\n?? results/activation_memory_ledger.csv\n?? results/baseline_controls.csv\n?? results/run_all_confirmatory.log\n?? results/run_all_resume.log\n?? results/stats_baseline_controls.csv\n?? src/parallel.py\n?? tests/test_bic.py\n?? tests/test_calib_split.py\n?? tests/test_frozen_hparams.py\n?? tests/test_stats_pvalue.py\n?? tests/test_task_order.py\n?? v6_2_project_report_final.md"
+    "commit": "9b2db20ce6948c14039b2afe8fd084967a786162",
+    "status": "MM CHANGELOG.md\nMM DATALOG.md\nMM PROJECT_CONTEXT.md\nMM README.md\nM  analysis/plots.py\nMM experiments/create_manifest.py\nMM experiments/generate_summary_report.py\nA  experiments/run_temporal_leakage_audit.py\nA  figures/temporal_leakage_audit.png\nM  results/RESULTS_SUMMARY.md\nM  results/final_experiment_manifest.json\nA  results/temporal_block_coverage.csv\nA  results/temporal_class_block_ranges.csv\nA  results/temporal_class_occupancy.csv\nA  results/temporal_drift_by_class.csv\nA  results/temporal_drift_features.csv\nA  results/temporal_leakage_audit.csv\nA  results/temporal_leakage_audit.json\nA  results/temporal_leakage_audit_summary.csv\nA  results/temporal_leakage_histogram.csv\nM  run_all.py\nRM v6_2_project_report_final.md -> v6_3_project_report_final.md"
   },
   "environment": {
     "python_version": "3.14.4",
@@ -478,10 +478,22 @@
       "results/leakage_ablation.csv",
       "results/leakage_ablation_summary.csv"
     ],
+    "temporal_validity_audit": [
+      "results/temporal_leakage_audit.json",
+      "results/temporal_leakage_audit.csv",
+      "results/temporal_leakage_audit_summary.csv",
+      "results/temporal_leakage_histogram.csv",
+      "results/temporal_block_coverage.csv",
+      "results/temporal_class_occupancy.csv",
+      "results/temporal_class_block_ranges.csv",
+      "results/temporal_drift_by_class.csv",
+      "results/temporal_drift_features.csv",
+      "figures/temporal_leakage_audit.png"
+    ],
     "consistency": "results/consistency_check.json",
     "figures_dir": "figures/",
     "report": "results/RESULTS_SUMMARY.md",
-    "final_report": "v6_2_project_report_final.md"
+    "final_report": "v6_3_project_report_final.md"
   },
   "consistency_checks": {
     "status": "pass",
@@ -519,6 +531,8 @@
     "Main method comparisons are not equal-memory; see baseline_controls.csv for the matched-replay and EWC \u03bb controls",
     "Statistical comparisons are the full pre-specified family of all method pairs within dataset x architecture (216 per metric), Holm-corrected; they are exploratory, not a winner-selected headline list",
     "CuCD-ID has no scenario/run identifiers; a true scenario-level split is not possible from the released CSV, so the grouped time-block proxy is a sensitivity estimand only",
+    "A read-only nearest-time audit shows dense random-split temporal adjacency (most test rows are within the 0.02 rad purge horizon of a drawn training row), but natural time blocks are class-incomplete and within-class feature drift is large; the audit is a validity boundary, not a leakage-free accuracy estimate",
+    "The temporal-purged collapse is a joint leakage + mission-time drift + T0-frozen scaler/prior-shift estimand, not a causal leakage correction",
     "The combined `full` method is not a uniform improvement over replay: on CuCD-ID it is below replay for all three architectures, and the `full` tuning grid is smaller than the single-method grids",
     "The lambda=0 control shows that the selected EWC strength can be harmful in some cells (notably CuCD-ID/GRU); this is a tuning/selection limitation, not evidence that the full combination is superior",
     "The feature-order study uses one split and two training seeds; it is exploratory and does not establish permutation invariance",

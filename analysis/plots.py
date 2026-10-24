@@ -448,6 +448,76 @@ def fig_temporal_bracket():
     savefig("temporal_bracket.png")
 
 
+def fig_temporal_leakage_audit():
+    summary_path = os.path.join(RESULTS_DIR, "temporal_leakage_audit_summary.csv")
+    hist_path = os.path.join(RESULTS_DIR, "temporal_leakage_histogram.csv")
+    ranges_path = os.path.join(RESULTS_DIR, "temporal_class_block_ranges.csv")
+    blocks_path = os.path.join(RESULTS_DIR, "temporal_block_coverage.csv")
+    if not all(os.path.exists(p) for p in
+               (summary_path, hist_path, ranges_path, blocks_path)):
+        return
+    summary = pd.read_csv(summary_path)
+    hist = pd.read_csv(hist_path)
+    ranges = pd.read_csv(ranges_path)
+    blocks = pd.read_csv(blocks_path)
+    classes = list(summary.label)
+    colors = dict(zip(classes, ["#4C72B0", "#DD8452", "#55A868",
+                                "#C44E52", "#8172B3"]))
+    purge = 0.02
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(13.5, 4.9),
+        gridspec_kw={"width_ratios": [1.12, 1.0]})
+    ax = axes[0]
+    for label in classes:
+        sub = hist[hist.label == label].sort_values("bin_left_rad")
+        centers = np.sqrt(sub.bin_left_rad.to_numpy() * sub.bin_right_rad.to_numpy())
+        frac = float(summary.loc[summary.label == label, "frac_within_purge"].iloc[0])
+        ax.step(centers, sub.fraction.to_numpy(), where="mid",
+                color=colors[label], linewidth=1.5,
+                label=f"{label} ({100*frac:.1f}% ≤ purge)")
+    ax.axvline(purge, color="#333333", linestyle="--", linewidth=1.2)
+    ax.text(purge, ax.get_ylim()[1] * 0.96, " 0.02 rad purge",
+            rotation=90, va="top", ha="left", fontsize=8, color="#333333")
+    ax.set_xscale("log")
+    ax.set_xlabel("nearest training-row |Δt| (rad, log scale)")
+    ax.set_ylabel("fraction of test rows per bin")
+    ax.set_title("Random split is temporal interpolation\n"
+                 "pooled over 15 splits; distance to rows actually trained on")
+    ax.legend(fontsize=7, loc="upper left")
+    ax.grid(alpha=0.25, which="both")
+
+    ax = axes[1]
+    for i, (_, block) in enumerate(blocks.iterrows()):
+        ax.axvspan(block.time_min_rad, block.time_max_rad,
+                   color="#BDBDBD" if i % 2 == 0 else "#E8E8E8",
+                   alpha=0.28, linewidth=0)
+        ax.text((block.time_min_rad + block.time_max_rad) / 2,
+                len(classes) + 0.08 + 0.22 * (i % 2), block.block_id,
+                ha="center", va="bottom", fontsize=8, color="#555555")
+    for yi, label in enumerate(classes):
+        sub = ranges[ranges.label == label]
+        for _, row in sub.iterrows():
+            lw = 1.0 + 3.0 * np.log1p(row.n_rows) / np.log1p(
+                ranges.n_rows.max())
+            ax.plot([row.time_min_rad, row.time_max_rad], [yi, yi],
+                    color=colors[label], linewidth=lw, solid_capstyle="butt")
+    ax.set_yticks(range(len(classes)))
+    ax.set_yticklabels(classes, fontsize=8)
+    x_pad = 0.10
+    ax.set_xlim(blocks.time_min_rad.min() - x_pad,
+                blocks.time_max_rad.max() + x_pad)
+    ax.set_ylim(-0.6, len(classes) + 0.5)
+    ax.set_xlabel("unwrapped TimeRadians (rad; origin after largest gap)")
+    ax.set_title("Natural time blocks are class-incomplete\n"
+                 "segments show each class's occupied time within a block")
+    ax.grid(axis="x", alpha=0.25)
+
+    fig.suptitle("Temporal leakage/validity audit (read-only; no models trained)",
+                 fontsize=11)
+    savefig("temporal_leakage_audit.png")
+
+
 def fig_robustness():
     path = os.path.join(RESULTS_DIR, "robustness.csv")
     if not os.path.exists(path):
@@ -521,6 +591,7 @@ def main():
     fig_fewshot_pareto()
     fig_arch_tune()
     fig_temporal_bracket()
+    fig_temporal_leakage_audit()
     fig_robustness()
     fig_leakage_ablation()
 

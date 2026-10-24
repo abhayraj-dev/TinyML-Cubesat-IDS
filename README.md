@@ -306,7 +306,10 @@ Holm). These tests are exploratory, not winner-selected.
    memory accounting and MACs estimates.
 4. **Phase-2 evidence** -- purged temporal evaluation
    (`run_purged_temporal.py`: IID vs forward-temporal with a 0.02 rad
-   TimeRadians purge), few-shot uplink sweep (`run_fewshot.py`: K =
+   TimeRadians purge), read-only temporal leakage/validity audit
+   (`run_temporal_leakage_audit.py`: nearest-train distances, class
+   occupancy, natural blocks, early/late drift; no model training),
+   few-shot uplink sweep (`run_fewshot.py`: K =
    5..300 under fixed and scaled calibration protocols), exploratory feature-order permutation
    (`run_feature_order.py`), disentangled task-order study
    (`run_task_order.py`: two-class-T0-first primary, single-class-first
@@ -321,11 +324,12 @@ Holm). These tests are exploratory, not winner-selected.
 5. **`experiments/check_consistency.py`** -- verifies main vs few-shot
    (K=150, intersecting seeds) hyperparameter and seed consistency.
 6. **`analysis/plots.py`** -- generates every figure in `figures/`
-   (21 PNGs, Macro-F1 primary, three-protocol temporal bracket, leakage ablation).
+   (22 PNGs, Macro-F1 primary, three-protocol temporal bracket, temporal
+   leakage/validity audit, leakage ablation).
 7. **`experiments/create_manifest.py`** -- writes
    `results/final_experiment_manifest.json` (machine-readable provenance).
 8. **`experiments/generate_summary_report.py`** -- writes
-   `results/RESULTS_SUMMARY.md` and `v6_2_project_report_final.md`, fully
+   `results/RESULTS_SUMMARY.md` and `v6_3_project_report_final.md`, fully
    auto-generated reports pulling every number directly out of the
    CSV/JSON result files.
 
@@ -344,6 +348,7 @@ python3 experiments/run_hparam_sweep.py             # STIN coarse prior (validat
 python3 experiments/run_validation_tune.py          # per-method/arch tuning (validation, frozen)
 python3 experiments/run_main.py                     # 810-run matrix (test evaluation only)
 python3 experiments/run_purged_temporal.py          # IID vs purged-temporal
+python3 experiments/run_temporal_leakage_audit.py   # read-only temporal validity audit
 python3 experiments/run_fewshot.py                  # uplink sweep
 python3 experiments/run_feature_order.py            # exploratory feature-order permutation
 python3 experiments/run_task_order.py               # disentangled task order
@@ -376,6 +381,7 @@ a full run you should have:
 | `results/best_hparams_per_method_arch.json`, `results/validation_tuning_results.csv` | validation tuning |
 | `results/main_results_runs.csv`, `results/main_results_summary.csv`, `results/accuracy_matrices.json` | main matrix |
 | `results/temporal_purged_compare.csv` | purged temporal |
+| `results/temporal_leakage_audit*.csv`, `results/temporal_block_coverage.csv`, `results/temporal_class_occupancy.csv`, `results/temporal_drift_*.csv`, `results/temporal_leakage_audit.json` | temporal leakage/validity audit |
 | `results/fewshot.csv` | few-shot uplink sweep |
 | `results/feature_order_stability.csv` | exploratory feature-order permutation |
 | `results/task_order_disentangled.csv` | task-order study |
@@ -385,9 +391,9 @@ a full run you should have:
 | `results/robustness.csv`, `results/memory_ledger.csv`, `results/activation_memory_ledger.csv` | robustness |
 | `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv` | leakage ablation |
 | `results/final_experiment_manifest.json` | manifest |
-| 21 PNG files under `figures/` | plots |
+| 22 PNG files under `figures/` | plots |
 | `results/baseline_controls.csv`, `results/stats_baseline_controls.csv` | equal-buffer / EWC-lambda controls |
-| `results/RESULTS_SUMMARY.md`, `v6_2_project_report_final.md` | report |
+| `results/RESULTS_SUMMARY.md`, `v6_3_project_report_final.md` | report |
 
 Nothing needs network access at run time (the two datasets are already
 included under `data/`); everything is deterministic given the fixed seeds
@@ -406,7 +412,7 @@ tuning, the 810-run matrix, and ablations. No GPU required.)
 
 Every result value is written by the experiment pipeline; none is edited by
 hand. See `results/RESULTS_SUMMARY.md` and the auto-generated
-`v6_2_project_report_final.md` for the current tables, confidence intervals,
+`v6_3_project_report_final.md` for the current tables, confidence intervals,
 paired tests, ablations, and figures. `results/main_results_summary.csv` is
 the underlying source for the headline matrix.
 
@@ -459,6 +465,7 @@ consult those files rather than copying numbers into prose.
 |   |-- run_validation_tune.py         # per-method/arch validation tuning (frozen configs)
 |   |-- run_main.py                    # 810-run matrix (test evaluation only)
 |   |-- run_purged_temporal.py         # IID vs purged vs no-leaky-features temporal study
+|   |-- run_temporal_leakage_audit.py  # read-only temporal leakage/validity audit
 |   |-- run_fewshot.py                 # uplink sweep (frozen configs, K varies)
 |   |-- run_feature_order.py           # exploratory feature-permutation check
 |   |-- run_task_order.py              # disentangled task-order study
@@ -473,7 +480,7 @@ consult those files rather than copying numbers into prose.
 |-- analysis/plots.py
 |-- tests/test_gradients.py
 |-- results/               # CSV/JSON outputs + manifest + RESULTS_SUMMARY.md (generated)
-|-- figures/                # PNG figures (generated, 20 files)
+|-- figures/                # PNG figures (generated, 22 files)
 |-- run_all.py
 |-- requirements.txt
 `-- README.md
@@ -538,9 +545,12 @@ consult those files rather than copying numbers into prose.
 * **Temporal evaluation is a stress estimand, not ground truth.** The
   purged protocol reduces window overlap (0.02 rad TimeRadians purge) but
   the data also exhibits mission-time drift and a T0-frozen scaler. The
-  temporal-purged arm falls to roughly four-class chance, and the stricter
-  no-leaky arm can fall below it; IID and temporal numbers are separate
-  regimes, and IID is not a deployment guarantee.
+  read-only audit (`run_temporal_leakage_audit.py`) shows dense nearest-time
+  adjacency in the random split, but only five natural time blocks and
+  class-incomplete coverage; it is a validity boundary, not a leakage-free
+  correction. The temporal-purged arm falls to roughly four-class chance, and
+  the stricter no-leaky arm can fall below it; IID and temporal numbers are
+  separate regimes, and IID is not a deployment guarantee.
 * **No true scenario-level validation is possible.** CuCD-ID has no
   scenario/run identifier in the released CSV. A grouped time-block proxy is
   a sensitivity estimand only.
