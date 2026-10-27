@@ -20,17 +20,19 @@ FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "figures")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
 METHOD_ORDER = ["finetune", "ewc", "lwf", "replay", "full", "bic", "icarl",
-                "joint", "joint_scratch"]
+                "icarl_ncm", "joint", "joint_scratch"]
 METHOD_LABELS = {"finetune": "Fine-tune (no CMMU)", "ewc": "EWC only",
                  "lwf": "LwF (distill only)",
                  "replay": "Replay only", "full": "Full CMMU (Replay+EWC)",
                  "bic": "BiC (herding+distill+bias-corr)",
                  "icarl": "iCaRL-lite (herding+distill)",
+                 "icarl_ncm": "iCaRL-lite + NCM",
                  "joint": "Joint warm-start (legacy)",
                  "joint_scratch": "Joint from-scratch (offline ref.)"}
 COLORS = {"finetune": "#B0413E", "ewc": "#E1A94C", "lwf": "#9E9E9E",
           "replay": "#4C72B0", "full": "#2E7D32",
           "bic": "#AB47BC", "icarl": "#00897B",
+          "icarl_ncm": "#D4A017",
           "joint": "#7B7B7B", "joint_scratch": "#424242"}
 SEEDS_ALL = SEEDS
 
@@ -363,6 +365,397 @@ def fig_arch_comparison():
     savefig("architecture_comparison.png")
 
 
+
+# ---------------- NCM and XAI figures (guarded by their CSVs) ---------------- #
+def _mean_std_count(df, group_cols, metric):
+    g = df.groupby(group_cols)[metric].agg(["mean", "std", "count"]).reset_index()
+    return g
+
+
+def fig_ncm_comparison():
+    path = os.path.join(RESULTS_DIR, "icarl_ncm_summary.csv")
+    if not os.path.exists(path):
+        return
+    ncm = pd.read_csv(path)
+    base = pd.read_csv(os.path.join(RESULTS_DIR, "main_results_runs.csv"))
+    methods = ["icarl_ncm", "icarl", "bic", "replay", "full"]
+    for dset in ["CuCD-ID", "STIN"]:
+        nsub = ncm[ncm.dataset == dset]
+        bsub = base[(base.dataset == dset) & (base.method.isin(methods))]
+        if nsub.empty or bsub.empty:
+            continue
+        archs = [a for a in ["MLP", "GRU", "CNN1D"] if a in set(nsub.arch)]
+        fig, ax = plt.subplots(figsize=(max(7, 2.2 * len(archs)), 4.5))
+        x = np.arange(len(archs))
+        width = 0.8 / len(methods)
+        for i, m in enumerate(methods):
+            means, errs = [], []
+            for arch in archs:
+                if m == "icarl_ncm":
+                    row = nsub[nsub.arch == arch]
+                    mean = float(row.ACC_mean.iloc[0]) if len(row) else np.nan
+                    std = float(row.ACC_std.iloc[0]) if len(row) else np.nan
+                    n = 15
+                else:
+                    row = bsub[(bsub.arch == arch) & (bsub.method == m)]
+                    mean = float(row.ACC.mean()) if len(row) else np.nan
+                    std = float(row.ACC.std(ddof=1)) if len(row) > 1 else 0.0
+                    n = len(row)
+                means.append(mean)
+                errs.append(float(ci95(std, n)))
+            ax.bar(x + i * width, means, width, yerr=errs, capsize=3,
+                   label=METHOD_LABELS.get(m, m), color=COLORS.get(m, "gray"))
+        ax.set_xticks(x + width * (len(methods) - 1) / 2)
+        ax.set_xticklabels(archs)
+        ax.set_ylabel("ACC (mean +/- 95% t CI)")
+        ax.set_ylim(0, 1.05)
+        ax.set_title(f"NCM vs softmax-head baselines on {dset}\n"
+                     "NCM stores class means from the same 512-sample buffer")
+        ax.legend(fontsize=8, ncol=3)
+        ax.grid(axis="y", alpha=0.3)
+        savefig(f"ncm_comparison_{dset}.png")
+
+
+def fig_ncm_paired_delta():
+    path = os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv")
+    if not os.path.exists(path):
+        return
+    df = pd.read_csv(path)
+    piv = df.pivot_table(index=["dataset", "arch"], columns="baseline",
+                         values="ACC_delta_mean")
+    if piv.empty:
+        return
+    fig, ax = plt.subplots(figsize=(6.8, 3.8))
+    vmax = max(0.05, float(np.nanmax(np.abs(piv.values))))
+    im = ax.imshow(piv.values, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
+    ax.set_xticks(range(piv.shape[1]))
+    ax.set_xticklabels(piv.columns)
+    ax.set_yticks(range(piv.shape[0]))
+    ax.set_yticklabels([f"{d} / {a}" for d, a in piv.index])
+    for i in range(piv.shape[0]):
+        for j in range(piv.shape[1]):
+            v = piv.values[i, j]
+            ax.text(j, i, f"{v:+.3f}", ha="center", va="center", fontsize=8,
+                    color="white" if abs(v) > 0.6 * vmax else "black")
+    ax.set_title("Paired ACC difference: iCaRL-lite + NCM minus baseline\n"
+                 "(same seeds and frozen hparams; positive is better for NCM)")
+    fig.colorbar(im, ax=ax, label="Delta ACC")
+    savefig("ncm_paired_delta.png")
+
+
+def fig_ncm_sanity_control():
+    path = os.path.join(RESULTS_DIR, "ncm_sanity_vs_main.csv")
+    if not os.path.exists(path):
+        return
+    df = pd.read_csv(path)
+    stages = [
+        ("icarl_embedding", [
+            ("input_softmax_ACC", "Input-herding\nsoftmax"),
+            ("softmax_ACC", "Embedding-herding\nsoftmax"),
+            ("ncm_buffer_ACC", "NCM\nbuffer"),
+            ("ncm_all_ACC", "NCM\nall-data"),
+        ], "iCaRL embedding-herding control"),
+        ("joint_scratch", [
+            ("softmax_ACC", "Joint\nsoftmax"),
+            ("ncm_all_ACC", "Joint NCM\nall-data"),
+        ], "Joint all-data sanity"),
+    ]
+    datasets = [d for d in ["CuCD-ID", "STIN"] if d in set(df.dataset)]
+    fig, axes = plt.subplots(len(datasets), 2, figsize=(12, 7.2),
+                             squeeze=False, sharey=True)
+    for ri, dset in enumerate(datasets):
+        sub = df[df.dataset == dset]
+        archs = [a for a in ["MLP", "GRU", "CNN1D"] if a in set(sub.arch)]
+        for ci, (stage, metrics, title) in enumerate(stages):
+            ax = axes[ri, ci]
+            sstage = sub[sub.stage == stage]
+            if sstage.empty:
+                ax.set_visible(False)
+                continue
+            x = np.arange(len(archs))
+            width = 0.8 / max(1, len(metrics))
+            for i, (col, label) in enumerate(metrics):
+                vals = [float(sstage[sstage.arch == a][f"{col}_mean"].mean())
+                        if f"{col}_mean" in sstage else np.nan for a in archs]
+                errs = []
+                for a in archs:
+                    row = sstage[sstage.arch == a]
+                    std = (float(row[f"{col}_std"].iloc[0])
+                           if f"{col}_std" in row and len(row) else 0.0)
+                    n = int(row["n"].iloc[0]) if len(row) else 1
+                    errs.append(float(ci95(std, n)))
+                ax.bar(x + i * width, vals, width, yerr=errs, capsize=2,
+                       label=label.replace("\n", " "))
+            ax.set_xticks(x + width * (len(metrics) - 1) / 2)
+            ax.set_xticklabels(archs)
+            ax.set_ylim(0, 1.05)
+            ax.set_ylabel("ACC (mean +/- 95% t CI)")
+            ax.set_title(f"{dset} - {title}")
+            ax.grid(axis="y", alpha=0.3)
+            ax.legend(fontsize=7, ncol=2)
+    fig.suptitle("NCM control: classifier, buffer, and embedding-herding effects")
+    savefig("ncm_sanity_control.png")
+
+
+def _xai_primary(df):
+    if "baseline" in df.columns:
+        return df[df.baseline == "training_medoid"].copy()
+    return df
+
+
+def fig_xai_agreement():
+    path = os.path.join(RESULTS_DIR, "xai_summary.csv")
+    if not os.path.exists(path):
+        return
+    df = _xai_primary(pd.read_csv(path))
+    for dset in df.dataset.unique():
+        sub = df[df.dataset == dset]
+        archs = [a for a in ["MLP", "GRU"] if a in set(sub.arch)]
+        if not archs:
+            continue
+        fig, axes = plt.subplots(2, len(archs),
+                                 figsize=(4.2 * len(archs), 7.0),
+                                 squeeze=False, sharey="row")
+        methods = [m for m in ["bic", "icarl_ncm", "joint_scratch"]
+                   if m in set(sub.method)]
+        x = np.arange(len(methods))
+        for ai, arch in enumerate(archs):
+            s = sub[sub.arch == arch]
+            for row, metric, label in [
+                    (0, "top5_ratio_mean", "Top5Ratio (higher = better)"),
+                    (1, "avg_relative_mean", "Avg.Rel. (lower = better)")]:
+                ax = axes[row, ai]
+                vals = [s[s.method == m][metric].mean() for m in methods]
+                errs = [ci95(s[s.method == m][metric].std(),
+                             s[s.method == m][metric].count()) for m in methods]
+                ax.bar(x, vals, yerr=errs, capsize=3,
+                       color=[COLORS.get(m, "gray") for m in methods])
+                ax.set_xticks(x)
+                ax.set_xticklabels([METHOD_LABELS.get(m, m) for m in methods],
+                                   rotation=20, ha="right", fontsize=8)
+                if ai == 0:
+                    ax.set_ylabel(label)
+                if row == 0:
+                    ax.set_title(f"{dset} / {arch}")
+                ax.grid(axis="y", alpha=0.3)
+                ax.set_ylim(0, 1.0 if row == 0 else max(0.08, float(np.nanmax(vals)) * 1.35))
+        fig.suptitle("SHAP vs IG agreement across CIL predictors "
+                     "(same stratified test rows within each panel)")
+        savefig(f"xai_agreement_{dset}.png")
+
+
+def fig_xai_faithfulness():
+    path = os.path.join(RESULTS_DIR, "xai_summary.csv")
+    if not os.path.exists(path):
+        return
+    df = _xai_primary(pd.read_csv(path))
+    for dset in df.dataset.unique():
+        sub = df[df.dataset == dset]
+        archs = [a for a in ["MLP", "GRU"] if a in set(sub.arch)]
+        if not archs:
+            continue
+        methods = [m for m in ["bic", "icarl_ncm", "joint_scratch"]
+                   if m in set(sub.method)]
+        fig, axes = plt.subplots(2, len(archs),
+                                 figsize=(4.2 * len(archs), 7.0),
+                                 squeeze=False)
+        x = np.arange(len(methods))
+        width = 0.38
+        for ai, arch in enumerate(archs):
+            s = sub[sub.arch == arch]
+            for row, (ig_col, shap_col, label) in enumerate([
+                    ("ig_deletion_auc_mean", "shap_deletion_auc_mean",
+                     "Deletion AUC (lower = better)"),
+                    ("ig_insertion_auc_mean", "shap_insertion_auc_mean",
+                     "Insertion AUC (higher = better)")]):
+                ax = axes[row, ai]
+                ig = [s[s.method == m][ig_col].mean() for m in methods]
+                sh = [s[s.method == m][shap_col].mean() for m in methods]
+                ax.bar(x - width / 2, ig, width, label="IG", color="#4C72B0")
+                ax.bar(x + width / 2, sh, width, label="KernelSHAP", color="#DD8452")
+                ax.set_xticks(x)
+                ax.set_xticklabels([METHOD_LABELS.get(m, m) for m in methods],
+                                   rotation=20, ha="right", fontsize=8)
+                if ai == 0:
+                    ax.set_ylabel(label)
+                if row == 0:
+                    ax.set_title(f"{dset} / {arch}")
+                ax.grid(axis="y", alpha=0.3)
+        axes[0, 0].legend(fontsize=8)
+        fig.suptitle("Explanation faithfulness: deletion/insertion curves")
+        savefig(f"xai_faithfulness_{dset}.png")
+
+
+def fig_xai_main_metrics():
+    path = os.path.join(RESULTS_DIR, "xai_summary_by_correctness.csv")
+    if not os.path.exists(path):
+        return
+    df = _xai_primary(pd.read_csv(path))
+    df = df[df.subset == "correct"]
+    datasets = [d for d in ["CuCD-ID", "STIN"] if d in set(df.dataset)]
+    methods = ["bic", "icarl_ncm", "joint_scratch"]
+    fig, axes = plt.subplots(len(datasets), 3, figsize=(15, 7.0),
+                             squeeze=False, sharey="row")
+    for ri, dset in enumerate(datasets):
+        sub = df[df.dataset == dset]
+        archs = [a for a in ["MLP", "GRU"] if a in set(sub.arch)]
+        combos = [(a, m) for a in archs for m in methods if m in set(sub.method)]
+        x = np.arange(len(combos))
+        labels = [f"{a}\n{m}" for a, m in combos]
+        for ci, (metric, title, higher) in enumerate([
+                ("top5_ratio", "Top5Ratio (higher better)", True),
+                ("deletion_auc", "Deletion AUC (lower better)", False),
+                ("insertion_auc", "Insertion AUC (higher better)", True)]):
+            ax = axes[ri, ci]
+            if metric == "top5_ratio":
+                vals = [float(sub[(sub.arch == a) & (sub.method == m)][
+                    "top5_ratio_mean"].mean()) for a, m in combos]
+                ax.bar(x, vals, color=[COLORS.get(m, "gray") for _, m in combos])
+            else:
+                width = 0.38
+                for j, (xai_method, color, offset, label) in enumerate([
+                        ("ig", "#4C72B0", -width / 2, "IG"),
+                        ("shap", "#DD8452", width / 2, "KernelSHAP")]):
+                    vals = []
+                    for a, m in combos:
+                        row = sub[(sub.arch == a) & (sub.method == m)]
+                        vals.append(float(row[f"{xai_method}_{metric}_mean"].mean())
+                                    if len(row) else np.nan)
+                    ax.bar(x + offset, vals, width, color=color, label=label)
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels, fontsize=7)
+            ax.set_ylim(0, 1.05)
+            ax.set_title(f"{dset}: {title}")
+            ax.grid(axis="y", alpha=0.3)
+            if ci == 0:
+                ax.set_ylabel("Metric value")
+    handles, labels_ = axes[0, 1].get_legend_handles_labels()
+    if handles:
+        axes[0, 1].legend(handles, labels_, loc="upper right", fontsize=8)
+    fig.suptitle("Main XAI metrics on correctly classified rows "
+                 "(3 seeds; 28-48 rows/run)")
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    savefig("xai_main_metrics.png")
+
+
+def fig_xai_feature_groups():
+    gpath = os.path.join(RESULTS_DIR, "xai_group_summary.csv")
+    lpath = os.path.join(RESULTS_DIR, "leakage_group_effects.csv")
+    if not os.path.exists(gpath):
+        return
+    g = _xai_primary(pd.read_csv(gpath))
+    cucd_order = ["time", "ids", "window", "raw_telemetry"]
+    stin_order = ["flow_volume", "packet_length", "iat_timing", "tcp_flags",
+                  "tcp_window_block"]
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.2))
+    panels = [
+        (axes[0, 0], "CuCD-ID", cucd_order, "share",
+         "CuCD-ID group attribution share"),
+        (axes[0, 1], "CuCD-ID", cucd_order, "drop",
+         "CuCD-ID group deletion drop"),
+        (axes[1, 0], "STIN", stin_order, "share",
+         "STIN network-family attribution share"),
+    ]
+    for ax, dset, order, kind, title in panels:
+        sub = g[g.dataset == dset]
+        if sub.empty:
+            ax.set_visible(False)
+            continue
+        groups = [x for x in order if x in set(sub.group)]
+        x = np.arange(len(groups))
+        if kind == "share":
+            width = 0.38
+            ig = [float(sub[sub.group == gname].ig_share_mean.mean())
+                  for gname in groups]
+            sh = [float(sub[sub.group == gname].shap_share_mean.mean())
+                  for gname in groups]
+            ax.bar(x - width / 2, ig, width, label="IG", color="#4C72B0")
+            ax.bar(x + width / 2, sh, width, label="KernelSHAP", color="#DD8452")
+            ax.legend(fontsize=8)
+        else:
+            drop = [float(sub[sub.group == gname].deletion_drop_mean.mean())
+                    for gname in groups]
+            ax.bar(x, drop, color="#6A9A3A")
+        ax.set_xticks(x)
+        ax.set_xticklabels(groups, rotation=20, ha="right", fontsize=8)
+        ax.set_title(title)
+        ax.grid(axis="y", alpha=0.3)
+    axes[0, 1].set_ylabel("Target-probability drop")
+    axes[1, 1].axis("off")
+    if os.path.exists(lpath):
+        le = pd.read_csv(lpath)
+        le = le[le.group.isin(["time", "ids", "window",
+                               "all_leakage_provenance", "raw_telemetry"])]
+        if not le.empty:
+            ax = axes[1, 1]
+            ax.clear()
+            ax.axis("on")
+            order = ["time", "ids", "window", "all_leakage_provenance",
+                     "raw_telemetry"]
+            groups = [x for x in order if x in set(le.group)]
+            methods = [m for m in ["replay", "bic", "joint_scratch"]
+                       if m in set(le.method)]
+            x = np.arange(len(groups))
+            width = 0.8 / max(1, len(methods))
+            for i, m in enumerate(methods):
+                vals = []
+                for gname in groups:
+                    row = le[(le.group == gname) & (le.method == m)]
+                    vals.append(-float(row.ACC_delta_vs_all.mean())
+                                if len(row) else np.nan)
+                ax.bar(x + i * width, vals, width,
+                       label=METHOD_LABELS.get(m, m), color=COLORS.get(m, "gray"))
+            ax.set_xticks(x + width * (len(methods) - 1) / 2)
+            ax.set_xticklabels([g.replace("_", " ") for g in groups],
+                               rotation=20, ha="right", fontsize=8)
+            ax.set_title("Retrained CuCD-ID ablation: ACC loss vs all")
+            ax.set_ylabel("ACC loss (positive = worse)")
+            ax.grid(axis="y", alpha=0.3)
+            ax.legend(fontsize=7)
+    fig.suptitle("Feature-group attribution and retrained feature-group reliance")
+    savefig("xai_feature_groups.png")
+
+
+def fig_xai_feature_importance():
+    path = os.path.join(RESULTS_DIR, "xai_feature_summary.csv")
+    if not os.path.exists(path):
+        return
+    df = _xai_primary(pd.read_csv(path))
+    panels = [
+        ("CuCD-ID", "MLP", "bic", "CuCD-ID / MLP / BiC"),
+        ("STIN", "GRU", "icarl_ncm", "STIN / GRU / iCaRL+NCM"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.0))
+    for ax, (dset, arch, method, title) in zip(axes, panels):
+        sub = df[(df.dataset == dset) & (df.arch == arch) &
+                 (df.method == method)]
+        if sub.empty:
+            ax.set_visible(False)
+            continue
+        ig = sub[sub.xai_method == "ig"].sort_values(
+            "mean_abs_attribution_mean", ascending=False).head(10)
+        features = list(ig.feature)
+        y = np.arange(len(features))
+        ig_vals = [float(ig[ig.feature == f].mean_abs_attribution_mean.iloc[0])
+                   for f in features]
+        sh_vals = []
+        for f in features:
+            r = sub[(sub.xai_method == "shap") & (sub.feature == f)]
+            sh_vals.append(float(r.mean_abs_attribution_mean.iloc[0])
+                           if len(r) else 0.0)
+        ax.barh(y - 0.2, ig_vals, 0.4, label="IG", color="#4C72B0")
+        ax.barh(y + 0.2, sh_vals, 0.4, label="KernelSHAP", color="#DD8452")
+        ax.set_yticks(y)
+        ax.set_yticklabels(features, fontsize=8)
+        ax.invert_yaxis()
+        ax.set_xlabel("Mean |normalised attribution| over seeds")
+        ax.set_title(title)
+        ax.grid(axis="x", alpha=0.3)
+        ax.legend(fontsize=8)
+    fig.suptitle("Top-10 features by IG importance; SHAP shown alongside")
+    savefig("xai_feature_importance.png")
+
+
 # ---------------- Phase-2 figures (each guarded by its CSV) ---------------- #
 def fig_fewshot_pareto():
     path = os.path.join(RESULTS_DIR, "fewshot.csv")
@@ -548,7 +941,8 @@ def fig_leakage_ablation():
     if not os.path.exists(path):
         return
     df = pd.read_csv(path)
-    variant_order = ["all", "no_time", "no_ids", "no_window", "no_time_ids_window"]
+    variant_order = ["all", "no_time", "no_ids", "no_window",
+                     "no_time_ids_window", "only_time_ids_window"]
     variants = [v for v in variant_order if v in set(df.variant)]
     methods = [m for m in ["replay", "bic", "joint_scratch"] if m in set(df.method)]
     x = np.arange(len(variants))
@@ -571,7 +965,8 @@ def fig_leakage_ablation():
                if os.path.exists(raw_path) else 10)
     fig.suptitle("Feature-provenance leakage ablation, CuCD-ID/MLP "
                  f"(retrained, mean over {n_seeds} seeds)\n"
-                 "removing time / identifiers / 20-s window aggregates")
+                 "removing or isolating time / identifiers / 20-s window "
+                 "aggregates vs raw telemetry")
     savefig("leakage_ablation.png")
 
 
@@ -587,6 +982,14 @@ def main():
     fig_arch_comparison()
     fig_per_class_f1()
     fig_confusion_matrices()
+    fig_ncm_comparison()
+    fig_ncm_paired_delta()
+    fig_ncm_sanity_control()
+    fig_xai_main_metrics()
+    fig_xai_feature_groups()
+    fig_xai_agreement()
+    fig_xai_faithfulness()
+    fig_xai_feature_importance()
     # Phase-2 (no-ops when their CSVs are absent)
     fig_fewshot_pareto()
     fig_arch_tune()

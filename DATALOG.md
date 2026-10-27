@@ -8,6 +8,94 @@
 
 Purpose: log **what data/split/config produced which results**, so the journal reproducibility checklist can be answered. Append-only: newest entries on top.
 
+## 2026-10-26 — v6.5 leakage dedup + XAI metric/background corrections (completed; supersedes the 315-run entry)
+- **Artifact identity:** package/report version **v6.5**; current report is
+  `v6_5_project_report_final.md`. Historical v6.4/v6.3 entries remain below.
+- **Leakage ablation rerun:** removed the `only_raw_telemetry` alias of
+  `no_time_ids_window` from `experiments/run_leakage_ablation.py`; reran 6
+  unique variants x 3 methods x 15 seeds = **270 runs** (261 s, 4 workers).
+  `results/leakage_ablation.csv` has 270 rows. Headline group effects are
+  unchanged: `no_time_ids_window` is the strongest BiC/replay drop (ACC 0.9153,
+  -0.0771; 0.9229, -0.0666), while `only_time_ids_window` retains most accuracy
+  (0.9843 BiC, -0.0080).
+- **XAI metric correction:** `src/xai.py` now emits `baseline_prob`,
+  `insertion_gain = inserted_prob - baseline_prob`, and
+  `insertion_gap_vs_full = inserted_prob - base_prob`. The former is a genuine
+  gain; the latter is the old negative-by-construction contrast and remains
+  supplementary. `tests/test_xai.py` checks both identities with zero and
+  non-zero backgrounds; it passes.
+- **XAI sensitivity rerun:** `experiments/run_xai.py` now evaluates both the
+  primary training medoid and a class-balanced mean-of-class-medoids
+  background. 36 models = **72 baseline evaluations** (173 s). Added
+  `results/xai_baseline_sensitivity.csv`; mean |delta Top5Ratio| = 0.0343
+  (max 0.0986), mean |delta IG/SHAP deletion AUC| = 0.0115/0.0140. Worst mean
+  relative IG completeness error remains 0.0044; KernelSHAP efficiency is exact
+  by construction, not an accuracy claim.
+- **Wording fixes:** `src/xai.py` docstring no longer says “zero baseline”
+  without qualification; report/supplement state 256 sampled KernelSHAP
+  coalitions and the KKT efficiency caveat. Under the primary background,
+  CuCD-ID/GRU BiC and iCaRL+NCM rank `UniqueMessageIDsInWindow` first, whereas
+  MLP cells and GRU/joint_scratch rank `TimeRadians` first. Under the
+  class-balanced sensitivity background, GRU rankings can shift to
+  `TimeRadians` or `MemoryAnonMB`, so the stable reading is time/window
+  aggregates, not one feature.
+- **Outputs regenerated:** leakage/XAI CSVs, `XAI_SUPPLEMENT.md`,
+  `RESULTS_SUMMARY.md`, `v6_5_project_report_final.md`, 33 figures, and
+  `final_experiment_manifest.json`.
+- **Verification:** all nine `tests/test_*.py` scripts pass (`test_gradients.py`
+  included); `compileall` succeeds.
+
+## 2026-10-26 — v6.4 NCM control, XAI revision, and 315-run feature ablation (superseded by v6.5)
+- **Artifact identity:** package/report version set to **v6.4**; current report
+  is `v6_4_project_report_final.md`. This snapshot added the NCM control and
+  XAI/leakage extensions; v6.5 corrects the duplicate alias, insertion-metric
+  label, and baseline sensitivity. The v6.3 temporal-validity audit remains
+  below as history.
+- **NCM audit:** added `experiments/check_ncm_sanity.py` and ran 108
+  iCaRL/control runs (90 iCaRL + 18 joint). Existing `icarl_ncm` ACC is
+  task-balanced; the new runner matches it exactly on the overlapping cells
+  (max |delta| 0.0 for ACC and Macro-F1) and also records overall sample ACC.
+  NCM-all minus NCM-buffer has max |delta| 0.0065 ACC, so buffer capacity is
+  not the limitation. NCM-all is below embedding-herding softmax in 6/6
+  iCaRL cells; the joint head-only contrast is near parity on GRU (+0.0001
+  CuCD-ID, +0.0094 STIN) but prefers softmax on CuCD-ID MLP/CNN1D and STIN
+  MLP/CNN1D. Report this as a classifier/feature-space result, not an NCM
+  superiority claim.
+- **Outputs:** `results/ncm_sanity_{runs,summary,vs_main,vs_main_runs,per_class}.csv`
+  and `results/accuracy_matrices_ncm_sanity.json`.
+- **XAI revision:** `run_xai.py` now uses a real training-medoid background
+  (zero is degenerate for cosine/NCM), defaults to 512 IG steps, and emits
+  correctness subsets, completeness diagnostics, group attribution, and group
+  deletion/insertion. Full rerun: 36 runs. Worst mean relative IG completeness
+  error is 0.0044 (SHAP ~1e-15). Correct-only Top5Ratio is highest for
+  CuCD-ID/MLP/joint_scratch (0.808); NCM Top5Ratio is lower, so agreement and
+  faithfulness are reported together.
+- **Outputs:** `results/xai_metrics.csv`, `xai_summary.csv`,
+  `xai_metrics_by_correctness.csv`, `xai_summary_by_correctness.csv`,
+  `xai_group_attribution_{runs,summary}.csv`,
+  `xai_group_deletion_{runs,summary}.csv`, `xai_group_summary.csv`,
+  `xai_examples.csv`, `xai_feature_{importance,summary}.csv`, and the generated
+  `results/XAI_SUPPLEMENT.md`.
+- **Feature ablation:** extended `run_leakage_ablation.py` to 7 variants
+  (drop-one, all-provenance-drop, provenance-only, raw-only) x 3 methods x 15
+  seeds = 315 retrained runs. Added `results/leakage_group_effects.csv`.
+  The raw-only variant was an exact alias of all-provenance-drop; v6.5
+  removes it and reports 270 unique runs.
+  `no_time_ids_window` / `only_raw_telemetry` remain the strongest drop
+  (CuCD-ID/MLP: ACC 0.9153, -0.0771 vs all for BiC; replay 0.9229, -0.0666),
+  while `only_time_ids_window` retains most accuracy (0.9843 BiC). The
+  provenance-bearing fields therefore carry most of the random-split advantage;
+  this is reliance, not proof that every field is illegitimate.
+- **Docs/report:** corrected the old "isolates the classifier change" claim in
+  `run_icarl_ncm.py`, `README.md`, `PAPER_PLAN.md`, `PROJECT_CONTEXT.md`, and
+  the report generator. Added NCM control, correct-only XAI, completeness,
+  feature-group sections, and updated `run_all.py`, manifest, figures (33), and
+  reports. Main XAI metrics are correct-only Top5Ratio/deletion/insertion;
+  all/error rows stay in the supplement.
+- **Verification:** `test_ncm.py`, `test_xai.py`, and `test_feature_groups.py`
+  pass; `test_gradients.py` remains part of the full suite. Reports regenerated
+  from CSV/JSON only.
+
 ## 2026-10-23 — v6.3 final packaging + temporal leakage/validity audit (read-only; no retraining)
 - **Artifact identity:** package/report version set to **v6.3**; current report
   is `v6_3_project_report_final.md`. Historical v5.x/v6.2 entries remain below.

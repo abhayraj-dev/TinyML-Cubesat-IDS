@@ -137,6 +137,14 @@ def _counts():
     for fname, key in extra.items():
         d = _read(os.path.join("results", fname))
         counts[key] = int(len(d)) if d is not None else 0
+    xai = _read("results/xai_metrics.csv")
+    if xai is not None and not xai.empty:
+        counts["xai_models"] = int(len(xai[
+            ["dataset", "arch", "method", "seed"]].drop_duplicates()))
+        counts["xai_baseline_evaluations"] = int(len(xai))
+    sensitivity = _read("results/xai_baseline_sensitivity.csv")
+    if sensitivity is not None:
+        counts["xai_sensitivity_cells"] = int(len(sensitivity))
     return main_counts, counts
 
 
@@ -145,7 +153,7 @@ def main():
     main_counts, run_counts = _counts()
     manifest = {
         "project": "cubesat-cl-ids",
-        "version": "v6.3",
+        "version": "v6.5",
         "timestamp_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "git": {
             "commit": get_git_commit(),
@@ -294,6 +302,45 @@ def main():
             "main_runs": "results/main_results_runs.csv",
             "main_summary": "results/main_results_summary.csv",
             "accuracy_matrices": "results/accuracy_matrices.json",
+            "ncm_runs": "results/icarl_ncm_runs.csv",
+            "ncm_summary": "results/icarl_ncm_summary.csv",
+            "ncm_vs_baselines": "results/icarl_ncm_vs_baselines.csv",
+            "ncm_accuracy_matrices": "results/accuracy_matrices_ncm.json",
+            "ncm_sanity_runs": "results/ncm_sanity_runs.csv",
+            "ncm_sanity_summary": "results/ncm_sanity_summary.csv",
+            "ncm_sanity_vs_main": "results/ncm_sanity_vs_main.csv",
+            "ncm_sanity_vs_main_runs": "results/ncm_sanity_vs_main_runs.csv",
+            "ncm_sanity_per_class": "results/ncm_sanity_per_class.csv",
+            "ncm_sanity_accuracy_matrices": "results/accuracy_matrices_ncm_sanity.json",
+            "xai_metrics": "results/xai_metrics.csv",
+            "xai_summary": "results/xai_summary.csv",
+            "xai_examples": "results/xai_examples.csv",
+            "xai_feature_importance": "results/xai_feature_importance.csv",
+            "xai_feature_summary": "results/xai_feature_summary.csv",
+            "xai_metrics_by_correctness": "results/xai_metrics_by_correctness.csv",
+            "xai_summary_by_correctness": "results/xai_summary_by_correctness.csv",
+            "xai_group_attribution_runs": "results/xai_group_attribution_runs.csv",
+            "xai_group_attribution_summary": "results/xai_group_attribution_summary.csv",
+            "xai_group_deletion_runs": "results/xai_group_deletion_runs.csv",
+            "xai_group_deletion_summary": "results/xai_group_deletion_summary.csv",
+            "xai_group_summary": "results/xai_group_summary.csv",
+            "xai_baseline_sensitivity": "results/xai_baseline_sensitivity.csv",
+            "xai_supplement": "results/XAI_SUPPLEMENT.md",
+            "ncm_figures": [
+                "figures/ncm_comparison_CuCD-ID.png",
+                "figures/ncm_comparison_STIN.png",
+                "figures/ncm_paired_delta.png",
+                "figures/ncm_sanity_control.png"
+            ],
+            "xai_figures": [
+                "figures/xai_main_metrics.png",
+                "figures/xai_feature_groups.png",
+                "figures/xai_agreement_CuCD-ID.png",
+                "figures/xai_agreement_STIN.png",
+                "figures/xai_faithfulness_CuCD-ID.png",
+                "figures/xai_faithfulness_STIN.png",
+                "figures/xai_feature_importance.png"
+            ],
             "temporal_compare": "results/temporal_purged_compare.csv",
             "fewshot": "results/fewshot.csv",
             "feature_order": "results/feature_order_stability.csv",
@@ -325,7 +372,7 @@ def main():
             ],
             "stats_acc": "results/stats_permutation.csv",
             "stats_macrof1": "results/stats_permutation_macrof1.csv",
-            "leakage_ablation": ["results/leakage_ablation.csv", "results/leakage_ablation_summary.csv"],
+            "leakage_ablation": ["results/leakage_ablation.csv", "results/leakage_ablation_summary.csv", "results/leakage_group_effects.csv"],
             "temporal_validity_audit": [
                 "results/temporal_leakage_audit.json",
                 "results/temporal_leakage_audit.csv",
@@ -341,7 +388,7 @@ def main():
             "consistency": "results/consistency_check.json",
             "figures_dir": "figures/",
             "report": "results/RESULTS_SUMMARY.md",
-            "final_report": "v6_3_project_report_final.md"
+            "final_report": "v6_5_project_report_final.md"
         },
         "consistency_checks": _load_consistency(),
         "known_limitations": [
@@ -358,6 +405,10 @@ def main():
             "Small per-task sample sizes (uplink budget constraint)",
             "BiC is a lite bias-correction hook (α,β per stage), not the full two-stage BiC training procedure",
             "iCaRL is a lite variant (herding + replay + distillation, softmax rather than nearest-mean evaluation)",
+            "The original 90-run NCM comparison changes both herding (input-space to embedding-space) and the deployed classifier (softmax to NCM); it does not isolate the classifier. The 108-run ncm_sanity control separates these factors and shows NCM-all approximately NCM-buffer, so buffer capacity is not the limitation",
+            "NCM is a negative/mixed result, not a superiority claim; the clean joint all-data head-only contrast still prefers softmax on CuCD-ID MLP/CNN1D and STIN CNN1D/MLP",
+            "XAI attributions use a training-medoid primary background because the zero vector is degenerate for cosine/NCM; a class-balanced mean-of-class-medoids background is a sensitivity check. IG uses 512 steps; KernelSHAP uses 256 sampled coalitions and its efficiency constraint makes completeness exact by construction. Main-text metrics are correct-only Top5Ratio/deletion/insertion; agreement/completeness are diagnostics, not causal proof",
+            "The XAI correctness split can leave fewer than three errors per cell; those error-only cells are unstable and excluded from claims",
             "Few-shot calibration is reported under both fixed (150/class) and scaled (K/class) protocols; calibration-using methods include the calibration payload, replay/iCaRL do not",
             "Task-order study swaps class order only; task budgets/boundaries and the canonical split are fixed. Six permutations start with a single-class task, where the first softmax update has exactly zero gradient; these are reported separately as degenerate, with the two-class-T0-first permutations as the primary estimand",
             "Peak RAM is host-estimated and includes batch-32 activations plus retained calibration state for EWC/full/BiC; it is not measured on hardware",

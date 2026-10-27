@@ -4,6 +4,78 @@ All protocol/method changes are logged here with **why** (journal-review rationa
 Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
 No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
 
+## [2026-10-26] v6.5 leakage dedup + XAI metric/baseline corrections
+- **Artifact identity:** package/report version set to **v6.5**
+  (`v6_5_project_report_final.md`); manifest, README, and PROJECT_CONTEXT
+  links aligned. v6.4 remains the superseded prior snapshot.
+- **Leakage ablation duplicate removed:** `only_raw_telemetry` was an exact
+  alias of `no_time_ids_window` (same dropped columns, same 45 rows). Removed
+  it from `VARIANTS` and `GROUP_EFFECTS`; reran the ablation as 6 unique
+  variants x 3 methods x 15 seeds = **270 runs**. Updated report, figures,
+  manifest counts, and docs. `leakage_ablation.csv` now has 270 rows with no
+  alias duplicates.
+- **Insertion metric corrected:** `group_deletion_insertion` now reports
+  `baseline_prob` and defines `insertion_gain = inserted_prob - baseline_prob`
+  (a genuine gain from the all-baseline state). The old
+  `inserted_prob - base_prob` quantity is retained as
+  `insertion_gap_vs_full` and labelled supplementary because it is negative by
+  construction for partial restorations. Updated `run_xai.py`, summaries,
+  report generator, supplement, and `test_xai.py`.
+- **XAI background sensitivity added:** every XAI run now uses both the primary
+  training-medoid background and a class-balanced mean-of-class-medoids
+  background. 36 models = **72 baseline evaluations**. Added
+  `results/xai_baseline_sensitivity.csv`; mean |delta Top5Ratio| is 0.0343
+  (max 0.0986), mean |delta IG/SHAP deletion AUC| is 0.0115/0.0140. Main-text
+  tables remain primary-baseline.
+- **KernelSHAP/top-feature wording corrected:** KernelSHAP uses 256 sampled
+  coalitions; its KKT efficiency constraint makes completeness exact by
+  construction, so completeness is a sanity check, not accuracy evidence.
+  Documented that under the primary background the top feature is not
+  universally `TimeRadians`: CuCD-ID/GRU BiC and iCaRL+NCM rank
+  `UniqueMessageIDsInWindow` first, while MLP cells and GRU/joint_scratch rank
+  `TimeRadians` first. Under the class-balanced sensitivity background, GRU
+  rankings can shift to `TimeRadians` or `MemoryAnonMB`, so the stable reading
+  is time/window aggregates, not one feature.
+- **Regenerated:** `results/leakage_ablation*.csv`,
+  `results/leakage_group_effects.csv`, all `results/xai_*.csv`,
+  `results/XAI_SUPPLEMENT.md`, `results/RESULTS_SUMMARY.md`,
+  `v6_5_project_report_final.md`, 33 figures, and the manifest.
+- **Verification:** all nine `tests/test_*.py` scripts pass; `compileall`
+  succeeds. Reports/manifest were regenerated from CSV/JSON only.
+
+## [2026-10-26] v6.4 NCM control + XAI correction + 315-run feature ablation (superseded by v6.5)
+- **Artifact identity:** package/report version set to **v6.4**
+  (`v6_4_project_report_final.md`); manifest and README/PROJECT_CONTEXT links
+  aligned. This snapshot added the NCM control and XAI/leakage extensions;
+  v6.5 corrects its duplicate alias, insertion-metric label, and baseline
+  sensitivity. The v6.3 temporal-validity audit remains part of the same
+  package history.
+- **NCM control:** added `experiments/check_ncm_sanity.py` (108 runs) and
+  `tests/test_feature_groups.py`. It separates input-space herding, embedding-
+  space herding, buffer NCM, all-data NCM, and a joint head-only contrast.
+  NCM-all approximately NCM-buffer (max |delta| 0.0065 ACC), so buffer size is
+  not the limitation. The original 90-run NCM comparison changes herding and
+  classifier together; corrected the misleading "isolates the classifier"
+  docstring and report claim. NCM remains negative/mixed, not a superiority
+  claim.
+- **XAI correction:** switched from a zero baseline to a real training medoid
+  (zero is degenerate for cosine/NCM), raised IG to 512 steps, and added
+  completeness, correctness subsets, group attribution, and group
+  deletion/insertion. Full 36-run rerun: worst mean relative IG completeness
+  error 0.0044. Main XAI metrics are correct-only Top5Ratio/deletion/
+  insertion; all/error rows and detailed group/per-feature tables go to
+  `results/XAI_SUPPLEMENT.md`.
+- **Feature ablation:** extended to 7 variants x 3 methods x 15 seeds = 315
+  retrained runs, added `leakage_group_effects.csv`, and confirmed that the
+  provenance-bearing groups carry most of the random-split advantage. The
+  315 count included 45 exact alias duplicates; v6.5 removes the alias and
+  reports 270 unique runs.
+- **Reporting/figures:** added `ncm_sanity_control.png`,
+  `xai_main_metrics.png`, and `xai_feature_groups.png` (33 figures total);
+  updated report, README, PAPER_PLAN, PROJECT_CONTEXT, manifest, and
+  `run_all.py`. No old result CSV was hand-edited; all new numbers are
+  generated from the new runs.
+
 ## [2026-10-23] v6.3 final packaging + Q3 temporal-validity audit (read-only; no retraining)
 - **Artifact identity:** package/report version set to **v6.3**
   (`v6_3_project_report_final.md`); manifest and README/PROJECT_CONTEXT links

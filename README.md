@@ -223,12 +223,13 @@ Two independent, combinable sub-mechanisms:
 Nine configurations are evaluated: `finetune`, `replay` (A only), `ewc`
 (B only), `full` (A+B combined), `lwf` (distillation only, no memory),
 `bic-lite` (herding + balanced replay + distillation + post-hoc bias
-correction), `icarl-lite` (herding + balanced replay + distillation,
-softmax classifier -- embedding-space herding and NCM evaluation omitted),
-`joint` (legacy cumulative warm-start, non-deployable), and
-`joint_scratch` (from-scratch retraining on accumulated data, an offline
-joint-training reference -- not a strict upper bound, since warm-start
-joint can exceed it). The `-lite` suffix marks resource-conscious variants,
+correction), `icarl-lite` (embedding-space herding + balanced replay +
+distillation, softmax classifier), `icarl_ncm` (the same frozen iCaRL-lite
+training runs evaluated with a cosine Nearest-Class-Mean head fitted only on
+stored exemplars), `joint` (legacy cumulative warm-start, non-deployable),
+and `joint_scratch` (from-scratch retraining on accumulated data, an offline
+joint-training reference -- not a strict upper bound, since warm-start joint
+can exceed it). The `-lite` suffix marks resource-conscious variants,
 not exact reproductions of the original papers.
 
 **Validation/calibration accounting (Option A).** The validation pool is
@@ -304,6 +305,29 @@ Holm). These tests are exploratory, not winner-selected.
    producing a full accuracy matrix, CL + Macro-F1/Balanced-Accuracy
    metrics, detection metrics (CuCD-ID), training time, persistent vs peak
    memory accounting and MACs estimates.
+   * **NCM evaluation** (`run_icarl_ncm.py`) -- reruns the frozen iCaRL
+     configurations with embedding-space herding and a post-hoc cosine NCM
+     classifier fitted only on the stored exemplars; 90 runs, paired against
+     every softmax-head baseline on identical seeds. This changes herding and
+     classifier together, so it is not a classifier-only comparison. Outcome:
+     NCM is not a free win; BiC remains the best deployable softmax head.
+   * **NCM sanity/control** (`check_ncm_sanity.py`) -- 108 matched runs spanning
+     input-herding softmax, embedding-herding softmax, NCM fitted on the buffer,
+     NCM fitted on all training data, and a joint all-data model. Outcome:
+     NCM-all approximately NCM-buffer (max gap 0.0065 ACC), so buffer capacity
+     is not the limitation; the NCM gap is classifier/feature-space and is
+     negative/mixed, not a superiority claim.
+   * **XAI study** (`run_xai.py`) -- from-scratch KernelSHAP and exact-input-
+     gradient IG on identical stratified test rows, comparing BiC,
+     iCaRL-lite+NCM and offline Scratch. Main metrics are Top5Ratio,
+     deletion AUC and insertion AUC on correctly classified rows. The background
+     is a real training medoid (the zero vector is degenerate for cosine/NCM),
+     with a class-balanced mean-of-class-medoids background as a sensitivity
+     check. IG uses 512 steps and KernelSHAP uses 256 sampled coalitions; its
+     efficiency constraint makes completeness exact by construction, so
+     completeness is a sanity check rather than accuracy evidence. Agreement
+     and faithfulness are reported together; agreement is not proof of
+     faithfulness.
 4. **Phase-2 evidence** -- purged temporal evaluation
    (`run_purged_temporal.py`: IID vs forward-temporal with a 0.02 rad
    TimeRadians purge), read-only temporal leakage/validity audit
@@ -319,17 +343,21 @@ Holm). These tests are exploratory, not winner-selected.
    correction applied), exact permutation statistics on **ACC and
    Macro-F1** (`run_stats.py`), robustness + quantization + memory ledger
    (`run_robustness.py`: simulated INT8 round-trip `int8_sim`), and a
-   feature-provenance leakage ablation (`run_leakage_ablation.py`:
-   retrain without time/identifier/window groups).
+   feature-provenance leakage ablation (`run_leakage_ablation.py`: 6 unique
+   variants x 3 methods x 15 seeds = 270 runs, including drop-one,
+   all-provenance-drop, and provenance-only contrasts).
 5. **`experiments/check_consistency.py`** -- verifies main vs few-shot
    (K=150, intersecting seeds) hyperparameter and seed consistency.
 6. **`analysis/plots.py`** -- generates every figure in `figures/`
-   (22 PNGs, Macro-F1 primary, three-protocol temporal bracket, temporal
+   (33 PNGs, Macro-F1 primary, NCM vs softmax baselines plus the NCM control,
+   main/correct-only XAI metrics, feature-group attribution, SHAP/IG agreement
+   and faithfulness, three-protocol temporal bracket, temporal
    leakage/validity audit, leakage ablation).
 7. **`experiments/create_manifest.py`** -- writes
    `results/final_experiment_manifest.json` (machine-readable provenance).
 8. **`experiments/generate_summary_report.py`** -- writes
-   `results/RESULTS_SUMMARY.md` and `v6_3_project_report_final.md`, fully
+   `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, and
+   `v6_5_project_report_final.md`, fully
    auto-generated reports pulling every number directly out of the
    CSV/JSON result files.
 
@@ -344,9 +372,15 @@ or step by step (`python3 run_all.py --no-phase2` skips Phase-2):
 
 ```bash
 python3 tests/test_gradients.py                    # sanity check
+python3 tests/test_ncm.py                           # NCM unit test
+python3 tests/test_xai.py                           # SHAP/IG unit test
+python3 tests/test_feature_groups.py                # exact 22/30-feature partitions
 python3 experiments/run_hparam_sweep.py             # STIN coarse prior (validation-scored)
 python3 experiments/run_validation_tune.py          # per-method/arch tuning (validation, frozen)
 python3 experiments/run_main.py                     # 810-run matrix (test evaluation only)
+python3 experiments/run_icarl_ncm.py                # 90-run NCM evaluation
+python3 experiments/check_ncm_sanity.py             # 108-run NCM control
+python3 experiments/run_xai.py                      # 36-model SHAP vs IG + faithfulness (2 backgrounds)
 python3 experiments/run_purged_temporal.py          # IID vs purged-temporal
 python3 experiments/run_temporal_leakage_audit.py   # read-only temporal validity audit
 python3 experiments/run_fewshot.py                  # uplink sweep
@@ -356,7 +390,7 @@ python3 experiments/run_ablation.py                 # buffer / lambda / order ab
 python3 experiments/run_per_class_analysis.py       # per-class F1 + confusion matrices
 python3 experiments/run_stats.py                    # ACC + Macro-F1 permutation stats + Holm
 python3 experiments/run_robustness.py               # robustness + simulated INT8
-python3 experiments/run_leakage_ablation.py         # retrained feature-group leakage ablation
+python3 experiments/run_leakage_ablation.py         # 270-run retrained feature-group ablation
 python3 experiments/check_consistency.py            # main-vs-fewshot verification
 python3 analysis/plots.py                           # figures
 python3 experiments/create_manifest.py              # reproducibility manifest
@@ -389,11 +423,14 @@ a full run you should have:
 | `results/per_class_f1_runs.csv`, `results/per_class_f1_summary.csv`, `results/confusion_matrices.json` | per-class analysis |
 | `results/stats_permutation.csv`, `results/stats_permutation_macrof1.csv` | permutation stats (ACC + Macro-F1) |
 | `results/robustness.csv`, `results/memory_ledger.csv`, `results/activation_memory_ledger.csv` | robustness |
-| `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv` | leakage ablation |
+| `results/icarl_ncm_runs.csv`, `results/icarl_ncm_summary.csv`, `results/icarl_ncm_vs_baselines.csv`, `results/accuracy_matrices_ncm.json` | NCM evaluation |
+| `results/ncm_sanity_runs.csv`, `results/ncm_sanity_summary.csv`, `results/ncm_sanity_vs_main.csv`, `results/ncm_sanity_vs_main_runs.csv`, `results/ncm_sanity_per_class.csv`, `results/accuracy_matrices_ncm_sanity.json` | NCM control |
+| `results/xai_metrics.csv`, `results/xai_summary.csv`, `results/xai_metrics_by_correctness.csv`, `results/xai_summary_by_correctness.csv`, `results/xai_group_summary.csv`, `results/xai_feature_summary.csv`, `results/xai_baseline_sensitivity.csv` | XAI |
+| `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv`, `results/leakage_group_effects.csv` | leakage/group ablation |
 | `results/final_experiment_manifest.json` | manifest |
-| 22 PNG files under `figures/` | plots |
+| 33 PNG files under `figures/` | plots |
 | `results/baseline_controls.csv`, `results/stats_baseline_controls.csv` | equal-buffer / EWC-lambda controls |
-| `results/RESULTS_SUMMARY.md`, `v6_3_project_report_final.md` | report |
+| `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, `v6_5_project_report_final.md` | report |
 
 Nothing needs network access at run time (the two datasets are already
 included under `data/`); everything is deterministic given the fixed seeds
@@ -412,7 +449,7 @@ tuning, the 810-run matrix, and ablations. No GPU required.)
 
 Every result value is written by the experiment pipeline; none is edited by
 hand. See `results/RESULTS_SUMMARY.md` and the auto-generated
-`v6_3_project_report_final.md` for the current tables, confidence intervals,
+`v6_5_project_report_final.md` for the current tables, confidence intervals,
 paired tests, ablations, and figures. `results/main_results_summary.csv` is
 the underlying source for the headline matrix.
 
@@ -457,6 +494,10 @@ consult those files rather than copying numbers into prose.
 |   |-- losses.py         # softmax cross-entropy
 |   |-- cmmu.py           # ReplayBuffer + OnlineEWC (shape-growth-aware, bounded herding)
 |   |-- train.py          # class-incremental training loop (9 methods, dynamic label offsetting, V matrix, compute counters)
+|   |-- inference.py      # shared logits dispatch (softmax / BiC / NCM)
+|   |-- ncm.py            # cosine Nearest-Class-Mean head fitted on stored exemplars
+|   |-- feature_groups.py # disjoint CuCD-ID/STIN provenance groups
+|   |-- xai.py            # KernelSHAP, Integrated Gradients, completeness, group metrics
 |   |-- metrics.py        # ACC / BWT / FM / Macro-F1 / BalancedAccuracy, persistent vs peak memory, MACs, per-class F1
 |   `-- utils.py          # seeding
 |-- experiments/
@@ -464,6 +505,9 @@ consult those files rather than copying numbers into prose.
 |   |-- run_hparam_sweep.py            # STIN coarse prior (validation-scored)
 |   |-- run_validation_tune.py         # per-method/arch validation tuning (frozen configs)
 |   |-- run_main.py                    # 810-run matrix (test evaluation only)
+|   |-- run_icarl_ncm.py               # iCaRL-lite + NCM evaluation
+|   |-- check_ncm_sanity.py            # 108-run NCM buffer/herding/classifier control
+|   |-- run_xai.py                     # KernelSHAP vs IG + faithfulness + groups
 |   |-- run_purged_temporal.py         # IID vs purged vs no-leaky-features temporal study
 |   |-- run_temporal_leakage_audit.py  # read-only temporal leakage/validity audit
 |   |-- run_fewshot.py                 # uplink sweep (frozen configs, K varies)
@@ -478,9 +522,9 @@ consult those files rather than copying numbers into prose.
 |   |-- create_manifest.py             # reproducibility manifest
 |   `-- generate_summary_report.py     # auto-generated report
 |-- analysis/plots.py
-|-- tests/test_gradients.py
-|-- results/               # CSV/JSON outputs + manifest + RESULTS_SUMMARY.md (generated)
-|-- figures/                # PNG figures (generated, 22 files)
+|-- tests/test_gradients.py, test_ncm.py, test_xai.py, test_feature_groups.py
+|-- results/               # CSV/JSON outputs + manifest + reports (generated)
+|-- figures/                # PNG figures (generated, 33 files)
 |-- run_all.py
 |-- requirements.txt
 `-- README.md
@@ -559,5 +603,19 @@ consult those files rather than copying numbers into prose.
   cross-dataset transfer test. Tuning seeds 0-2 overlap confirmatory seeds
   0-14. Selection is validation-only (no test leakage), but the seeds are not
   fully independent.
+* **NCM is a negative/mixed result, not a classifier-isolation claim.** The
+  original NCM run changes herding and classifier together. The matched control
+  shows NCM-all approximately NCM-buffer, so buffer size is not the limitation;
+  the remaining gap is classifier/feature-space. Do not claim NCM superiority.
+* **XAI baseline and subset choices matter.** Attributions use a primary
+  training-medoid background because zero is degenerate for cosine/NCM, with a
+  class-balanced medoid-mean sensitivity check. IG uses 512 steps; KernelSHAP
+  uses 256 sampled coalitions and its completeness is exact by construction.
+  Main-text metrics are correct-only Top5Ratio/deletion/insertion, with all-row
+  and error-row detail in the supplement. Under the primary background the top
+  feature is not universally `TimeRadians` (CuCD-ID/GRU BiC and iCaRL+NCM rank
+  `UniqueMessageIDsInWindow` first); under the sensitivity background GRU
+  rankings can shift to `TimeRadians` or `MemoryAnonMB`. Attribution is not
+  causal proof.
 * **Feature-order evidence is exploratory.** The study uses one split and two
   training seeds; it does not establish permutation invariance.

@@ -79,6 +79,17 @@ class _BaseModel:
         grads.update(self.backward_trunk(cache_trunk, dtrunk))
         return grads
 
+    def backward_input(self, cache, dlogits: np.ndarray):
+        """Gradient of the selected logits w.r.t. the model input.
+
+        Used by Integrated Gradients.  It follows the same chain rule as
+        ``backward`` but stops at the input instead of accumulating parameter
+        gradients.
+        """
+        cache_trunk, _ = cache
+        dtrunk = dlogits @ self.params["head.W"].T
+        return self.backward_trunk_input(cache_trunk, dtrunk)
+
     def param_count(self) -> int:
         return sum(v.size for v in self.params.values())
 
@@ -87,6 +98,9 @@ class _BaseModel:
         raise NotImplementedError
 
     def backward_trunk(self, cache, dtrunk):
+        raise NotImplementedError
+
+    def backward_trunk_input(self, cache, dtrunk):
         raise NotImplementedError
 
 
@@ -123,6 +137,13 @@ class CubeSatMLP(_BaseModel):
         dW1 = X.T @ dz1
         db1 = dz1.sum(axis=0)
         return {"W1": dW1, "b1": db1, "W2": dW2, "b2": db2}
+
+    def backward_trunk_input(self, cache, da2):
+        X, z1, a1, z2, a2 = cache
+        dz2 = da2 * relu_grad(z2)
+        da1 = dz2 @ self.params["W2"].T
+        dz1 = da1 * relu_grad(z1)
+        return dz1 @ self.params["W1"].T
 
 
 # --------------------------------------------------------------------------- #
@@ -201,6 +222,36 @@ class CubeSatGRU(_BaseModel):
 
             dh = dh_prev  # becomes gradient at previous timestep's h
         return grads
+
+    def backward_trunk_input(self, steps, dh_last):
+        N = dh_last.shape[0]
+        dXseq = np.zeros((N, self.seq_len, self.feat_per_step), dtype=dh_last.dtype)
+        dh = dh_last
+        for t in reversed(range(self.seq_len)):
+            xt, h_prev, z, r, n, u, h = steps[t]
+
+            dn = dh * (1 - z)
+            dz = dh * (h_prev - n)
+            dh_prev = dh * z
+
+            dnt_pre = dn * (1 - n ** 2)
+            dxt = dnt_pre @ self.params["Wn"].T
+            dru = dnt_pre
+            dr = dru * u
+            du = dru * r
+            dh_prev += du @ self.params["Un"].T
+
+            drt_pre = dr * r * (1 - r)
+            dxt += drt_pre @ self.params["Wr"].T
+            dh_prev += drt_pre @ self.params["Ur"].T
+
+            dzt_pre = dz * z * (1 - z)
+            dxt += dzt_pre @ self.params["Wz"].T
+            dh_prev += dzt_pre @ self.params["Uz"].T
+
+            dXseq[:, t, :] = dxt
+            dh = dh_prev
+        return dXseq.reshape(N, self.seq_len * self.feat_per_step)
 
 
 # --------------------------------------------------------------------------- #
@@ -289,6 +340,35 @@ class CubeSat1DCNN(_BaseModel):
             "W1": dW1.reshape(Wshape1), "b1": db1,
             "W2": dW2.reshape(Wshape2), "b2": db2,
         }
+
+    def backward_trunk_input(self, cache, dtrunk):
+        cache1, c1_out, a1, cache2, c2_out, a2, N = cache
+        L = self.L
+
+        da2 = np.repeat((dtrunk / L)[:, :, None], L, axis=2)
+        dc2 = da2 * relu_grad(c2_out)
+
+        Xp2, windows2, Wshape2, pad2 = cache2
+        Cout2, Cin2, K2 = Wshape2
+        W2flat = self.params["W2"].reshape(Cout2, -1)
+        dXp2 = np.zeros_like(Xp2)
+        for i in range(L):
+            dout_i = dc2[:, :, i]
+            dwin = dout_i @ W2flat
+            dXp2[:, :, i:i + K2] += dwin.reshape(-1, Cin2, K2)
+        da1 = dXp2[:, :, pad2:pad2 + L]
+        dc1 = da1 * relu_grad(c1_out)
+
+        Xp1, windows1, Wshape1, pad1 = cache1
+        Cout1, Cin1, K1 = Wshape1
+        W1flat = self.params["W1"].reshape(Cout1, -1)
+        dXp1 = np.zeros_like(Xp1)
+        for i in range(L):
+            dout_i = dc1[:, :, i]
+            dwin = dout_i @ W1flat
+            dXp1[:, :, i:i + K1] += dwin.reshape(-1, Cin1, K1)
+        dX1 = dXp1[:, :, pad1:pad1 + L]
+        return dX1.reshape(N, L)
 
 
 MODEL_REGISTRY = {

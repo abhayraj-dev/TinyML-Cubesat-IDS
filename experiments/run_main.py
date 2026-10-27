@@ -26,6 +26,7 @@ import pandas as pd
 
 import data_utils as du
 from train import train_continual
+from inference import concatenate_test, eval_logits
 from metrics import (compute_cl_metrics, compute_detection_metrics,
                      compute_macro_f1_balanced_acc,
                      model_persistent_footprint, model_peak_training_ram,
@@ -50,17 +51,9 @@ def final_detection_metrics(ts, out):
     except ValueError:
         return {"DET_AUROC": float("nan"), "DET_AUPR": float("nan"),
                 "DET_FPR95": float("nan"), "DET_PREV": float("nan")}
-    Xs, ys, off = [], [], 0
-    for task in ts.tasks:
-        Xs.append(task.X_test)
-        ys.append(task.y_test + off)
-        off += task.n_new_classes
-    X_all = np.concatenate(Xs, axis=0)
-    y_all = np.concatenate(ys, axis=0)
-    logits, _ = out["model"].forward(X_all)
-    corr = out.get("corrector")
-    if corr is not None and getattr(corr, "fitted", False):
-        logits = corr.apply(logits)
+    X_all, y_all = concatenate_test(ts)
+    logits = eval_logits(out["model"], X_all, corrector=out.get("corrector"),
+                         ncm=out.get("ncm"))
     return compute_detection_metrics(y_all, logits, normal_idx)
 
 
@@ -99,9 +92,9 @@ def _run_one(item):
     m = compute_cl_metrics(out["R"])
     det = final_detection_metrics(ts, out)
     mf_ba = compute_macro_f1_balanced_acc(
-        out["model"], ts, out.get("corrector"))
+        out["model"], ts, out.get("corrector"), ncm=out.get("ncm"))
     persist = model_persistent_footprint(
-        out["model"], out["buffer"], out["ewc"])
+        out["model"], out["buffer"], out["ewc"], ncm=out.get("ncm"))
 
     if out["buffer"] is not None:
         n_replay_step = max(
@@ -124,7 +117,7 @@ def _run_one(item):
         out["model"], out["buffer"], out["ewc"],
         teacher=out.get("teacher"), batch_size=hp["batch_size"],
         n_features=ts.n_features, n_replay=n_replay_step,
-        retained_state_bytes=retained_val_bytes)
+        retained_state_bytes=retained_val_bytes, ncm=out.get("ncm"))
 
     macs_fwd = estimate_macs_per_sample(out["model"], ts.n_features)
     macs_update = int(

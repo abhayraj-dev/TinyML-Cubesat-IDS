@@ -323,25 +323,28 @@ EWC here is online diagonal Fisher with a running estimate (`F_new = γ·F_old +
 
 ### 5.3 Feature-provenance leakage ablation (CuCD-ID/MLP, 15 seeds)
 
-Retrained models after removing feature groups (not test-time corruption). Deltas are relative to the all-feature run for the same method; negative values mean the removed features were helping the model.
+Retrained models after removing or isolating feature groups (not test-time corruption; 6 unique variants x 3 methods x 15 seeds = 270 runs). Deltas are relative to the all-feature run for the same method; negative values mean the removed features were helping the model. Group-level effects are in Section 7.10.
 
-| variant            | method        |   n_features |   ACC_mean |   MacroF1_mean |   ACC_mean_delta_vs_all |   MacroF1_mean_delta_vs_all |
-|:-------------------|:--------------|-------------:|-----------:|---------------:|------------------------:|----------------------------:|
-| all                | bic           |           22 |     0.9923 |         0.9924 |                  0      |                      0      |
-| all                | joint_scratch |           22 |     0.9966 |         0.9969 |                  0      |                      0      |
-| all                | replay        |           22 |     0.9894 |         0.9906 |                  0      |                      0      |
-| no_ids             | bic           |           19 |     0.9903 |         0.9906 |                 -0.002  |                     -0.0018 |
-| no_ids             | joint_scratch |           19 |     0.9956 |         0.996  |                 -0.0011 |                     -0.0009 |
-| no_ids             | replay        |           19 |     0.9658 |         0.9693 |                 -0.0236 |                     -0.0213 |
-| no_time            | bic           |           21 |     0.9889 |         0.989  |                 -0.0034 |                     -0.0034 |
-| no_time            | joint_scratch |           21 |     0.9949 |         0.9953 |                 -0.0017 |                     -0.0015 |
-| no_time            | replay        |           21 |     0.9901 |         0.9907 |                  0.0007 |                      0.0001 |
-| no_time_ids_window | bic           |            9 |     0.9153 |         0.898  |                 -0.0771 |                     -0.0944 |
-| no_time_ids_window | joint_scratch |            9 |     0.9723 |         0.9757 |                 -0.0243 |                     -0.0211 |
-| no_time_ids_window | replay        |            9 |     0.9229 |         0.9338 |                 -0.0666 |                     -0.0569 |
-| no_window          | bic           |           13 |     0.9384 |         0.9421 |                 -0.0539 |                     -0.0503 |
-| no_window          | joint_scratch |           13 |     0.9912 |         0.9922 |                 -0.0054 |                     -0.0047 |
-| no_window          | replay        |           13 |     0.9042 |         0.922  |                 -0.0852 |                     -0.0686 |
+| variant              | method        |   n_features |   ACC_mean |   MacroF1_mean |   ACC_mean_delta_vs_all |   MacroF1_mean_delta_vs_all |
+|:---------------------|:--------------|-------------:|-----------:|---------------:|------------------------:|----------------------------:|
+| all                  | bic           |           22 |     0.9923 |         0.9924 |                  0      |                      0      |
+| all                  | joint_scratch |           22 |     0.9966 |         0.9969 |                  0      |                      0      |
+| all                  | replay        |           22 |     0.9894 |         0.9906 |                  0      |                      0      |
+| no_ids               | bic           |           19 |     0.9903 |         0.9906 |                 -0.002  |                     -0.0018 |
+| no_ids               | joint_scratch |           19 |     0.9956 |         0.996  |                 -0.0011 |                     -0.0009 |
+| no_ids               | replay        |           19 |     0.9658 |         0.9693 |                 -0.0236 |                     -0.0213 |
+| no_time              | bic           |           21 |     0.9889 |         0.989  |                 -0.0034 |                     -0.0034 |
+| no_time              | joint_scratch |           21 |     0.9949 |         0.9953 |                 -0.0017 |                     -0.0015 |
+| no_time              | replay        |           21 |     0.9901 |         0.9907 |                  0.0007 |                      0.0001 |
+| no_time_ids_window   | bic           |            9 |     0.9153 |         0.898  |                 -0.0771 |                     -0.0944 |
+| no_time_ids_window   | joint_scratch |            9 |     0.9723 |         0.9757 |                 -0.0243 |                     -0.0211 |
+| no_time_ids_window   | replay        |            9 |     0.9229 |         0.9338 |                 -0.0666 |                     -0.0569 |
+| no_window            | bic           |           13 |     0.9384 |         0.9421 |                 -0.0539 |                     -0.0503 |
+| no_window            | joint_scratch |           13 |     0.9912 |         0.9922 |                 -0.0054 |                     -0.0047 |
+| no_window            | replay        |           13 |     0.9042 |         0.922  |                 -0.0852 |                     -0.0686 |
+| only_time_ids_window | bic           |           13 |     0.9843 |         0.9844 |                 -0.008  |                     -0.008  |
+| only_time_ids_window | joint_scratch |           13 |     0.9956 |         0.9959 |                 -0.001  |                     -0.0009 |
+| only_time_ids_window | replay        |           13 |     0.9694 |         0.9701 |                 -0.02   |                     -0.0206 |
 
 This quantifies how much random-split performance rides on the circular time field, CCSDS identifiers, and 20-second window aggregates. It is a reliance measure, not proof that every removed feature is illegitimate: `no_ids` also removes protocol information a real detector may legitimately use. The IID headline remains a benchmark estimand; the temporal-purged table in Section 7.4 is the separate deployment-shift estimand.
 
@@ -1117,6 +1120,170 @@ The family is all unordered method pairs within each dataset x architecture (216
 | CuCD-ID   | CNN1D  | lwf        | joint_scratch |  15 |   0.0722 |   0.9852 |     -0.913  |  -0.9173 |   -0.9064 |   -81.208  |    0.0001 |   0.0132 |
 | CuCD-ID   | CNN1D  | ewc        | joint         |  15 |   0.0725 |   0.9923 |     -0.9197 |  -0.9207 |   -0.9188 |  -467.85   |    0.0001 |   0.0132 |
 | CuCD-ID   | CNN1D  | lwf        | joint         |  15 |   0.0722 |   0.9923 |     -0.9201 |  -0.921  |   -0.9192 |  -508.955  |    0.0001 |   0.0132 |
+
+### 7.8 iCaRL-lite + NCM evaluation
+
+The original NCM evaluation reruns the frozen iCaRL-lite configuration with embedding-space herding and a post-hoc cosine NCM head fitted only on stored exemplars. Test rows are never used to fit the NCM means. This is the NCM result used in the main comparison, but it changes both the feature/herding path and the classifier, so it cannot by itself isolate the classifier change; Section 7.8.1 supplies the matched control.
+
+**NCM ACC, mean over 15 seeds:**
+
+| dataset   | arch   |   icarl_ncm |
+|:----------|:-------|------------:|
+| CuCD-ID   | CNN1D  |      0.795  |
+| CuCD-ID   | GRU    |      0.8671 |
+| CuCD-ID   | MLP    |      0.896  |
+| STIN      | CNN1D  |      0.567  |
+| STIN      | GRU    |      0.6606 |
+| STIN      | MLP    |      0.632  |
+
+**Paired ACC difference vs softmax-head baselines (same seeds; confounded by herding + classifier):**
+
+| dataset   | arch   |     bic |    full |   icarl |   replay |
+|:----------|:-------|--------:|--------:|--------:|---------:|
+| CuCD-ID   | CNN1D  | -0.0779 |  0.1756 | -0.001  |   0.0861 |
+| CuCD-ID   | GRU    | -0.0524 |  0.2396 | -0.0449 |  -0.0553 |
+| CuCD-ID   | MLP    | -0.0963 | -0.0571 | -0.0944 |  -0.0934 |
+| STIN      | CNN1D  | -0.0616 |  0.0253 | -0.0402 |  -0.0222 |
+| STIN      | GRU    | -0.0125 |  0.0717 | -0.0038 |   0.0018 |
+| STIN      | MLP    | -0.0546 | -0.0189 | -0.0258 |  -0.0157 |
+
+The NCM head is not a free win: the largest average drop in this original comparison is **-0.0963 ACC** on CuCD-ID/MLP vs `bic`. The matched controls below show how much of this is the classifier versus the embedding/herding change.
+
+
+#### 7.8.1 NCM sanity/control: buffer, embedding herding, and classifier
+
+The control re-runs iCaRL with the same input features under four paired conditions: the original input-space herding + softmax head, an embedding-space herding + softmax head, and NCM fitted on the buffer or on all training data; a joint all-data model is included as a second control. The NCM metric is task-balanced ACC, matching the existing NCM files; overall sample accuracy is retained as `*_SampleACC` in `ncm_sanity_summary.csv`.
+
+| dataset   | arch   | stage           | input_softmax   |   embed_softmax | ncm_buffer   |   ncm_all | existing_ncm   | ncm_buf-emb   | ncm_all-emb   | buf-all   |
+|:----------|:-------|:----------------|:----------------|----------------:|:-------------|----------:|:---------------|:--------------|:--------------|:----------|
+| CuCD-ID   | CNN1D  | icarl_embedding | 0.7960          |          0.8109 | 0.7950       |    0.7952 | 0.7950         | -0.0159       | -0.0157       | -0.0002   |
+| CuCD-ID   | GRU    | icarl_embedding | 0.9120          |          0.9308 | 0.8671       |    0.8653 | 0.8671         | -0.0637       | -0.0655       | 0.0018    |
+| CuCD-ID   | MLP    | icarl_embedding | 0.9903          |          0.9825 | 0.8960       |    0.8948 | 0.8960         | -0.0866       | -0.0878       | 0.0012    |
+| STIN      | CNN1D  | icarl_embedding | 0.6072          |          0.6191 | 0.5670       |    0.5667 | 0.5670         | -0.0522       | -0.0524       | 0.0003    |
+| STIN      | GRU    | icarl_embedding | 0.6643          |          0.6668 | 0.6606       |    0.6541 | 0.6606         | -0.0062       | -0.0127       | 0.0065    |
+| STIN      | MLP    | icarl_embedding | 0.6578          |          0.6622 | 0.6320       |    0.632  | 0.6320         | -0.0302       | -0.0302       | -0.0000   |
+| CuCD-ID   | CNN1D  | joint_scratch   |                 |          0.9816 |              |    0.7972 |                |               |               |           |
+| CuCD-ID   | GRU    | joint_scratch   |                 |          0.9914 |              |    0.9915 |                |               |               |           |
+| CuCD-ID   | MLP    | joint_scratch   |                 |          0.9961 |              |    0.9135 |                |               |               |           |
+| STIN      | CNN1D  | joint_scratch   |                 |          0.6125 |              |    0.5572 |                |               |               |           |
+| STIN      | GRU    | joint_scratch   |                 |          0.6794 |              |    0.6887 |                |               |               |           |
+| STIN      | MLP    | joint_scratch   |                 |          0.6566 |              |    0.6207 |                |               |               |           |
+
+**Buffer is not the limitation.** NCM-all minus NCM-buffer has maximum absolute value **0.0065 ACC** across all six cells, so a larger or all-data class-mean estimate would not close the gap.
+
+**The NCM gap is classifier/feature-space.** NCM-all is below the embedding-herding softmax head in 6/6 iCaRL cells; the largest gaps are on CuCD-ID/MLP and STIN/CNN1D. The joint GRU cell is essentially at parity. This is a negative/mixed NCM result, not evidence of NCM superiority.
+
+
+**Joint all-data NCM minus softmax (same features and training data, only the head changes):**
+
+| dataset   | arch   |   NCM - softmax |
+|:----------|:-------|----------------:|
+| CuCD-ID   | CNN1D  |         -0.1844 |
+| CuCD-ID   | GRU    |          0.0001 |
+| CuCD-ID   | MLP    |         -0.0826 |
+| STIN      | CNN1D  |         -0.0553 |
+| STIN      | GRU    |          0.0094 |
+| STIN      | MLP    |         -0.0359 |
+
+This is the cleanest classifier-only contrast: the joint GRU is at parity, while CuCD-ID MLP/CNN1D and STIN CNN1D/MLP prefer the softmax head. Together with NCM-all approximately NCM-buffer, this rules out a buffer-size explanation and points to the cosine class-mean geometry / feature scaling.
+
+See `figures/ncm_sanity_control.png`. _The old sentence that this comparison 'isolates the classifier change' is incorrect and has been removed: the original NCM run changes the herding path as well as the head. Use Section 7.8.1 for the matched control._
+
+
+### 7.9 XAI: SHAP vs IG agreement and faithfulness
+
+KernelSHAP (256 sampled coalitions) and exact-input-gradient IG are computed on the same class-stratified test rows for BiC, iCaRL-lite+NCM and offline Scratch. The main text uses **correctly classified rows only** and reports Top5Ratio, deletion AUC and insertion AUC; agreement and completeness are diagnostics, not proof of causal feature use. The primary background is a real training medoid, not the zero vector, because zero is degenerate for cosine/NCM paths; a class-balanced mean of per-class medoids is run as a sensitivity check. IG uses 512 steps.
+
+**Main XAI metrics, correct-only rows (mean over 3 seeds):**
+
+| dataset   | arch   | method        |   n_samples_mean |   top5_ratio_mean |   ig_deletion_auc_mean |   shap_deletion_auc_mean |   ig_insertion_auc_mean |   shap_insertion_auc_mean |
+|:----------|:-------|:--------------|-----------------:|------------------:|-----------------------:|-------------------------:|------------------------:|--------------------------:|
+| CuCD-ID   | GRU    | bic           |          45      |            0.5463 |                 0.2681 |                   0.2907 |                  0.6892 |                    0.6931 |
+| CuCD-ID   | GRU    | icarl_ncm     |          41.6667 |            0.5327 |                 0.3072 |                   0.293  |                  0.747  |                    0.749  |
+| CuCD-ID   | GRU    | joint_scratch |          47.6667 |            0.5384 |                 0.2949 |                   0.313  |                  0.8687 |                    0.8721 |
+| CuCD-ID   | MLP    | bic           |          47.6667 |            0.7932 |                 0.2783 |                   0.2964 |                  0.8952 |                    0.8904 |
+| CuCD-ID   | MLP    | icarl_ncm     |          45      |            0.5964 |                 0.2838 |                   0.3388 |                  0.8443 |                    0.8096 |
+| CuCD-ID   | MLP    | joint_scratch |          48      |            0.8083 |                 0.279  |                   0.2854 |                  0.9257 |                    0.9166 |
+| STIN      | GRU    | bic           |          32      |            0.5828 |                 0.1354 |                   0.1296 |                  0.6649 |                    0.6318 |
+| STIN      | GRU    | icarl_ncm     |          31      |            0.5878 |                 0.1818 |                   0.1882 |                  0.6675 |                    0.6438 |
+| STIN      | GRU    | joint_scratch |          33.3333 |            0.5957 |                 0.1592 |                   0.1615 |                  0.718  |                    0.6602 |
+| STIN      | MLP    | bic           |          32.3333 |            0.7175 |                 0.1515 |                   0.1614 |                  0.695  |                    0.6817 |
+| STIN      | MLP    | icarl_ncm     |          28.3333 |            0.626  |                 0.156  |                   0.1843 |                  0.4955 |                    0.478  |
+| STIN      | MLP    | joint_scratch |          31.3333 |            0.6961 |                 0.1397 |                   0.1473 |                  0.7231 |                    0.7055 |
+
+Highest correct-only Top5Ratio: **CuCD-ID/MLP/joint_scratch** (0.808). Lower Top5Ratio for NCM reflects attribution disagreement/stability, not necessarily lower accuracy; deletion/insertion are reported alongside it. Correct-only and all-row tables are in `results/XAI_SUPPLEMENT.md`.
+
+
+**Correctness split.** Error-only rows are reported in the supplement; cells with fewer than three errors are unstable/NaN and are not used for claims. See `figures/xai_main_metrics.png`.
+
+
+#### 7.9.1 Completeness, KernelSHAP efficiency, and baseline sensitivity
+
+IG completes the medoid-to-input path to within **0.0044** mean relative error (worst cell) after 512 steps. KernelSHAP's efficiency constraint is enforced through its KKT system, so its completeness residual is exact by construction and is only an implementation sanity check, not evidence of attribution accuracy; agreement and faithfulness metrics are the accuracy evidence. The original zero baseline was degenerate for NCM (cosine of a zero vector), which produced artificially near-zero IG attributions; the medoid baseline fixes this.
+
+**Background sensitivity (secondary class-balanced medoid mean minus primary training medoid):**
+
+| dataset   | arch   | method        |   top5_ratio_mean_primary |   top5_ratio_mean_secondary |   top5_ratio_mean_delta |   ig_deletion_auc_mean_delta |   shap_deletion_auc_mean_delta |
+|:----------|:-------|:--------------|--------------------------:|----------------------------:|------------------------:|-----------------------------:|-------------------------------:|
+| CuCD-ID   | GRU    | bic           |                    0.5444 |                      0.5319 |                 -0.0125 |                       0.0274 |                         0.0498 |
+| CuCD-ID   | GRU    | icarl_ncm     |                    0.5347 |                      0.5167 |                 -0.0181 |                      -0.023  |                         0.0092 |
+| CuCD-ID   | GRU    | joint_scratch |                    0.5389 |                      0.5181 |                 -0.0208 |                      -0.0329 |                        -0.0512 |
+| CuCD-ID   | MLP    | bic           |                    0.7931 |                      0.6944 |                 -0.0986 |                      -0.0123 |                        -0.0034 |
+| CuCD-ID   | MLP    | icarl_ncm     |                    0.6056 |                      0.6097 |                  0.0042 |                       0.0162 |                         0.0112 |
+| CuCD-ID   | MLP    | joint_scratch |                    0.8083 |                      0.7569 |                 -0.0514 |                      -0.0039 |                         0.0045 |
+| STIN      | GRU    | bic           |                    0.5833 |                      0.6403 |                  0.0569 |                       0.0079 |                         0.0089 |
+| STIN      | GRU    | icarl_ncm     |                    0.5931 |                      0.5778 |                 -0.0153 |                       0.0025 |                        -0.0072 |
+| STIN      | GRU    | joint_scratch |                    0.5847 |                      0.5625 |                 -0.0222 |                      -0.0055 |                        -0.0125 |
+| STIN      | MLP    | bic           |                    0.7097 |                      0.7556 |                  0.0458 |                      -0.0036 |                        -0.0043 |
+| STIN      | MLP    | icarl_ncm     |                    0.6167 |                      0.6347 |                  0.0181 |                       0      |                        -0.0036 |
+| STIN      | MLP    | joint_scratch |                    0.6986 |                      0.7458 |                  0.0472 |                      -0.0032 |                        -0.0022 |
+
+Across 12 cells, mean |delta Top5Ratio| = 0.0343 (max 0.0986); mean |delta IG deletion AUC| = 0.0115; mean |delta SHAP deletion AUC| = 0.0140. The qualitative ranking is not driven by one background row.
+
+
+#### 7.9.2 Feature-group attribution and deletion
+
+Groups are the disjoint provenance families in `src/feature_groups.py`. Shares are mean absolute attribution fractions within a run; deletion drop is the drop in target-class probability when the group is replaced by the medoid background. `insertion_gain` is measured from the all-baseline probability (`inserted_prob - baseline_prob`). `insertion_gap_vs_full` is the older `inserted_prob - base_prob` contrast and is negative by construction for partial restorations, so it is supplementary.
+
+| dataset   | group            |   ig_share |   shap_share |   deletion_drop |   insertion_gain |
+|:----------|:-----------------|-----------:|-------------:|----------------:|-----------------:|
+| CuCD-ID   | time             |     0.1714 |       0.1657 |          0.2773 |           0.1653 |
+| CuCD-ID   | ids              |     0.0735 |       0.0512 |          0.0098 |           0.0232 |
+| CuCD-ID   | window           |     0.5029 |       0.4958 |          0.39   |           0.332  |
+| CuCD-ID   | raw_telemetry    |     0.2521 |       0.2873 |          0.1217 |           0.0731 |
+| STIN      | flow_volume      |     0.3548 |       0.2985 |          0.2826 |           0.0698 |
+| STIN      | packet_length    |     0.5369 |       0.4431 |          0.3943 |           0.1663 |
+| STIN      | iat_timing       |     0.0188 |       0.0288 |          0.0042 |          -0.0007 |
+| STIN      | tcp_flags        |     0      |       0.1246 |          0      |           0      |
+| STIN      | tcp_window_block |     0.0895 |       0.105  |          0.1168 |           0.0679 |
+
+On CuCD-ID, window aggregates and time contribute most to attribution and deletion; raw telemetry is secondary. Under the primary training-medoid background, the top feature is not universally `TimeRadians`: for CuCD-ID/GRU with BiC or iCaRL+NCM, `UniqueMessageIDsInWindow` ranks first, while MLP cells and GRU/joint_scratch rank `TimeRadians` first. Under the class-balanced sensitivity background the GRU ranking can shift to `TimeRadians` or `MemoryAnonMB`, so the robust reading is time/window aggregates, not one stable feature. STIN is a network-flow family analysis (no time/ID/window provenance groups), so its group shares are not a leakage ablation. See `figures/xai_feature_groups.png`.
+
+
+### 7.10 Feature-group reliance: retrained ablation
+
+Retrained CuCD-ID/MLP ablation: each row retrains without the named group (or with only that group). `ACC_delta_vs_all` is relative to the all-feature model for the same method; negative means the group was helping. The former `only_raw_telemetry` alias was removed because it was feature-wise identical to `no_time_ids_window`; the table therefore contains six unique variants and 270 runs.
+
+| group                  | variant              | method        |   n_features |   ACC_mean |   ACC_delta_vs_all |   MacroF1_delta_vs_all |
+|:-----------------------|:---------------------|:--------------|-------------:|-----------:|-------------------:|-----------------------:|
+| time                   | no_time              | bic           |           21 |     0.9889 |            -0.0034 |                -0.0034 |
+| ids                    | no_ids               | bic           |           19 |     0.9903 |            -0.002  |                -0.0018 |
+| window                 | no_window            | bic           |           13 |     0.9384 |            -0.0539 |                -0.0503 |
+| all_leakage_provenance | no_time_ids_window   | bic           |            9 |     0.9153 |            -0.0771 |                -0.0944 |
+| raw_telemetry          | only_time_ids_window | bic           |           13 |     0.9843 |            -0.008  |                -0.008  |
+| time                   | no_time              | joint_scratch |           21 |     0.9949 |            -0.0017 |                -0.0015 |
+| ids                    | no_ids               | joint_scratch |           19 |     0.9956 |            -0.0011 |                -0.0009 |
+| window                 | no_window            | joint_scratch |           13 |     0.9912 |            -0.0054 |                -0.0047 |
+| all_leakage_provenance | no_time_ids_window   | joint_scratch |            9 |     0.9723 |            -0.0243 |                -0.0211 |
+| raw_telemetry          | only_time_ids_window | joint_scratch |           13 |     0.9956 |            -0.001  |                -0.0009 |
+| time                   | no_time              | replay        |           21 |     0.9901 |             0.0007 |                 0.0001 |
+| ids                    | no_ids               | replay        |           19 |     0.9658 |            -0.0236 |                -0.0213 |
+| window                 | no_window            | replay        |           13 |     0.9042 |            -0.0852 |                -0.0686 |
+| all_leakage_provenance | no_time_ids_window   | replay        |            9 |     0.9229 |            -0.0666 |                -0.0569 |
+| raw_telemetry          | only_time_ids_window | replay        |           13 |     0.9694 |            -0.02   |                -0.0206 |
+
+The large drop for `no_time_ids_window` and the small drop for `only_time_ids_window` (raw telemetry removed, leakage groups retained) show that the leakage-bearing provenance fields carry most of the random-split advantage. The `raw_telemetry` row in this table is the `only_time_ids_window` variant. This is a reliance measure, not proof that every removed field is illegitimate.
+
 
 ## 8. Claim boundaries and known limitations
 

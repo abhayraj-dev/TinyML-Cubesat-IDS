@@ -36,9 +36,10 @@ Methods:
               bias-correction stage fit on held-out val (alpha,beta on new
               logits, Wu et al. 2019 lite: correction at inference, trunk
               frozen during fit).
-  icarl    -- (Phase 1 lite) herding buffer + balanced replay + distillation,
-              softmax eval (embedding-space herding / NCM omitted; documented
-              limitation vs full iCaRL).
+  icarl    -- (Phase 1 lite) herding buffer + balanced replay + distillation.
+              By default evaluation uses the softmax head (legacy iCaRL-lite);
+              pass ncm_eval=True for the faithful iCaRL classifier: embedding-
+              space herding + nearest-class-mean over stored exemplars.
 """
 from __future__ import annotations
 import time
@@ -47,6 +48,7 @@ import numpy as np
 from optim import Adam
 from cmmu import ReplayBuffer, OnlineEWC
 from losses import softmax_cross_entropy
+from ncm import NCMClassifier
 from utils import set_seed
 
 
@@ -101,11 +103,24 @@ def _snapshot_teacher(model_cls, model_kwargs, model, seed: int):
     return teacher
 
 
-def _rebuild_herding_buffer(buffer, per_class_data: dict, capacity: int):
-    """Phase 1 iCaRL-style buffer rebuild: equal exemplars per class, herding
-    selection in input space (documented limitation: embedding-space herding
-    would need trunk access per arch; input-space is the honest lite version).
-    per_class_data: {global_class_id: X (N,F)}. Clears buffer first."""
+def _embed_for_herding(model, X: np.ndarray, batch_size: int = 512) -> np.ndarray:
+    """Penultimate features for herding; never uses labels/test data."""
+    chunks = []
+    for start in range(0, len(X), int(batch_size)):
+        feat, _ = model.forward_trunk(X[start:start + int(batch_size)])
+        chunks.append(np.asarray(feat))
+    return np.concatenate(chunks, axis=0)
+
+
+def _rebuild_herding_buffer(buffer, per_class_data: dict, capacity: int,
+                            model=None, embedding_herding: bool = False):
+    """iCaRL-style buffer rebuild: equal exemplars per class.
+
+    Legacy behaviour is input-space herding.  ``embedding_herding=True``
+    performs the selection in the current model's L2-normalised penultimate
+    feature space, which is the faithful iCaRL construction and the correct
+    companion to the NCM classifier.  The model is used read-only.
+    """
     from cmmu import ReplayBuffer
     buffer.size = 0
     buffer.n_seen = 0
@@ -117,7 +132,14 @@ def _rebuild_herding_buffer(buffer, per_class_data: dict, capacity: int):
         X = np.asarray(per_class_data[c])
         if len(X) == 0:
             continue
-        sel = ReplayBuffer.select_herding(X, min(per, len(X)))
+        if embedding_herding:
+            if model is None:
+                raise ValueError("embedding_herding=True requires a model")
+            candidates = _embed_for_herding(model, X)
+            candidates = NCMClassifier._l2_normalize(candidates)
+        else:
+            candidates = X
+        sel = ReplayBuffer.select_herding(candidates, min(per, len(X)))
         for i in sel:
             if buffer.size >= buffer.capacity:
                 return
@@ -199,10 +221,16 @@ class BiasCorrector:
 
 
 def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dict, seed: int = 0,
-                    bias_correction: bool = False, replay_balance: str = "uniform"):
+                    bias_correction: bool = False, replay_balance: str = "uniform",
+                    ncm_eval: bool = False, embedding_herding: bool = False,
+                    ncm_temperature: float = 10.0):
     assert method in ("finetune", "replay", "ewc", "full", "joint", "joint_scratch",
                       "lwf", "bic", "icarl")
     assert replay_balance in ("uniform", "class_balanced")
+    if ncm_eval:
+        assert method in ("bic", "icarl"), "NCM requires a rehearsal-buffer method"
+    if embedding_herding:
+        assert method in ("bic", "icarl"), "embedding herding requires bic/icarl"
     hp = {**DEFAULT_HPARAMS, **hparams}
     set_seed(seed)
     rng = np.random.default_rng(seed)
@@ -238,6 +266,7 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
     train_steps_total = 0    # minibatch optimizer steps actually performed
     train_samples_total = 0  # student samples actually processed (incl. replay augmentation)
     teacher_samples_total = 0  # teacher-forward samples actually processed (distillation methods)
+    ncm = None
 
     for t, task in enumerate(task_seq.tasks):
         n_old = class_offset
@@ -302,9 +331,7 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
                                   distill_T=distill_T)
         per_task_train_seconds.append(time.perf_counter() - t0)
 
-        # ---- evaluate on all tasks seen so far, using the FULL current
-        #      shared head (no task ID / no restriction to a subset of
-        #      classes -- this is the crux of the class-incremental setting) ----
+        # ---- bookkeeping for this stage ----
         seen_tasks.append((task.X_test, y_test_global))
         if task.X_calib is not None and y_calib_global is not None:
             seen_val.append((task.X_calib, y_calib_global))
@@ -322,21 +349,10 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
                                     betas=np.linspace(-1.0, 1.0, 9))
             else:
                 corrector.fit_stage(logits_v, yv, n_old, task.n_new_classes)
-        for j, (Xj, yj) in enumerate(seen_tasks):
-            logits, _ = model.forward(Xj)
-            if corrector is not None and corrector.fitted:
-                logits = corrector.apply(logits)
-            preds = logits.argmax(axis=1)
-            R[t, j] = float((preds == yj).mean())
-        # Validation accuracy matrix on the DISJOINT selection half only.
-        for j, (Xj, yj) in enumerate(seen_val_tasks):
-            logits, _ = model.forward(Xj)
-            if corrector is not None and corrector.fitted:
-                logits = corrector.apply(logits)
-            preds = logits.argmax(axis=1)
-            V[t, j] = float((preds == yj).mean())
 
-        # ---- update CMMU state ----
+        # ---- update CMMU state BEFORE evaluation ----
+        # The model itself is unchanged by this block; doing it first lets the
+        # NCM evaluation head see exactly the memory that will be deployed.
         if buffer is not None:
             if method in ("bic", "icarl"):
                 # Bounded herding rebuild: candidates are resident buffer
@@ -353,7 +369,9 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
                     mask = (y_train_global == g)
                     if np.any(mask):
                         per_class_data[g] = task.X_train[mask].copy()
-                _rebuild_herding_buffer(buffer, per_class_data, int(hp["buffer_capacity"]))
+                _rebuild_herding_buffer(
+                    buffer, per_class_data, int(hp["buffer_capacity"]),
+                    model=model, embedding_herding=embedding_herding)
             else:
                 buffer.add_batch(task.X_train, y_train_global, t)
         if ewc is not None:
@@ -369,6 +387,34 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
             else:
                 ewc.consolidate(model, task.X_train, y_train_global)
 
+        # ---- optional NCM classifier over the stored exemplars ----
+        if ncm_eval:
+            ncm = NCMClassifier(n_classes=model.n_classes_total,
+                                temperature=ncm_temperature)
+            ncm.fit_from_buffer(model, buffer, n_classes=model.n_classes_total)
+
+        # ---- evaluate on all tasks seen so far, using the FULL current
+        #      predictor (no task ID): softmax head, BiC, or NCM. ----
+        for j, (Xj, yj) in enumerate(seen_tasks):
+            if ncm is not None:
+                logits = ncm.logits(model, Xj)
+            else:
+                logits, _ = model.forward(Xj)
+                if corrector is not None and corrector.fitted:
+                    logits = corrector.apply(logits)
+            preds = logits.argmax(axis=1)
+            R[t, j] = float((preds == yj).mean())
+        # Validation accuracy matrix on the DISJOINT selection half only.
+        for j, (Xj, yj) in enumerate(seen_val_tasks):
+            if ncm is not None:
+                logits = ncm.logits(model, Xj)
+            else:
+                logits, _ = model.forward(Xj)
+                if corrector is not None and corrector.fitted:
+                    logits = corrector.apply(logits)
+            preds = logits.argmax(axis=1)
+            V[t, j] = float((preds == yj).mean())
+
     return {
         "R": R,
         "V": V,
@@ -376,6 +422,7 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
         "buffer": buffer,
         "ewc": ewc,
         "corrector": corrector,
+        "ncm": ncm,
         "teacher": last_teacher,
         "train_steps_total": train_steps_total,
         "train_samples_total": train_samples_total,
@@ -384,4 +431,6 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
         "hparams": hp,
         "replay_balance": replay_balance,
         "bias_correction": bias_correction,
+        "ncm_eval": ncm_eval,
+        "embedding_herding": embedding_herding,
     }

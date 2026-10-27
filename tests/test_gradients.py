@@ -56,6 +56,32 @@ def numeric_grad_check(model, X, y, eps=1e-5, n_check=8, tol=1e-2):
     assert worst < tol, "Gradient check failed"
 
 
+def input_grad_check(model, X, targets, eps=1e-5, n_check=8, tol=1e-2):
+    """Finite-difference check of d(sum target logits)/dX."""
+    _to_float64(model)
+    X = X.astype(np.float64)
+    logits, cache = model.forward(X)
+    dlogits = np.zeros_like(logits)
+    dlogits[np.arange(len(X)), targets] = 1.0
+    analytic = model.backward_input(cache, dlogits)
+
+    rng = np.random.default_rng(1)
+    worst = 0.0
+    for fi in rng.choice(X.size, size=min(n_check, X.size), replace=False):
+        idx = np.unravel_index(fi, X.shape)
+        orig = X[idx]
+        X[idx] = orig + eps
+        lp = model.forward(X)[0][np.arange(len(X)), targets].sum()
+        X[idx] = orig - eps
+        lm = model.forward(X)[0][np.arange(len(X)), targets].sum()
+        X[idx] = orig
+        numeric = (lp - lm) / (2 * eps)
+        err = abs(numeric - analytic[idx]) / max(1.0, abs(numeric) + abs(analytic[idx]))
+        worst = max(worst, err)
+    print(f"  -> input-grad worst error: {worst:.6f}")
+    assert worst < tol, "Input-gradient check failed"
+
+
 def check_distill_gradient(seed=3):
     """Finite-difference check of the KD gradient (old-class columns only)."""
     rng = np.random.default_rng(seed)
@@ -136,6 +162,15 @@ def main():
     m = CubeSat1DCNN(input_dim=F, c1=4, c2=5, kernel=3, seed=1)
     m.expand_head(3)
     numeric_grad_check(m, X, y)
+
+    print("== Input-gradient checks (for Integrated Gradients) ==")
+    tg = rng.integers(0, 3, size=N)
+    m = CubeSatMLP(input_dim=F, h1=10, h2=7, seed=1); m.expand_head(3)
+    input_grad_check(m, X, tg)
+    m = CubeSatGRU(input_dim=F, seq_len=4, hidden=6, seed=1); m.expand_head(3)
+    input_grad_check(m, X, tg)
+    m = CubeSat1DCNN(input_dim=F, c1=4, c2=5, kernel=3, seed=1); m.expand_head(3)
+    input_grad_check(m, X, tg)
 
     print("== Growing head (class-incremental) gradient check ==")
     m = CubeSatMLP(input_dim=F, h1=10, h2=7, seed=1)

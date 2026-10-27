@@ -13,9 +13,17 @@ same random split and budgets as the main matrix. Variants:
   no_time             - drop TimeRadians
   no_ids              - drop MsgId, CmdCode, ApId
   no_window           - drop FlowLengthInWindow, SlidingWindow*, *InWindow
-  no_time_ids_window  - drop all three groups
+  no_time_ids_window  - drop all three provenance groups
+  only_time_ids_window- keep only time+IDs+window, drop raw telemetry
 
-Writes: results/leakage_ablation.csv and results/leakage_ablation_summary.csv
+The former ``only_raw_telemetry`` variant was an exact alias of
+``no_time_ids_window`` (both drop the same columns), so it was removed; the
+ablation is six unique variants x 3 methods x 15 seeds = 270 runs.
+
+Writes:
+  results/leakage_ablation.csv
+  results/leakage_ablation_summary.csv
+  results/leakage_group_effects.csv
 """
 import sys
 import os
@@ -36,29 +44,33 @@ from metrics import compute_cl_metrics, compute_macro_f1_balanced_acc
 from config import (MODEL_CLASSES, model_kwargs_for, DATA_DIR, RESULTS_DIR,
                     BASE_TRAIN_HPARAMS, SEEDS, VAL_FRAC,
                     load_frozen_hparams_strict)
+from feature_groups import CUCD_ID_GROUPS
 
 METHODS = ["replay", "bic", "joint_scratch"]
 
-ID_COLS = ["MsgId", "CmdCode", "ApId"]
-WINDOW_COLS = [
-    "FlowLengthInWindow",
-    "SlidingWindowMeanIntervalSec",
-    "SlidingWindowMaxIntervalSec",
-    "SlidingWindowMinIntervalSec",
-    "MessageCountInWindow",
-    "UniqueMessageIDsInWindow",
-    "AverageMessageLengthInWindow",
-    "MessageRateInWindow",
-    "StdDevMessageLengthInWindow",
-]
+TIME_COLS = CUCD_ID_GROUPS["time"]
+ID_COLS = CUCD_ID_GROUPS["ids"]
+WINDOW_COLS = CUCD_ID_GROUPS["window"]
+RAW_TELEMETRY_COLS = CUCD_ID_GROUPS["raw_telemetry"]
+LEAKAGE_COLS = TIME_COLS + ID_COLS + WINDOW_COLS
 
 VARIANTS = {
     "all": [],
-    "no_time": ["TimeRadians"],
+    "no_time": TIME_COLS,
     "no_ids": ID_COLS,
     "no_window": WINDOW_COLS,
-    "no_time_ids_window": ["TimeRadians"] + ID_COLS + WINDOW_COLS,
+    "no_time_ids_window": LEAKAGE_COLS,
+    "only_time_ids_window": RAW_TELEMETRY_COLS,
 }
+
+GROUP_EFFECTS = [
+    ("time", "no_time", "drop time"),
+    ("ids", "no_ids", "drop IDs"),
+    ("window", "no_window", "drop window"),
+    ("all_leakage_provenance", "no_time_ids_window",
+     "drop time+IDs+window"),
+    ("raw_telemetry", "only_time_ids_window", "drop raw telemetry"),
+]
 
 
 _FROZEN = None
@@ -132,6 +144,23 @@ def main():
             lambda r: r[metric] - baseline.loc[r["method"], metric], axis=1)
     summary.to_csv(os.path.join(RESULTS_DIR, "leakage_ablation_summary.csv"),
                    index=False)
+
+    effect_rows = []
+    for group, variant, description in GROUP_EFFECTS:
+        sub = summary[summary.variant == variant]
+        for _, r in sub.iterrows():
+            effect_rows.append(dict(
+                group=group, variant=variant, description=description,
+                method=r["method"], n_features=int(r["n_features"]),
+                dropped_features="|".join(VARIANTS[variant]),
+                ACC_mean=float(r["ACC_mean"]),
+                ACC_std=float(r["ACC_std"]),
+                ACC_delta_vs_all=float(r["ACC_mean_delta_vs_all"]),
+                MacroF1_mean=float(r["MacroF1_mean"]),
+                MacroF1_delta_vs_all=float(r["MacroF1_mean_delta_vs_all"]),
+            ))
+    pd.DataFrame(effect_rows).to_csv(
+        os.path.join(RESULTS_DIR, "leakage_group_effects.csv"), index=False)
 
     print("\nMean pooled ACC / Macro-F1 by variant and method:")
     print(summary[["variant", "method", "n_features", "ACC_mean",

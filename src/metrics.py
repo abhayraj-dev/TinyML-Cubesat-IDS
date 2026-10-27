@@ -17,6 +17,8 @@ implies it indirectly.
 """
 import numpy as np
 
+from inference import concatenate_test, eval_logits
+
 
 def compute_cl_metrics(R: np.ndarray):
     T = R.shape[0]
@@ -39,21 +41,13 @@ def compute_cl_metrics(R: np.ndarray):
     return {"ACC": acc, "BWT": bwt, "FM": fm}
 
 
-def compute_macro_f1_balanced_acc(model, task_seq, corrector=None):
+def compute_macro_f1_balanced_acc(model, task_seq, corrector=None, ncm=None):
     """Compute Macro-F1 and Balanced Accuracy on the final model's test predictions.
     Evaluates on the concatenated test sets of all tasks seen so far.
-    Applies the BiC corrector when fitted (same as detection/per-class eval)."""
-    Xs, ys, off = [], [], 0
-    for task in task_seq.tasks:
-        Xs.append(task.X_test)
-        ys.append(task.y_test + off)
-        off += task.n_new_classes
-    X_all = np.concatenate(Xs, axis=0)
-    y_all = np.concatenate(ys, axis=0)
-
-    logits, _ = model.forward(X_all)
-    if corrector is not None and getattr(corrector, "fitted", False):
-        logits = corrector.apply(logits)
+    Uses the same deployed predictor as the rest of the evaluation: NCM when
+    supplied, otherwise BiC-corrected or raw softmax logits."""
+    X_all, y_all = concatenate_test(task_seq)
+    logits = eval_logits(model, X_all, corrector=corrector, ncm=ncm)
     y_pred = logits.argmax(axis=1)
     n_classes = len(task_seq.class_names_global)
 
@@ -236,18 +230,20 @@ def wilcoxon_signed_rank(x: np.ndarray, y: np.ndarray) -> dict:
     return {"n": n, "W": w_pos, "z": float(z), "p_two_sided": float(np.clip(p, 0.0, 1.0))}
 
 
-def model_persistent_footprint(model, buffer=None, ewc=None):
+def model_persistent_footprint(model, buffer=None, ewc=None, ncm=None):
     """Persistent deployed storage footprint (what gets stored in Flash/EEPROM).
-    INT8 model weights + INT8 replay buffer + FP16 EWC."""
+    INT8 model weights + INT8 replay buffer + FP16 EWC + FP16 NCM class means."""
     model_bytes = model.param_count() * 1  # INT8
     buffer_bytes = buffer.memory_bytes(quantized=True) if buffer is not None else 0
     ewc_bytes = ewc.memory_bytes(bytes_per_val=2) if ewc is not None else 0  # FP16
-    total = model_bytes + buffer_bytes + ewc_bytes
+    ncm_bytes = ncm.memory_bytes(bytes_per_val=2) if ncm is not None else 0  # FP16
+    total = model_bytes + buffer_bytes + ewc_bytes + ncm_bytes
     return {
         "persistent_model_bytes_int8": model_bytes,
         "persistent_buffer_bytes_int8": buffer_bytes,
         "persistent_ewc_bytes_fp16": ewc_bytes,
-        "persistent_cmmu_bytes": buffer_bytes + ewc_bytes,
+        "persistent_ncm_bytes_fp16": ncm_bytes,
+        "persistent_cmmu_bytes": buffer_bytes + ewc_bytes + ncm_bytes,
         "persistent_total_bytes": total,
         "persistent_total_KB": total / 1024.0,
     }
@@ -255,7 +251,8 @@ def model_persistent_footprint(model, buffer=None, ewc=None):
 
 def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
                              batch_size: int = 32, n_features: int = 22,
-                             n_replay: int = 0, retained_state_bytes: int = 0):
+                             n_replay: int = 0, retained_state_bytes: int = 0,
+                             ncm=None):
     """Estimated peak RAM during training (SRAM usage on MCU).
 
     FP32 weights + gradients + Adam states + *batch* activations + current
@@ -303,8 +300,9 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
     # Also include CMMU structures in FP32 during training
     buffer_fp32 = buffer.memory_bytes(quantized=False) if buffer is not None else 0
     ewc_fp32 = ewc.memory_bytes(bytes_per_val=4) if ewc is not None else 0
+    ncm_fp32 = ncm.memory_bytes(bytes_per_val=4) if ncm is not None else 0
 
-    peak_bytes += buffer_fp32 + ewc_fp32 + int(retained_state_bytes)
+    peak_bytes += buffer_fp32 + ewc_fp32 + ncm_fp32 + int(retained_state_bytes)
 
     return {
         "peak_weights_bytes_fp32": weights_bytes,
@@ -317,6 +315,7 @@ def model_peak_training_ram(model, buffer=None, ewc=None, teacher=None,
         "peak_temp_bytes_fp32": temp_bytes,
         "peak_buffer_bytes_fp32": buffer_fp32,
         "peak_ewc_bytes_fp32": ewc_fp32,
+        "peak_ncm_bytes_fp32": ncm_fp32,
         "peak_retained_state_bytes": int(retained_state_bytes),
         "peak_total_bytes": peak_bytes,
         "peak_total_KB": peak_bytes / 1024.0,

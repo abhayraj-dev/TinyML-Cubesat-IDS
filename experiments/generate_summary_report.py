@@ -1,6 +1,7 @@
-"""Builds results/RESULTS_SUMMARY.md purely from the CSV/JSON files already
-written by run_hparam_sweep.py, run_main.py and run_ablation.py -- every
-number in the report is read out of those files, nothing is hand-typed."""
+"""Builds results/RESULTS_SUMMARY.md, results/XAI_SUPPLEMENT.md and
+v6_5_project_report_final.md purely from the CSV/JSON files written by the
+experiment scripts -- every number in the reports is read out of those files,
+nothing is hand-typed."""
 import sys, os, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.dirname(__file__))
@@ -17,6 +18,148 @@ def df_to_md(df, float_fmt="{:.4f}"):
             df[c] = df[c].map(lambda x: float_fmt.format(x) if pd.notnull(x) else "")
     return df.to_markdown(index=False)
 
+
+def write_xai_supplement():
+    """Write the detailed XAI tables that are intentionally kept out of the
+    main results summary. All numbers come from the generated CSVs."""
+    by_path = os.path.join(RESULTS_DIR, "xai_summary_by_correctness.csv")
+    if not os.path.exists(by_path):
+        return None
+    by = pd.read_csv(by_path)
+    if "baseline" in by.columns:
+        by = by[by.baseline == "training_medoid"].copy()
+    lines = [
+        "# XAI Supplement\n",
+        "_Generated automatically by `experiments/generate_summary_report.py` "
+        "from the XAI CSVs. The main report uses correctly classified rows "
+        "only; this supplement retains all-row and error-row detail. Sections "
+        "1, 3, 4, and 5 use the primary training-medoid background; Section 2 "
+        "reports the second-background sensitivity._\n",
+        "\n## 1. Agreement and faithfulness by correctness subset\n",
+    ]
+    cols = ["dataset", "arch", "method", "subset", "n_runs",
+            "n_samples_mean", "top5_ratio_mean", "avg_relative_mean",
+            "spearman_mean", "ig_deletion_auc_mean", "shap_deletion_auc_mean",
+            "ig_insertion_auc_mean", "shap_insertion_auc_mean"]
+    cols = [c for c in cols if c in by.columns]
+    for subset in ["all", "correct", "error"]:
+        sub = by[by.subset == subset]
+        if len(sub):
+            lines.append(f"\n### {subset.capitalize()} rows\n")
+            lines.append(df_to_md(sub[cols]))
+    lines.append("\nError-only cells with fewer than three errors are "
+                 "unstable (NaN standard deviations) and are not used for "
+                 "claims.\n")
+
+    sens_path = os.path.join(RESULTS_DIR, "xai_baseline_sensitivity.csv")
+    if os.path.exists(sens_path):
+        sens = pd.read_csv(sens_path)
+        lines.append("\n## 2. Background sensitivity\n")
+        lines.append(
+            "Primary = training medoid (one real training row nearest the "
+            "global mean). Secondary = class-balanced mean of per-class "
+            "training medoids. Values are secondary minus primary; small "
+            "deltas indicate that the qualitative ranking is not an artefact "
+            "of one background row.\n")
+        scols = ["dataset", "arch", "method",
+                 "top5_ratio_mean_primary", "top5_ratio_mean_secondary",
+                 "top5_ratio_mean_delta", "ig_deletion_auc_mean_delta",
+                 "shap_deletion_auc_mean_delta"]
+        scols = [c for c in scols if c in sens.columns]
+        lines.append(df_to_md(sens[scols]))
+        if len(sens):
+            lines.append(
+                f"\nAcross {len(sens)} cells, mean |delta Top5Ratio| = "
+                f"{sens.top5_ratio_mean_delta.abs().mean():.4f} "
+                f"(max {sens.top5_ratio_mean_delta.abs().max():.4f}); "
+                f"mean |delta IG deletion AUC| = "
+                f"{sens.ig_deletion_auc_mean_delta.abs().mean():.4f}; "
+                f"mean |delta SHAP deletion AUC| = "
+                f"{sens.shap_deletion_auc_mean_delta.abs().mean():.4f}.\n")
+
+    xs_path = os.path.join(RESULTS_DIR, "xai_summary.csv")
+    if os.path.exists(xs_path):
+        xs = pd.read_csv(xs_path)
+        if "baseline" in xs.columns:
+            xs = xs[xs.baseline == "training_medoid"].copy()
+        ccols = ["dataset", "arch", "method",
+                 "ig_completeness_mean_rel_mean", "ig_completeness_max_abs_mean",
+                 "ig_completeness_frac_1pct_mean",
+                 "shap_completeness_mean_rel_mean",
+                 "shap_completeness_max_abs_mean",
+                 "shap_completeness_frac_1pct_mean"]
+        ccols = [c for c in ccols if c in xs.columns]
+        lines.append("\n## 3. Completeness diagnostics\n")
+        lines.append("IG uses 512 steps and a training-medoid background. "
+                     "KernelSHAP uses 256 sampled coalitions; its efficiency "
+                     "constraint is enforced through the KKT system, so "
+                     "completeness is exact by construction. That is an "
+                     "implementation sanity check, not evidence of attribution "
+                     "accuracy.\n")
+        lines.append(df_to_md(xs[ccols]))
+
+    gpath = os.path.join(RESULTS_DIR, "xai_group_summary.csv")
+    if os.path.exists(gpath):
+        g = pd.read_csv(gpath)
+        if "baseline" in g.columns:
+            g = g[g.baseline == "training_medoid"].copy()
+        lines.append("\n## 4. Feature-group attribution and deletion\n")
+        lines.append("Shares are mean absolute attribution fractions; deletion "
+                     "drop is target-probability drop under group replacement by "
+                     "the medoid. `insertion_gain` is measured against the "
+                     "all-baseline probability (`inserted_prob - baseline_prob`). "
+                     "`insertion_gap_vs_full` is the older "
+                     "`inserted_prob - base_prob` contrast; it is negative by "
+                     "construction whenever full input is more confident than a "
+                     "partial group restoration, so it is supplementary.\n")
+        gcols = ["dataset", "arch", "method", "group", "n_features",
+                 "ig_share_mean", "shap_share_mean", "deletion_drop_mean",
+                 "baseline_prob_mean", "insertion_gain_mean",
+                 "insertion_gap_vs_full_mean"]
+        gcols = [c for c in gcols if c in g.columns]
+        lines.append(df_to_md(g[gcols]))
+
+    fpath = os.path.join(RESULTS_DIR, "xai_feature_summary.csv")
+    if os.path.exists(fpath):
+        fs = pd.read_csv(fpath)
+        if "baseline" in fs.columns:
+            fs = fs[fs.baseline == "training_medoid"].copy()
+        lines.append("\n## 5. Top features by mean absolute attribution\n")
+        lines.append("Averaged over architectures for compactness; the full "
+                     "per-architecture tables are in "
+                     "`results/xai_feature_summary.csv` and "
+                     "`results/xai_feature_importance.csv`. Under the primary "
+                     "training-medoid background, the top feature is not "
+                     "universally `TimeRadians`: for CuCD-ID/GRU with BiC or "
+                     "iCaRL+NCM, `UniqueMessageIDsInWindow` ranks first, while "
+                     "MLP cells and GRU/joint_scratch rank `TimeRadians` first. "
+                     "Under the class-balanced sensitivity background the GRU "
+                     "ranking can shift to `TimeRadians` or `MemoryAnonMB`, so "
+                     "read the pattern as time/window aggregates rather than a "
+                     "stable single feature.\n")
+        for (dset, method, xm), sub in fs.groupby(
+                ["dataset", "method", "xai_method"]):
+            top = (sub.groupby("feature").mean_abs_attribution_mean.mean()
+                   .nlargest(5).reset_index())
+            top.columns = ["feature", "mean_abs_attribution"]
+            lines.append(f"\n**{dset} / {method} / {xm}**\n")
+            lines.append(df_to_md(top))
+
+    lines.append("\n## 6. Interpretation limits\n")
+    lines.append("- Deletion/insertion are model-behaviour diagnostics, not "
+                 "causal feature-use evidence.\n")
+    lines.append("- The primary medoid background is a single in-distribution "
+                 "reference; the class-balanced medoid-mean sensitivity check is "
+                 "reported in Section 2.\n")
+    lines.append("- KernelSHAP completeness is exact by construction; use "
+                 "agreement and faithfulness metrics as accuracy evidence.\n")
+    lines.append("- Random-split XAI results inherit the feature-provenance "
+                 "caveats quantified in Sections 5.3 and 7.10 of the main "
+                 "report.\n")
+    path = os.path.join(RESULTS_DIR, "XAI_SUPPLEMENT.md")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
 
 def main():
     out = []
@@ -226,10 +369,12 @@ def main():
     if os.path.exists(leak_path):
         leak = pd.read_csv(leak_path)
         out.append("\n### 5.3 Feature-provenance leakage ablation (CuCD-ID/MLP, 15 seeds)\n")
-        out.append("Retrained models after removing feature groups (not test-time "
-                    "corruption). Deltas are relative to the all-feature run for the "
-                    "same method; negative values mean the removed features were "
-                    "helping the model.\n")
+        out.append("Retrained models after removing or isolating feature groups "
+                    "(not test-time corruption; 6 unique variants x 3 methods x "
+                    "15 seeds = 270 runs). "
+                    "Deltas are relative to the all-feature run for the same "
+                    "method; negative values mean the removed features were "
+                    "helping the model. Group-level effects are in Section 7.10.\n")
         out.append(df_to_md(leak[[
             "variant", "method", "n_features", "ACC_mean", "MacroF1_mean",
             "ACC_mean_delta_vs_all", "MacroF1_mean_delta_vs_all"
@@ -640,6 +785,259 @@ def main():
             out.append(f"\n_({metric_file} not found -- run "
                         f"`experiments/run_stats.py` first)_\n")
 
+    # ---- NCM and XAI extensions ----
+    ncm_path = os.path.join(RESULTS_DIR, "icarl_ncm_summary.csv")
+    if os.path.exists(ncm_path):
+        ns = pd.read_csv(ncm_path)
+        out.append("\n### 7.8 iCaRL-lite + NCM evaluation\n")
+        out.append("The original NCM evaluation reruns the frozen iCaRL-lite "
+                   "configuration with embedding-space herding and a post-hoc "
+                   "cosine NCM head fitted only on stored exemplars. Test rows "
+                   "are never used to fit the NCM means. This is the NCM result "
+                   "used in the main comparison, but it changes both the "
+                   "feature/herding path and the classifier, so it cannot by "
+                   "itself isolate the classifier change; Section 7.8.1 supplies "
+                   "the matched control.\n")
+        piv = ns.pivot_table(index=["dataset", "arch"], columns="method",
+                             values="ACC_mean")
+        out.append("**NCM ACC, mean over 15 seeds:**\n")
+        out.append(df_to_md(piv.reset_index()))
+        cmp_path = os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv")
+        if os.path.exists(cmp_path):
+            cmp_df = pd.read_csv(cmp_path)
+            pivot_d = cmp_df.pivot_table(index=["dataset", "arch"],
+                                         columns="baseline",
+                                         values="ACC_delta_mean")
+            out.append("\n**Paired ACC difference vs softmax-head baselines "
+                       "(same seeds; confounded by herding + classifier):**\n")
+            out.append(df_to_md(pivot_d.reset_index()))
+            worst = cmp_df.loc[cmp_df.ACC_delta_mean.idxmin()]
+            out.append(f"\nThe NCM head is not a free win: the largest average "
+                       f"drop in this original comparison is "
+                       f"**{worst.ACC_delta_mean:+.4f} ACC** on "
+                       f"{worst.dataset}/{worst.arch} vs `{worst.baseline}`. "
+                       f"The matched controls below show how much of this is "
+                       f"the classifier versus the embedding/herding change.\n")
+
+        vsm_path = os.path.join(RESULTS_DIR, "ncm_sanity_vs_main.csv")
+        if os.path.exists(vsm_path):
+            vsm = pd.read_csv(vsm_path)
+            out.append("\n#### 7.8.1 NCM sanity/control: buffer, embedding "
+                       "herding, and classifier\n")
+            out.append("The control re-runs iCaRL with the same input features "
+                       "under four paired conditions: the original input-space "
+                       "herding + softmax head, an embedding-space herding + "
+                       "softmax head, and NCM fitted on the buffer or on all "
+                       "training data; a joint all-data model is included as a "
+                       "second control. The NCM metric is task-balanced ACC, "
+                       "matching the existing NCM files; overall sample accuracy "
+                       "is retained as `*_SampleACC` in "
+                       "`ncm_sanity_summary.csv`.\n")
+            tab = vsm[[
+                "dataset", "arch", "stage", "input_softmax_ACC_mean",
+                "softmax_ACC_mean", "ncm_buffer_ACC_mean",
+                "ncm_all_ACC_mean", "existing_ncm_ACC_mean",
+                "ncm_buffer_minus_embedding_softmax_ACC_mean",
+                "ncm_all_minus_embedding_softmax_ACC_mean",
+                "ncm_buffer_minus_ncm_all_ACC_mean"]].rename(columns={
+                    "input_softmax_ACC_mean": "input_softmax",
+                    "softmax_ACC_mean": "embed_softmax",
+                    "ncm_buffer_ACC_mean": "ncm_buffer",
+                    "ncm_all_ACC_mean": "ncm_all",
+                    "existing_ncm_ACC_mean": "existing_ncm",
+                    "ncm_buffer_minus_embedding_softmax_ACC_mean": "ncm_buf-emb",
+                    "ncm_all_minus_embedding_softmax_ACC_mean": "ncm_all-emb",
+                    "ncm_buffer_minus_ncm_all_ACC_mean": "buf-all"})
+            out.append(df_to_md(tab))
+            max_buf_all = float(vsm.ncm_buffer_minus_ncm_all_ACC_mean.abs().max())
+            emb = vsm[vsm.stage == "icarl_embedding"]
+            n_lose = int((emb.ncm_all_ACC_mean < emb.softmax_ACC_mean).sum())
+            out.append(f"\n**Buffer is not the limitation.** NCM-all minus "
+                       f"NCM-buffer has maximum absolute value **{max_buf_all:.4f} "
+                       f"ACC** across all six cells, so a larger or all-data "
+                       f"class-mean estimate would not close the gap.\n")
+            out.append(f"**The NCM gap is classifier/feature-space.** NCM-all is "
+                       f"below the embedding-herding softmax head in {n_lose}/6 "
+                       f"iCaRL cells; the largest gaps are on CuCD-ID/MLP and "
+                       f"STIN/CNN1D. The joint GRU cell is essentially at parity. "
+                       f"This is a negative/mixed NCM result, not evidence of "
+                       f"NCM superiority.\n")
+            joint = vsm[vsm.stage == "joint_scratch"]
+            if len(joint):
+                jd = joint[["dataset", "arch", "ncm_all_minus_softmax_ACC_mean"]]
+                out.append("\n**Joint all-data NCM minus softmax (same features "
+                           "and training data, only the head changes):**\n")
+                out.append(df_to_md(jd.rename(columns={
+                    "ncm_all_minus_softmax_ACC_mean": "NCM - softmax"})))
+                out.append(f"\nThis is the cleanest classifier-only contrast: "
+                           f"the joint GRU is at parity, while CuCD-ID MLP/CNN1D "
+                           f"and STIN CNN1D/MLP prefer the softmax head. Together "
+                           f"with NCM-all approximately NCM-buffer, this rules "
+                           f"out a buffer-size explanation and points to the "
+                           f"cosine class-mean geometry / feature scaling.\n")
+            out.append("See `figures/ncm_sanity_control.png`. _The old sentence "
+                       "that this comparison 'isolates the classifier change' is "
+                       "incorrect and has been removed: the original NCM run "
+                       "changes the herding path as well as the head. Use "
+                       "Section 7.8.1 for the matched control._\n")
+        else:
+            out.append("\n_(ncm_sanity_vs_main.csv not found -- run "
+                       "`experiments/check_ncm_sanity.py` first)_\n")
+
+    xai_path = os.path.join(RESULTS_DIR, "xai_summary.csv")
+    xai_by_path = os.path.join(RESULTS_DIR, "xai_summary_by_correctness.csv")
+    if os.path.exists(xai_path):
+        xs = pd.read_csv(xai_path)
+        if "baseline" in xs.columns:
+            xs = xs[xs.baseline == "training_medoid"].copy()
+        out.append("\n### 7.9 XAI: SHAP vs IG agreement and faithfulness\n")
+        out.append("KernelSHAP (256 sampled coalitions) and exact-input-gradient "
+                   "IG are computed on the same class-stratified test rows for "
+                   "BiC, iCaRL-lite+NCM and offline Scratch. The main text uses "
+                   "**correctly classified rows only** and reports Top5Ratio, "
+                   "deletion AUC and insertion AUC; agreement and completeness "
+                   "are diagnostics, not proof of causal feature use. The "
+                   "primary background is a real training medoid, not the zero "
+                   "vector, because zero is degenerate for cosine/NCM paths; a "
+                   "class-balanced mean of per-class medoids is run as a "
+                   "sensitivity check. IG uses 512 steps.\n")
+        if os.path.exists(xai_by_path):
+            xb = pd.read_csv(xai_by_path)
+            if "baseline" in xb.columns:
+                xb = xb[xb.baseline == "training_medoid"].copy()
+            xc = xb[xb.subset == "correct"].copy()
+            cols = ["dataset", "arch", "method", "n_samples_mean",
+                    "top5_ratio_mean", "ig_deletion_auc_mean",
+                    "shap_deletion_auc_mean", "ig_insertion_auc_mean",
+                    "shap_insertion_auc_mean"]
+            cols = [c for c in cols if c in xc.columns]
+            out.append("**Main XAI metrics, correct-only rows (mean over 3 seeds):**\n")
+            out.append(df_to_md(xc[cols]))
+            if len(xc):
+                best = xc.loc[xc.top5_ratio_mean.idxmax()]
+                out.append(f"\nHighest correct-only Top5Ratio: "
+                           f"**{best.dataset}/{best.arch}/{best.method}** "
+                           f"({best.top5_ratio_mean:.3f}). Lower Top5Ratio for "
+                           f"NCM reflects attribution disagreement/stability, not "
+                           f"necessarily lower accuracy; deletion/insertion are "
+                           f"reported alongside it. Correct-only and all-row "
+                           f"tables are in `results/XAI_SUPPLEMENT.md`.\n")
+            out.append("\n**Correctness split.** Error-only rows are reported in "
+                       "the supplement; cells with fewer than three errors are "
+                       "unstable/NaN and are not used for claims. See "
+                       "`figures/xai_main_metrics.png`.\n")
+        else:
+            out.append("\n_(xai_summary_by_correctness.csv not found -- rerun "
+                       "`experiments/run_xai.py`)_\n")
+
+        max_ig = float(xs.ig_completeness_mean_rel_mean.max())
+        out.append("\n#### 7.9.1 Completeness, KernelSHAP efficiency, and baseline sensitivity\n")
+        out.append(f"IG completes the medoid-to-input path to within "
+                   f"**{max_ig:.4f}** mean relative error (worst cell) after "
+                   f"512 steps. KernelSHAP's efficiency constraint is enforced "
+                   f"through its KKT system, so its completeness residual is "
+                   f"exact by construction and is only an implementation sanity "
+                   f"check, not evidence of attribution accuracy; agreement and "
+                   f"faithfulness metrics are the accuracy evidence. The original "
+                   f"zero baseline was degenerate for NCM (cosine of a zero "
+                   f"vector), which produced artificially near-zero IG "
+                   f"attributions; the medoid baseline fixes this.\n")
+        sens_path = os.path.join(RESULTS_DIR, "xai_baseline_sensitivity.csv")
+        if os.path.exists(sens_path):
+            sens = pd.read_csv(sens_path)
+            scols = ["dataset", "arch", "method",
+                     "top5_ratio_mean_primary", "top5_ratio_mean_secondary",
+                     "top5_ratio_mean_delta", "ig_deletion_auc_mean_delta",
+                     "shap_deletion_auc_mean_delta"]
+            scols = [c for c in scols if c in sens.columns]
+            out.append("**Background sensitivity (secondary class-balanced "
+                       "medoid mean minus primary training medoid):**\n")
+            out.append(df_to_md(sens[scols]))
+            if len(sens):
+                out.append(
+                    f"\nAcross {len(sens)} cells, mean |delta Top5Ratio| = "
+                    f"{sens.top5_ratio_mean_delta.abs().mean():.4f} "
+                    f"(max {sens.top5_ratio_mean_delta.abs().max():.4f}); "
+                    f"mean |delta IG deletion AUC| = "
+                    f"{sens.ig_deletion_auc_mean_delta.abs().mean():.4f}; "
+                    f"mean |delta SHAP deletion AUC| = "
+                    f"{sens.shap_deletion_auc_mean_delta.abs().mean():.4f}. "
+                    f"The qualitative ranking is not driven by one background "
+                    f"row.\n")
+
+        gpath = os.path.join(RESULTS_DIR, "xai_group_summary.csv")
+        if os.path.exists(gpath):
+            xg = pd.read_csv(gpath)
+            if "baseline" in xg.columns:
+                xg = xg[xg.baseline == "training_medoid"].copy()
+            out.append("\n#### 7.9.2 Feature-group attribution and deletion\n")
+            out.append("Groups are the disjoint provenance families in "
+                       "`src/feature_groups.py`. Shares are mean absolute "
+                       "attribution fractions within a run; deletion drop is the "
+                       "drop in target-class probability when the group is "
+                       "replaced by the medoid background. `insertion_gain` is "
+                       "measured from the all-baseline probability "
+                       "(`inserted_prob - baseline_prob`). "
+                       "`insertion_gap_vs_full` is the older "
+                       "`inserted_prob - base_prob` contrast and is negative by "
+                       "construction for partial restorations, so it is "
+                       "supplementary.\n")
+            gs = xg.groupby(["dataset", "group"]).agg(
+                ig_share=("ig_share_mean", "mean"),
+                shap_share=("shap_share_mean", "mean"),
+                deletion_drop=("deletion_drop_mean", "mean"),
+                insertion_gain=("insertion_gain_mean", "mean")).reset_index()
+            order = {g: i for i, g in enumerate([
+                "time", "ids", "window", "raw_telemetry", "flow_volume",
+                "packet_length", "iat_timing", "tcp_flags", "tcp_window_block"])}
+            gs["_o"] = gs.group.map(order).fillna(99)
+            gs = gs.sort_values(["dataset", "_o"]).drop(columns="_o")
+            out.append(df_to_md(gs))
+            out.append("\nOn CuCD-ID, window aggregates and time contribute "
+                       "most to attribution and deletion; raw telemetry is "
+                       "secondary. Under the primary training-medoid background, "
+                       "the top feature is not universally `TimeRadians`: for "
+                       "CuCD-ID/GRU with BiC or iCaRL+NCM, "
+                       "`UniqueMessageIDsInWindow` ranks first, while MLP cells "
+                       "and GRU/joint_scratch rank `TimeRadians` first. Under the "
+                       "class-balanced sensitivity background the GRU ranking can "
+                       "shift to `TimeRadians` or `MemoryAnonMB`, so the robust "
+                       "reading is time/window aggregates, not one stable "
+                       "feature. STIN is a network-flow family analysis (no "
+                       "time/ID/window provenance groups), so its group shares "
+                       "are not a leakage ablation. See "
+                       "`figures/xai_feature_groups.png`.\n")
+
+    out.append("\n### 7.10 Feature-group reliance: retrained ablation\n")
+    le_path = os.path.join(RESULTS_DIR, "leakage_group_effects.csv")
+    if os.path.exists(le_path):
+        le = pd.read_csv(le_path)
+        gorder = ["time", "ids", "window", "all_leakage_provenance",
+                  "raw_telemetry"]
+        le = le[le.group.isin(gorder)].copy()
+        le["_o"] = le.group.map({g: i for i, g in enumerate(gorder)})
+        le = le.sort_values(["method", "_o"]).drop(columns="_o")
+        out.append("Retrained CuCD-ID/MLP ablation: each row retrains without "
+                   "the named group (or with only that group). `ACC_delta_vs_all` "
+                   "is relative to the all-feature model for the same method; "
+                   "negative means the group was helping. The former "
+                   "`only_raw_telemetry` alias was removed because it was "
+                   "feature-wise identical to `no_time_ids_window`; the table "
+                   "therefore contains six unique variants and 270 runs.\n")
+        out.append(df_to_md(le[["group", "variant", "method", "n_features",
+                                "ACC_mean", "ACC_delta_vs_all",
+                                "MacroF1_delta_vs_all"]]))
+        out.append("\nThe large drop for `no_time_ids_window` and the small "
+                   "drop for `only_time_ids_window` (raw telemetry removed, "
+                   "leakage groups retained) show that the leakage-bearing "
+                   "provenance fields carry most of the random-split advantage. "
+                   "The `raw_telemetry` row in this table is the "
+                   "`only_time_ids_window` variant. This is a reliance measure, "
+                   "not proof that every removed field is illegitimate.\n")
+    else:
+        out.append("_(leakage_group_effects.csv not found -- run "
+                   "`experiments/run_leakage_ablation.py` first)_\n")
+
     out.append("\n## 8. Claim boundaries and known limitations\n")
     out.append("This report supports a benchmark/diagnostic reading, not a "
                "deployment or method-superiority claim. The main boundaries:\n")
@@ -673,7 +1071,7 @@ def main():
                "pre-specified and Holm-corrected, but resamples the same finite "
                "dataset; it is not evidence about new operating conditions.\n")
 
-    # ---- dynamic executive summary for the v6.3 final report ----
+    # ---- dynamic executive summary for the v6.5 final report ----
     deployable = ["finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"]
     best_rows = []
     for dset in ["CuCD-ID", "STIN"]:
@@ -759,7 +1157,7 @@ def main():
                          f"{spread.max() - spread.min():.4f}.")
 
     exec_out = [
-        "# Project Report v6.3",
+        "# Project Report v6.5",
         "## Resource-Aware Class-Incremental Learning for TinyML-Based Intrusion Detection in CubeSats: A Benchmark and Negative-Result Study",
         "",
         "_Auto-generated by `experiments/generate_summary_report.py` from the "
@@ -809,6 +1207,50 @@ def main():
         exec_out.append(f"- {leak_line}")
     if task_line:
         exec_out.append(f"- {task_line}")
+    if os.path.exists(os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv")):
+        cm = pd.read_csv(os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv"))
+        w = cm.loc[cm.ACC_delta_mean.idxmin()]
+        exec_out.append(f"- NCM is not a free win in the original comparison: "
+                        f"largest paired ACC drop {w.ACC_delta_mean:+.4f} on "
+                        f"{w.dataset}/{w.arch} vs `{w.baseline}`; that comparison "
+                        f"changes herding and classifier together.")
+    vsm_path = os.path.join(RESULTS_DIR, "ncm_sanity_vs_main.csv")
+    if os.path.exists(vsm_path):
+        vsm = pd.read_csv(vsm_path)
+        max_gap = float(vsm.ncm_buffer_minus_ncm_all_ACC_mean.abs().max())
+        emb = vsm[vsm.stage == "icarl_embedding"]
+        n_lose = int((emb.ncm_all_ACC_mean < emb.softmax_ACC_mean).sum())
+        exec_out.append(f"- NCM control: NCM-all minus NCM-buffer max |delta| "
+                        f"{max_gap:.4f} ACC, so buffer size is not the "
+                        f"limitation; NCM is below embedding-softmax in "
+                        f"{n_lose}/6 cells (classifier/feature-space gap).")
+    if os.path.exists(os.path.join(RESULTS_DIR, "xai_summary_by_correctness.csv")):
+        xb = pd.read_csv(os.path.join(RESULTS_DIR, "xai_summary_by_correctness.csv"))
+        if "baseline" in xb.columns:
+            xb = xb[xb.baseline == "training_medoid"].copy()
+        xc = xb[xb.subset == "correct"]
+        if len(xc):
+            best = xc.loc[xc.top5_ratio_mean.idxmax()]
+            exec_out.append(f"- XAI (correct-only): mean Top5Ratio "
+                            f"{xc.top5_ratio_mean.mean():.3f}; highest "
+                            f"{best.dataset}/{best.arch}/{best.method} "
+                            f"({best.top5_ratio_mean:.3f}); IG/SHAP deletion and "
+                            f"insertion AUC reported alongside agreement.")
+    if os.path.exists(os.path.join(RESULTS_DIR, "xai_summary.csv")):
+        xsm = pd.read_csv(os.path.join(RESULTS_DIR, "xai_summary.csv"))
+        if "baseline" in xsm.columns:
+            xsm = xsm[xsm.baseline == "training_medoid"].copy()
+        exec_out.append(f"- XAI completeness: worst mean relative IG error "
+                        f"{xsm.ig_completeness_mean_rel_mean.max():.4f} with "
+                        f"512 steps and a training-medoid background; "
+                        f"KernelSHAP efficiency is exact by construction.")
+    spath = os.path.join(RESULTS_DIR, "xai_baseline_sensitivity.csv")
+    if os.path.exists(spath):
+        sens = pd.read_csv(spath)
+        exec_out.append(f"- XAI background sensitivity: mean |delta Top5Ratio| "
+                        f"{sens.top5_ratio_mean_delta.abs().mean():.4f}, "
+                        f"max {sens.top5_ratio_mean_delta.abs().max():.4f} "
+                        f"across {len(sens)} cells (secondary minus primary).")
     fpath = os.path.join(RESULTS_DIR, "feature_order_stability.csv")
     if os.path.exists(fpath):
         fe = pd.read_csv(fpath)
@@ -827,15 +1269,18 @@ def main():
                     "estimands, not deployment guarantees.")
 
     report = "\n".join(out)
+    supp = write_xai_supplement()
     with open(os.path.join(RESULTS_DIR, "RESULTS_SUMMARY.md"), "w") as f:
         f.write(report)
     final_report = "\n".join(exec_out) + "\n\n---\n\n" + report.replace(
         "# Results Summary\n", "# Detailed results\n", 1)
-    with open(os.path.join(RESULTS_DIR, "..", "v6_3_project_report_final.md"), "w") as f:
+    with open(os.path.join(RESULTS_DIR, "..", "v6_5_project_report_final.md"), "w") as f:
         f.write(final_report)
     print(f"Wrote {os.path.join(RESULTS_DIR, 'RESULTS_SUMMARY.md')} ({len(report)} chars)")
-    print("Wrote v6_3_project_report_final.md "
+    print("Wrote v6_5_project_report_final.md "
           f"({len(final_report)} chars, auto-generated)")
+    if supp:
+        print(f"Wrote {supp}")
 
 
 if __name__ == "__main__":

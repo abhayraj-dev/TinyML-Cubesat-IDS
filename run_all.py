@@ -7,6 +7,9 @@ Runs the complete experimental pipeline end-to-end for the confirmatory study:
   2. Hyperparameter sweep on STIN (val-based)    experiments/run_hparam_sweep.py
   3. Per-method/arch validation tuning (NEW)     experiments/run_validation_tune.py
   4. Main experiment matrix (15 seeds)           experiments/run_main.py
+  4b. iCaRL-lite + NCM evaluation (15 seeds)     experiments/run_icarl_ncm.py
+  4c. NCM sanity/control (108 runs)              experiments/check_ncm_sanity.py
+  4d. XAI study: SHAP vs IG + groups             experiments/run_xai.py
 
   PHASE 2 (RQ evidence, dual-protocol evaluation):
   5. Purged temporal evaluation (0.02 rad TimeRadians ~22s equiv.) experiments/run_purged_temporal.py
@@ -48,9 +51,15 @@ STEPS_CORE = [
     ("Task-order split/scaler invariance", [sys.executable, "tests/test_task_order.py"]),
     ("Disjoint calibration/selection split", [sys.executable, "tests/test_calib_split.py"]),
     ("Gradient checks", [sys.executable, "tests/test_gradients.py"]),
+    ("NCM unit tests", [sys.executable, "tests/test_ncm.py"]),
+    ("Feature-group partition tests", [sys.executable, "tests/test_feature_groups.py"]),
+    ("XAI unit tests", [sys.executable, "tests/test_xai.py"]),
     ("Hyperparameter sweep (STIN, val-based)", [sys.executable, "experiments/run_hparam_sweep.py"]),
     ("Per-method/arch validation tuning (NEW)", [sys.executable, "experiments/run_validation_tune.py"]),
     ("Main experiment matrix (15 seeds)", [sys.executable, "experiments/run_main.py"]),
+    ("iCaRL-lite + NCM evaluation (15 seeds)", [sys.executable, "experiments/run_icarl_ncm.py"]),
+    ("NCM sanity/control (108 runs)", [sys.executable, "experiments/check_ncm_sanity.py"]),
+    ("XAI study: SHAP vs IG + groups", [sys.executable, "experiments/run_xai.py"]),
 ]
 
 STEPS_PHASE2 = [
