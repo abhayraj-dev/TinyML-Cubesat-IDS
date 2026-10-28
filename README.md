@@ -13,10 +13,13 @@ references) are compared under the strict **class-incremental**
 protocol: no task ID is ever available at inference time, and every sample
 must be classified by a single, dynamically-growing shared softmax head.
 
-**Scope and claims.** This repository is a resource-aware benchmark and
-negative-result study, not a claim that the combined `full` method wins. The
-IID split is a benchmark estimand; temporal-purged and feature-provenance
-results are separate validity checks.
+**Scope and claims.** This repository is a resource-aware, CubeSat-first
+benchmark and negative-result study, not a claim that the combined `full`
+method wins. The paper reports two co-headline estimands: the random-split IID
+benchmark and the fair forward-temporal deployment-facing estimate. The
+cold-start temporal arm is a support-control diagnostic; feature-provenance
+results are a separate reliance probe. Neither temporal arm is a deployment
+guarantee.
 
 This repository contains the full codebase; running `python3 run_all.py`
 reproduces every number and figure referenced below directly from the
@@ -103,8 +106,10 @@ identifiers, and 20-second sliding-window aggregates. The headline IID
 random split can share overlapping windows between train and test, so those
 numbers are benchmark estimates, not deployment guarantees. The
 `leakage_ablation` experiment retrains models after removing each feature
-group, and the temporal-purged protocol is reported separately; neither
-turns the IID number into a leakage-free estimate.
+group. The fair random-past temporal protocol is the deployment-facing
+co-headline estimate; the cold-start protocol is a support control, and the
+no-leaky variant is a feature-reliance probe. Neither turns the IID number
+into a leakage-free estimate.
 
 ### Task construction (class-incremental protocol)
 
@@ -349,9 +354,9 @@ Holm). These tests are exploratory, not winner-selected.
 5. **`experiments/check_consistency.py`** -- verifies main vs few-shot
    (K=150, intersecting seeds) hyperparameter and seed consistency.
 6. **`analysis/plots.py`** -- generates every figure in `figures/`
-   (33 PNGs, Macro-F1 primary, NCM vs softmax baselines plus the NCM control,
+   (35 PNGs, Macro-F1 primary, NCM vs softmax baselines plus the NCM control,
    main/correct-only XAI metrics, feature-group attribution, SHAP/IG agreement
-   and faithfulness, three-protocol temporal bracket, temporal
+   and faithfulness, five-protocol temporal bracket, temporal
    leakage/validity audit, leakage ablation).
 7. **`experiments/create_manifest.py`** -- writes
    `results/final_experiment_manifest.json` (machine-readable provenance).
@@ -414,7 +419,8 @@ a full run you should have:
 | `results/best_hparams.json`, `results/hparam_sweep_stin.csv` | sweep |
 | `results/best_hparams_per_method_arch.json`, `results/validation_tuning_results.csv` | validation tuning |
 | `results/main_results_runs.csv`, `results/main_results_summary.csv`, `results/accuracy_matrices.json` | main matrix |
-| `results/temporal_purged_compare.csv` | purged temporal |
+| `results/temporal_purged_compare.csv` | cold-start + fair temporal |
+| `results/buac_summary.csv`, `results/buac_{mlp,gru,cnn1d}_*.csv` | BUAC admission control |
 | `results/temporal_leakage_audit*.csv`, `results/temporal_block_coverage.csv`, `results/temporal_class_occupancy.csv`, `results/temporal_drift_*.csv`, `results/temporal_leakage_audit.json` | temporal leakage/validity audit |
 | `results/fewshot.csv` | few-shot uplink sweep |
 | `results/feature_order_stability.csv` | exploratory feature-order permutation |
@@ -428,7 +434,7 @@ a full run you should have:
 | `results/xai_metrics.csv`, `results/xai_summary.csv`, `results/xai_metrics_by_correctness.csv`, `results/xai_summary_by_correctness.csv`, `results/xai_group_summary.csv`, `results/xai_feature_summary.csv`, `results/xai_baseline_sensitivity.csv` | XAI |
 | `results/leakage_ablation.csv`, `results/leakage_ablation_summary.csv`, `results/leakage_group_effects.csv` | leakage/group ablation |
 | `results/final_experiment_manifest.json` | manifest |
-| 33 PNG files under `figures/` | plots |
+| 35 PNG files under `figures/` | plots |
 | `results/baseline_controls.csv`, `results/stats_baseline_controls.csv` | equal-buffer / EWC-lambda controls |
 | `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, `v6_5_project_report_final.md` | report |
 
@@ -468,9 +474,13 @@ The supported qualitative findings are:
 - The STIN cross-domain stress test has a much lower ceiling than CuCD-ID.
 - Architecture matters: MLP is the primary backbone, with GRU/CNN treated as
   stress tests rather than assumed equivalents.
-- The IID split is a benchmark estimand. Temporal-purged evaluation and
-  feature-provenance ablations are separate reliance/robustness estimands and
-  are not deployment accuracy claims.
+- The IID split is a benchmark estimand. Cold-start and fair random-past
+  temporal evaluation and feature-provenance ablations are separate
+  reliance/robustness estimands and are not deployment accuracy claims.
+- Update admission is only non-trivial under the fair temporal protocol.
+  Cold-start rejects all updates; learned BUAC is near the 5% unsafe target on
+  MLP but exceeds it on GRU/CNN, and the fixed rule can exceed it on CNN.
+  BUAC is stage-wise/offline, not a closed-loop deployment claim.
 - Persistent model memory fits the assumed budget, but estimated peak update
   RAM is materially larger and is reported separately.
 
@@ -522,9 +532,9 @@ consult those files rather than copying numbers into prose.
 |   |-- create_manifest.py             # reproducibility manifest
 |   `-- generate_summary_report.py     # auto-generated report
 |-- analysis/plots.py
-|-- tests/test_gradients.py, test_ncm.py, test_xai.py, test_feature_groups.py
+|-- tests/test_gradients.py, test_ncm.py, test_xai.py, test_feature_groups.py, test_buac.py, test_temporal_sampling.py
 |-- results/               # CSV/JSON outputs + manifest + reports (generated)
-|-- figures/                # PNG figures (generated, 33 files)
+|-- figures/                # PNG figures (generated, 35 files)
 |-- run_all.py
 |-- requirements.txt
 `-- README.md
@@ -586,15 +596,24 @@ consult those files rather than copying numbers into prose.
   because every primary order starts with T0, so they are not independent
   evidence. Whether the remaining variation is class difficulty or order
   interaction is flagged as future work rather than resolved here.
-* **Temporal evaluation is a stress estimand, not ground truth.** The
-  purged protocol reduces window overlap (0.02 rad TimeRadians purge) but
-  the data also exhibits mission-time drift and a T0-frozen scaler. The
-  read-only audit (`run_temporal_leakage_audit.py`) shows dense nearest-time
-  adjacency in the random split, but only five natural time blocks and
-  class-incomplete coverage; it is a validity boundary, not a leakage-free
-  correction. The temporal-purged arm falls to roughly four-class chance, and
-  the stricter no-leaky arm can fall below it; IID and temporal numbers are
-  separate regimes, and IID is not a deployment guarantee.
+* **Temporal evaluation separates cold-start support from drift.** The
+  purged protocol reduces window overlap (0.02 rad TimeRadians purge) but the
+  data also exhibits mission-time drift and a T0-frozen scaler. The read-only
+  audit (`run_temporal_leakage_audit.py`) shows dense nearest-time adjacency
+  in the random split, but only five natural time blocks and class-incomplete
+  coverage; it is a validity boundary, not a leakage-free correction. Across
+  3 architectures x 15 seeds x 7 deployable methods, mean ACC is **0.613
+  (IID)**, **0.201 (cold-start temporal)**, **0.502 (fair random-past
+  temporal)**, and **0.430 (fair + no time/ID/window features)**. The
+  cold-start arm trains only on the earliest head of each class block; even
+  `joint_scratch` falls to **0.128 (MLP)** cold-start versus **0.902** under
+  the fair random-past protocol. A matched 70/10/20 control (same 20% test
+  block and random validation) leaves MLP `joint_scratch` at **0.106**
+  cold-start versus **0.870** fair; BiC is **0.171** versus **0.894**, so
+  test/validation block choice is not the driver. The cold-start gap is therefore
+  mostly a support artifact, not pure drift or forgetting. The fair arm still
+  leaves a real gap, and `finetune` remains near chance; IID and temporal
+  numbers are separate regimes, and IID is not a deployment guarantee.
 * **No true scenario-level validation is possible.** CuCD-ID has no
   scenario/run identifier in the released CSV. A grouped time-block proxy is
   a sensitivity estimand only.

@@ -820,25 +820,112 @@ def fig_temporal_bracket():
         return
     df = pd.read_csv(path)
     group_col = "protocol" if "protocol" in df.columns else "split"
-    cats = ["iid", "temporal_purged"] if group_col == "protocol" else ["random", "temporal"]
+    preferred = [
+        "iid", "temporal_purged", "temporal_purged_fair",
+        "temporal_purged_no_leaky_features",
+        "temporal_purged_fair_no_leaky_features",
+    ]
     agg = df.groupby(["method", group_col])["ACC"].mean().unstack()
+    cats = [c for c in preferred if c in agg.columns]
+    if group_col == "split":
+        cats = [c for c in ["random", "temporal"] if c in agg.columns]
     methods = [m for m in ["replay", "icarl", "bic", "joint_scratch"] if m in agg.index]
     x = np.arange(len(methods))
-    width = 0.35
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    width = 0.8 / max(1, len(cats))
+    colors = ["#4C72B0", "#B0413E", "#55A868", "#8172B2", "#CCB974"]
+    fig, ax = plt.subplots(figsize=(9, 4.5))
     for i, split in enumerate(cats):
         vals = [agg.loc[m, split] if split in agg.columns else 0.0 for m in methods]
         ax.bar(x + i * width, vals, width, label=f"{split}",
-               color="#4C72B0" if i == 0 else "#B0413E")
-    ax.set_xticks(x + width / 2)
+               color=colors[i % len(colors)])
+    ax.set_xticks(x + width * (len(cats) - 1) / 2)
     ax.set_xticklabels([METHOD_LABELS.get(m, m).split(" (")[0] for m in methods], rotation=15, ha="right")
     n_seeds = int(df.seed.nunique()) if "seed" in df.columns else 0
     ax.set_ylabel(f"ACC (mean over {n_seeds} seeds)")
-    ax.set_title("IID vs forward-temporal-purged, CuCD-ID/MLP\n"
-                 "separate estimands: benchmark vs generalization under shift (purge 0.02 rad TimeRadians)")
-    ax.legend()
+    ax.set_title("IID vs forward-temporal protocols, CuCD-ID\n"
+                 "cold-start earliest-head vs fair random-past; purge 0.02 rad TimeRadians")
+    ax.legend(fontsize=8)
     ax.grid(axis="y", alpha=0.3)
     savefig("temporal_bracket.png")
+
+
+def fig_temporal_mlp_protocols():
+    path = os.path.join(RESULTS_DIR, "temporal_purged_compare.csv")
+    if not os.path.exists(path):
+        return
+    df = pd.read_csv(path)
+    if "arch" not in df.columns or "protocol" not in df.columns:
+        return
+    df = df[df.arch == "MLP"]
+    protocols = [
+        ("iid", "IID benchmark", "#4C72B0"),
+        ("temporal_purged", "Cold-start temporal", "#B0413E"),
+        ("temporal_purged_fair", "Fair random-past", "#55A868"),
+        ("temporal_purged_fair_no_leaky_features",
+         "Fair, no time/ID/window", "#8172B2"),
+    ]
+    protocols = [p for p in protocols if p[0] in set(df.protocol)]
+    methods = [m for m in ["replay", "full", "bic", "icarl", "joint_scratch"]
+               if m in set(df.method)]
+    paper_labels = {"replay": "Replay", "full": "Replay+EWC", "bic": "BiC",
+                    "icarl": "iCaRL", "joint_scratch": "Joint (scratch)"}
+    agg = df.groupby(["method", "protocol"]).ACC.mean()
+    x = np.arange(len(methods))
+    width = 0.8 / max(1, len(protocols))
+    fig, ax = plt.subplots(figsize=(9.2, 4.6))
+    for i, (protocol, label, color) in enumerate(protocols):
+        vals = [float(agg.get((m, protocol), np.nan)) for m in methods]
+        ax.bar(x + i * width, vals, width, label=label, color=color)
+    ax.axhline(0.25, color="#333333", linestyle="--", linewidth=1.0,
+               label="Four-class chance")
+    ax.set_xticks(x + width * (len(protocols) - 1) / 2)
+    ax.set_xticklabels([paper_labels.get(m, m) for m in methods],
+                       rotation=15, ha="right")
+    n_seeds = int(df.seed.nunique()) if "seed" in df.columns else 0
+    ax.set_ylabel(f"ACC (mean over {n_seeds} seeds)")
+    ax.set_ylim(0, 1.05)
+    ax.set_title("CuCD-ID / MLP: what survives forward-temporal evaluation")
+    ax.legend(fontsize=8, ncol=2)
+    ax.grid(axis="y", alpha=0.3)
+    savefig("temporal_mlp_protocols.png")
+
+
+def fig_buac_gate():
+    path = os.path.join(RESULTS_DIR, "buac_summary.csv")
+    if not os.path.exists(path):
+        return
+    d = pd.read_csv(path)
+    d = d[(d.scope == "temporal_purged_fair")
+          & d.gate.isin(["buac", "rule_buac"])]
+    if d.empty:
+        return
+    archs = [a for a in ["MLP", "GRU", "CNN1D"] if a in set(d.arch)]
+    gates = ["buac", "rule_buac"]
+    x = np.arange(len(archs))
+    width = 0.8 / len(gates)
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4))
+    for ax, metric, title in [
+            (axes[0], "safe_accept", "Safe updates accepted"),
+            (axes[1], "unsafe_accept", "Unsafe updates accepted")]:
+        for i, gate in enumerate(gates):
+            sub = d[d.gate == gate].set_index("arch").reindex(archs)
+            vals = sub[metric].fillna(0.0).to_numpy()
+            ax.bar(x + i * width, vals, width,
+                   label="learned BUAC" if gate == "buac" else "fixed rule",
+                   color="#4C72B0" if gate == "buac" else "#B0413E")
+        ax.set_xticks(x + width * (len(gates) - 1) / 2)
+        ax.set_xticklabels(archs)
+        ax.set_ylim(0, 1.05)
+        ax.set_title(title)
+        ax.grid(axis="y", alpha=0.3)
+    axes[1].axhline(0.05, color="#333333", linestyle="--", linewidth=1.2,
+                    label="5% target")
+    axes[0].legend(fontsize=8)
+    axes[1].legend(fontsize=8)
+    fig.suptitle("BUAC on fair random-past temporal updates (held-out seeds)",
+                 fontsize=10)
+    fig.tight_layout()
+    savefig("buac_gate.png")
 
 
 def fig_temporal_leakage_audit():
@@ -994,6 +1081,8 @@ def main():
     fig_fewshot_pareto()
     fig_arch_tune()
     fig_temporal_bracket()
+    fig_temporal_mlp_protocols()
+    fig_buac_gate()
     fig_temporal_leakage_audit()
     fig_robustness()
     fig_leakage_ablation()

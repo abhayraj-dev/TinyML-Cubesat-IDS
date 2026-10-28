@@ -522,56 +522,91 @@ The two primary budget modes are numerically identical by construction: every pr
 Individual-run ACC range across all permutations: **0.0871**. The legacy confounded headline is retired.
 
 
-### 7.4 IID vs forward-temporal-purged, CuCD-ID/MLP
+### 7.4 IID vs forward-temporal protocols, CuCD-ID (3 architectures)
 
-| method        | protocol                          |   mean |    std |
-|:--------------|:----------------------------------|-------:|-------:|
-| bic           | iid                               | 0.9927 | 0.0025 |
-| bic           | temporal_purged                   | 0.2511 | 0.0771 |
-| bic           | temporal_purged_no_leaky_features | 0.1712 | 0.1172 |
-| ewc           | iid                               | 0.2856 | 0.067  |
-| ewc           | temporal_purged                   | 0.2085 | 0.1043 |
-| ewc           | temporal_purged_no_leaky_features | 0.25   | 0      |
-| finetune      | iid                               | 0.2686 | 0.0451 |
-| finetune      | temporal_purged                   | 0.2181 | 0.0439 |
-| finetune      | temporal_purged_no_leaky_features | 0.25   | 0      |
-| full          | iid                               | 0.9445 | 0.079  |
-| full          | temporal_purged                   | 0.2513 | 0.0861 |
-| full          | temporal_purged_no_leaky_features | 0.1837 | 0.0831 |
-| icarl         | iid                               | 0.9919 | 0.0027 |
-| icarl         | temporal_purged                   | 0.2455 | 0.0913 |
-| icarl         | temporal_purged_no_leaky_features | 0.1552 | 0.11   |
-| joint         | iid                               | 0.9959 | 0.0015 |
-| joint         | temporal_purged                   | 0.2017 | 0.1041 |
-| joint         | temporal_purged_no_leaky_features | 0.1316 | 0.0926 |
-| joint_scratch | iid                               | 0.9965 | 0.0012 |
-| joint_scratch | temporal_purged                   | 0.1389 | 0.0664 |
-| joint_scratch | temporal_purged_no_leaky_features | 0.1515 | 0.0928 |
-| lwf           | iid                               | 0.2632 | 0.0376 |
-| lwf           | temporal_purged                   | 0.2094 | 0.0629 |
-| lwf           | temporal_purged_no_leaky_features | 0.25   | 0      |
-| replay        | iid                               | 0.9909 | 0.0034 |
-| replay        | temporal_purged                   | 0.1844 | 0.0908 |
-| replay        | temporal_purged_no_leaky_features | 0.0662 | 0.0374 |
+| method        | protocol                               |   mean |    std |
+|:--------------|:---------------------------------------|-------:|-------:|
+| bic           | iid                                    | 0.9282 | 0.0594 |
+| bic           | temporal_purged                        | 0.2325 | 0.1054 |
+| bic           | temporal_purged_fair                   | 0.7153 | 0.1434 |
+| bic           | temporal_purged_fair_no_leaky_features | 0.5145 | 0.1028 |
+| bic           | temporal_purged_no_leaky_features      | 0.2385 | 0.1007 |
+| ewc           | iid                                    | 0.3209 | 0.0983 |
+| ewc           | temporal_purged                        | 0.1882 | 0.0929 |
+| ewc           | temporal_purged_fair                   | 0.2938 | 0.0788 |
+| ewc           | temporal_purged_fair_no_leaky_features | 0.2574 | 0.053  |
+| ewc           | temporal_purged_no_leaky_features      | 0.2372 | 0.0552 |
+| finetune      | iid                                    | 0.2681 | 0.0332 |
+| finetune      | temporal_purged                        | 0.2215 | 0.0469 |
+| finetune      | temporal_purged_fair                   | 0.2636 | 0.0324 |
+| finetune      | temporal_purged_fair_no_leaky_features | 0.2909 | 0.0696 |
+| finetune      | temporal_purged_no_leaky_features      | 0.245  | 0.0492 |
+| full          | iid                                    | 0.7333 | 0.1749 |
+| full          | temporal_purged                        | 0.1839 | 0.0967 |
+| full          | temporal_purged_fair                   | 0.5637 | 0.1524 |
+| full          | temporal_purged_fair_no_leaky_features | 0.5252 | 0.1517 |
+| full          | temporal_purged_no_leaky_features      | 0.2461 | 0.0844 |
+| icarl         | iid                                    | 0.8995 | 0.0863 |
+| icarl         | temporal_purged                        | 0.1923 | 0.0954 |
+| icarl         | temporal_purged_fair                   | 0.7072 | 0.152  |
+| icarl         | temporal_purged_fair_no_leaky_features | 0.5309 | 0.0993 |
+| icarl         | temporal_purged_no_leaky_features      | 0.2394 | 0.1001 |
+| joint         | iid                                    | 0.9853 | 0.0143 |
+| joint         | temporal_purged                        | 0.1713 | 0.0889 |
+| joint         | temporal_purged_fair                   | 0.7908 | 0.1031 |
+| joint         | temporal_purged_fair_no_leaky_features | 0.6385 | 0.102  |
+| joint         | temporal_purged_no_leaky_features      | 0.2394 | 0.1115 |
+| joint_scratch | iid                                    | 0.9897 | 0.0092 |
+| joint_scratch | temporal_purged                        | 0.1783 | 0.0801 |
+| joint_scratch | temporal_purged_fair                   | 0.8233 | 0.0903 |
+| joint_scratch | temporal_purged_fair_no_leaky_features | 0.6631 | 0.1051 |
+| joint_scratch | temporal_purged_no_leaky_features      | 0.1636 | 0.1003 |
+| lwf           | iid                                    | 0.2683 | 0.0331 |
+| lwf           | temporal_purged                        | 0.2003 | 0.0768 |
+| lwf           | temporal_purged_fair                   | 0.2701 | 0.0468 |
+| lwf           | temporal_purged_fair_no_leaky_features | 0.2772 | 0.0589 |
+| lwf           | temporal_purged_no_leaky_features      | 0.2528 | 0.0133 |
+| replay        | iid                                    | 0.8736 | 0.1307 |
+| replay        | temporal_purged                        | 0.189  | 0.0995 |
+| replay        | temporal_purged_fair                   | 0.6987 | 0.1151 |
+| replay        | temporal_purged_fair_no_leaky_features | 0.6106 | 0.1372 |
+| replay        | temporal_purged_no_leaky_features      | 0.1848 | 0.1087 |
 
-Combined temporal + no time/ID/window features (the stricter deployment arm):
+Cold-start temporal + no time/ID/window features:
 
 | method        |   mean |    std |
 |:--------------|-------:|-------:|
-| bic           | 0.1712 | 0.1172 |
-| ewc           | 0.25   | 0      |
-| finetune      | 0.25   | 0      |
-| full          | 0.1837 | 0.0831 |
-| icarl         | 0.1552 | 0.11   |
-| joint         | 0.1316 | 0.0926 |
-| joint_scratch | 0.1515 | 0.0928 |
-| lwf           | 0.25   | 0      |
-| replay        | 0.0662 | 0.0374 |
+| bic           | 0.2385 | 0.1007 |
+| ewc           | 0.2372 | 0.0552 |
+| finetune      | 0.245  | 0.0492 |
+| full          | 0.2461 | 0.0844 |
+| icarl         | 0.2394 | 0.1001 |
+| joint         | 0.2394 | 0.1115 |
+| joint_scratch | 0.1636 | 0.1003 |
+| lwf           | 0.2528 | 0.0133 |
+| replay        | 0.1848 | 0.1087 |
 
-IID = random-split benchmark; temporal-purged = forward temporal generalization under distribution shift with reduced window overlap (separate estimands, not interpolated). Purge: 0.02 rad on TimeRadians (a proxy for the documented ~20-22 s window horizon; not a wall-clock guarantee). Blocks are ordered on unwrapped circular time so an orbital wrap does not scramble chronology. For classes whose TimeRadians span is narrow, the purge can empty the validation slice; those cells are warned about by the builder and val-dependent methods (BiC/EWC) are correspondingly weaker in this protocol. See DATALOG.md for the drift diagnosis.
+Fair random-past temporal + no time/ID/window features:
 
+| method        |   mean |    std |
+|:--------------|-------:|-------:|
+| bic           | 0.5145 | 0.1028 |
+| ewc           | 0.2574 | 0.053  |
+| finetune      | 0.2909 | 0.0696 |
+| full          | 0.5252 | 0.1517 |
+| icarl         | 0.5309 | 0.0993 |
+| joint         | 0.6385 | 0.102  |
+| joint_scratch | 0.6631 | 0.1051 |
+| lwf           | 0.2772 | 0.0589 |
+| replay        | 0.6106 | 0.1372 |
 
-**Interpretation.** The temporal-purged arm is not a small perturbation: deployable-method accuracy falls to roughly the four-class chance level, and the stricter no-leaky arm can fall below it. The IID headline is a benchmark estimand, not deployment evidence; do not read the IID ordering as an operational recommendation.
+IID = random-split benchmark. `temporal_purged` is the original cold-start arm: train draws the earliest head of each class's past block, validation is the contiguous block ending one purge before test. `temporal_purged_fair` draws train and validation from the purged past and locks test in the future (70/10/20). Purge: 0.02 rad on TimeRadians (a proxy for the documented ~20-22 s window horizon; not a wall-clock guarantee). Blocks are ordered on unwrapped circular time so an orbital wrap does not scramble chronology.
+
+**Interpretation.** Mean deployable-method ACC is **0.6131 (IID)**, **0.2011 (cold-start temporal)**, and **0.5018 (fair random-past temporal)**. The cold-start arm isolates support: training only on the earliest head makes forward generalization look near chance even for `joint_scratch`, so the cold-start gap is not a pure drift or forgetting estimate. The fair arm recovers most of the IID accuracy for replay/BiC, but `finetune` remains near chance and the no-leaky fair arm falls to **0.4295**, showing that temporal shift and time/ID/window feature reliance remain separate limitations.
+
+Cold-start is therefore a support-controlled baseline, not the deployment estimate. Random-past validation also avoids the empty-validation cells that the contiguous block creates for narrow classes; the builder warns for the cold-start arm.
+
+**Matched-split control.** Re-running the cold-start arm with the same 70/10/20 test block and random validation as the fair arm leaves MLP `joint_scratch` at **0.106** and BiC at **0.171**, versus **0.870** and **0.894** under random-past training (3 seeds; `temporal_sampling_diagnosis.csv`). Test/validation block choice is therefore not the main driver of the recovery.
 
 
 #### 7.4.1 Temporal leakage/validity audit (read-only, no models trained)
@@ -621,7 +656,7 @@ This audit replays the exact random per-class splits used by `build_cucd_id_task
 
 **Reading.** Across 15 random splits, **98.6%** of all test rows have a training row within the 0.02 rad purge horizon (per-class 94.6–100.0%). For `normal`, `command_flooding`, and `data_injection`, every test row is within that horizon. For `defence_impairment` and `storage_exhaustion`, the 150-row training draw leaves some tail rows beyond 0.02 rad, but their medians remain 0.003–0.005 rad and their maxima 0.04–0.06 rad. This is interpolation inside the same telemetry window, before accounting for overlapping 20-second aggregates.
 
-The split is also not a scenario split. There are only **5** natural time blocks under the 0.02 rad gap rule, and **normal, command_flooding, data_injection, storage_exhaustion** are confined to a single block. A leave-one-block-out estimate therefore cannot form a complete four-task scenario evaluation. Within-class early/late drift is large (mean |z| 0.20–0.82; peak |z| 4.87 on `SlidingWindowMeanIntervalSec`), so the temporal-purged collapse is a joint leakage + drift + scaler/prior-shift estimand. Neither the IID number nor the IID-minus-temporal gap should be read as a causal leakage correction.
+The split is also not a scenario split. There are only **5** natural time blocks under the 0.02 rad gap rule, and **normal, command_flooding, data_injection, storage_exhaustion** are confined to a single block. A leave-one-block-out estimate therefore cannot form a complete four-task scenario evaluation. Within-class early/late drift is large (mean |z| 0.20–0.82; peak |z| 4.87 on `SlidingWindowMeanIntervalSec`), so the cold-start temporal gap is a joint support + drift + scaler/prior-shift estimand. The fair random-past arm removes the cold-start support component but not drift or feature reliance. Neither the IID number nor the IID-minus-temporal gap should be read as a causal leakage correction.
 
 See `figures/temporal_leakage_audit.png` and `results/temporal_leakage_audit.json`.
 
@@ -1285,15 +1320,61 @@ Retrained CuCD-ID/MLP ablation: each row retrains without the named group (or wi
 The large drop for `no_time_ids_window` and the small drop for `only_time_ids_window` (raw telemetry removed, leakage groups retained) show that the leakage-bearing provenance fields carry most of the random-split advantage. The `raw_telemetry` row in this table is the `only_time_ids_window` variant. This is a reliance measure, not proof that every removed field is illegitimate.
 
 
+### 7.11 Budget-Aware Update Admission Control (BUAC)
+
+
+Fair random-past temporal scope (held-out seeds 10-14; budget 256 KB memory / 64 KB uplink):
+
+| arch   | gate             |   n |   safe_n |   unsafe_n |   safe_accept |   unsafe_accept |   balanced_acc |   precision |   auroc |
+|:-------|:-----------------|----:|---------:|-----------:|--------------:|----------------:|---------------:|------------:|--------:|
+| CNN1D  | buac             |  90 |       22 |         68 |         0.636 |           0.132 |          0.752 |       0.609 |   0.867 |
+| CNN1D  | buac_iid_trained |  90 |       22 |         68 |         0.818 |           0.176 |          0.821 |       0.6   |   0.888 |
+| CNN1D  | rule_buac        |  90 |       22 |         68 |         0.818 |           0.176 |          0.821 |       0.6   |   0.88  |
+| GRU    | buac             |  90 |       25 |         65 |         0.56  |           0.169 |          0.695 |       0.56  |   0.834 |
+| GRU    | buac_iid_trained |  90 |       25 |         65 |         0.64  |           0.215 |          0.712 |       0.533 |   0.833 |
+| GRU    | rule_buac        |  90 |       25 |         65 |         0.56  |           0.154 |          0.703 |       0.583 |   0.818 |
+| MLP    | buac             |  90 |       39 |         51 |         0.949 |           0.078 |          0.935 |       0.902 |   0.977 |
+| MLP    | buac_iid_trained |  90 |       39 |         51 |         1     |           0.078 |          0.961 |       0.907 |   0.968 |
+| MLP    | rule_buac        |  90 |       39 |         51 |         0.949 |           0.078 |          0.935 |       0.902 |   0.982 |
+
+All protocols pooled (IID + cold-start + fair):
+
+| arch   | gate             |   n |   safe_accept |   unsafe_accept |   balanced_acc |   auroc |
+|:-------|:-----------------|----:|--------------:|----------------:|---------------:|--------:|
+| CNN1D  | buac             | 270 |         0.406 |           0.044 |          0.681 |   0.934 |
+| CNN1D  | buac_iid_trained | 270 |         0.812 |           0.199 |          0.807 |   0.817 |
+| CNN1D  | rule_buac        | 270 |         0.766 |           0.058 |          0.854 |   0.917 |
+| GRU    | buac             | 270 |         0.522 |           0.055 |          0.734 |   0.927 |
+| GRU    | buac_iid_trained | 270 |         0.609 |           0.109 |          0.75  |   0.92  |
+| GRU    | rule_buac        | 270 |         0.522 |           0.05  |          0.736 |   0.925 |
+| MLP    | buac             | 270 |         0.882 |           0.023 |          0.93  |   0.965 |
+| MLP    | buac_iid_trained | 270 |         0.978 |           0.339 |          0.82  |   0.758 |
+| MLP    | rule_buac        | 270 |         0.882 |           0.023 |          0.93  |   0.968 |
+
+MLP budget sensitivity at 64 KB uplink (retrospective threshold; not a deployment guarantee):
+
+|   mem_budget_KB |   gate_safe_accept |   gate_unsafe_accept |   gate_balanced_acc |
+|----------------:|-------------------:|---------------------:|--------------------:|
+|              64 |              0     |                0     |               0.5   |
+|             128 |              0.108 |                0     |               0.554 |
+|             256 |              0.882 |                0.023 |               0.93  |
+|             512 |              0.882 |                0.023 |               0.93  |
+**Interpretation.** Under the cold-start temporal protocol the gate accepts nothing, and the fixed rule also accepts nothing (safe acceptance 0.000-0.000 across architectures). That regime is behaviorally equivalent to always-reject, so it cannot separate a validity-aware policy from a trivial one. Under the fair random-past protocol the learned gate and the fixed rule do accept updates, but transfer is architecture-dependent (BUAC unsafe acceptance 0.078-0.169); the fixed rule's unsafe acceptance is 0.078-0.176, and an IID-only-trained gate is 0.078-0.215. Only the MLP gate stays near the 5% unsafe target; GRU/CNN exceed it, and the fixed rule lacks the threshold calibration that the learned gate uses. These are stage-wise, offline admission decisions: rejecting an update does not branch later training, and ground-assisted coverage/utility is not evaluated.
+
+The gate uses only pre-test signals: selection-half gain/retention, forward-time flag, current-feature drift, and the memory/uplink budget. `r_fwd_flag` is a protocol proxy, not an independent physical-risk sensor. See `buac_*_decisions.csv` for per-stage decisions and `buac_*_budget_sensitivity.csv` for the budget sweep. See `figures/buac_gate.png` for the fair-protocol safe/unsafe acceptance bars.
+
+
 ## 8. Claim boundaries and known limitations
 
 This report supports a benchmark/diagnostic reading, not a deployment or method-superiority claim. The main boundaries:
 
 - **No scenario-level validation.** CuCD-ID has no scenario/run identifier in the released CSV. A true scenario split is not possible; the time-block proxy is a sensitivity estimand only.
 
-- **IID is not deployment.** Sliding-window aggregates and time/identifier features can cross the random train/test boundary. Temporal-purged accuracy collapses, and the stricter no-leaky arm can fall below four-class chance.
+- **IID is not deployment.** Sliding-window aggregates and time/identifier features can cross the random train/test boundary. Cold-start temporal accuracy collapses; fair random-past temporal recovers much of the IID number but not all, and the no-leaky fair arm is lower still.
 
 - **Leakage and drift are entangled.** The read-only audit in Section 7.4.1 shows dense temporal adjacency in the random split, but also class-incomplete time blocks and large within-class feature drift. The audit is a validity boundary, not a leakage-free estimate.
+
+- **BUAC is stage-wise and architecture-dependent.** The gate does not simulate the downstream effect of rejection or the ground-assisted path; fair-protocol unsafe acceptance is near target only on MLP, while GRU/CNN exceed it. `r_fwd_flag` is a protocol proxy, not a physical risk sensor.
 
 - **`full` is not the winner.** The combined EWC+replay+BiC configuration is below replay on CuCD-ID for all three architectures. Its tuning grid is smaller, and the lambda=0 control shows the selected EWC strength can be harmful.
 

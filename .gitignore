@@ -5,3 +5,12 @@ __pycache__/
 venv/
 .env
 opencode.json
+# Generated manuscript PDFs and reference PDFs
+cubesat_paper/papers/
+cubesat_paper/main.pdf
+main_preview_standin_class.pdf
+# Local external datasets (not redistributed)
+data/AegisSat-AD.csv
+data/UNSW-IoTSAT-main/
+data/space-cyber-anomaly-detection-dataset-main/
+CUCDID_All/

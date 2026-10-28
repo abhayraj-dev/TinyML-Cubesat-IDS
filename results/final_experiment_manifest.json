@@ -1,10 +1,10 @@
 {
   "project": "cubesat-cl-ids",
   "version": "v6.5",
-  "timestamp_utc": "2026-10-26T07:26:36.832468Z",
+  "timestamp_utc": "2026-10-27T17:13:01.750227Z",
   "git": {
-    "commit": "02e0d3c96b1bfd73f4a6c34fa7d3cda29c1ed6db",
-    "status": "M CHANGELOG.md\n M DATALOG.md\n D GENERIC_PROJECT_BUNDLE.txt\n M PAPER_PLAN.md\n M PROJECT_CONTEXT.md\n M README.md\n M analysis/plots.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_leakage_ablation.py\n M experiments/run_main.py\n M figures/leakage_ablation.png\n M results/RESULTS_SUMMARY.md\n M results/final_experiment_manifest.json\n M results/leakage_ablation.csv\n M results/leakage_ablation_summary.csv\n M run_all.py\n M src/metrics.py\n M src/models.py\n M src/train.py\n M tests/test_gradients.py\n D v6_3_project_report_final.md\n?? 2026-FedLTN-Cubesat-mdpi-mathematics.pdf\n?? experiments/check_ncm_sanity.py\n?? experiments/run_icarl_ncm.py\n?? experiments/run_xai.py\n?? figures/ncm_comparison_CuCD-ID.png\n?? figures/ncm_comparison_STIN.png\n?? figures/ncm_paired_delta.png\n?? figures/ncm_sanity_control.png\n?? figures/xai_agreement_CuCD-ID.png\n?? figures/xai_agreement_STIN.png\n?? figures/xai_faithfulness_CuCD-ID.png\n?? figures/xai_faithfulness_STIN.png\n?? figures/xai_feature_groups.png\n?? figures/xai_feature_importance.png\n?? figures/xai_main_metrics.png\n?? results/XAI_SUPPLEMENT.md\n?? results/accuracy_matrices_ncm.json\n?? results/accuracy_matrices_ncm_sanity.json\n?? results/icarl_ncm_runs.csv\n?? results/icarl_ncm_summary.csv\n?? results/icarl_ncm_vs_baselines.csv\n?? results/leakage_group_effects.csv\n?? results/ncm_sanity_per_class.csv\n?? results/ncm_sanity_runs.csv\n?? results/ncm_sanity_summary.csv\n?? results/ncm_sanity_vs_main.csv\n?? results/ncm_sanity_vs_main_runs.csv\n?? results/xai_baseline_sensitivity.csv\n?? results/xai_examples.csv\n?? results/xai_feature_importance.csv\n?? results/xai_feature_summary.csv\n?? results/xai_group_attribution_runs.csv\n?? results/xai_group_attribution_summary.csv\n?? results/xai_group_deletion_runs.csv\n?? results/xai_group_deletion_summary.csv\n?? results/xai_group_summary.csv\n?? results/xai_metrics.csv\n?? results/xai_metrics_by_correctness.csv\n?? results/xai_summary.csv\n?? results/xai_summary_by_correctness.csv\n?? src/feature_groups.py\n?? src/inference.py\n?? src/ncm.py\n?? src/xai.py\n?? tests/test_feature_groups.py\n?? tests/test_ncm.py\n?? tests/test_xai.py\n?? v6_4_project_report_final.md\n?? v6_5_project_report_final.md"
+    "commit": "2e62d0de8123f50cc7a78e8d9c99cc482bba8f67",
+    "status": "M DATALOG.md\n M PAPER_PLAN.md\n M PROJECT_CONTEXT.md\n M README.md\n M analysis/plots.py\n M experiments/create_manifest.py\n M experiments/generate_summary_report.py\n M experiments/run_purged_temporal.py\n M figures/temporal_bracket.png\n M results/RESULTS_SUMMARY.md\n M results/final_experiment_manifest.json\n M results/temporal_purged_compare.csv\n M run_all.py\n M src/data_utils.py\n M src/train.py\n M v6_5_project_report_final.md\n?? cubesat_paper/\n?? experiments/run_buac.py\n?? experiments/run_temporal_sampling_diagnosis.py\n?? experiments/summarize_buac.py\n?? figures/buac_gate.png\n?? figures/temporal_mlp_protocols.png\n?? main_preview_standin_class.pdf\n?? results/buac_cnn1d_budget_sensitivity.csv\n?? results/buac_cnn1d_decisions.csv\n?? results/buac_cnn1d_gate_by_method.csv\n?? results/buac_cnn1d_gate_by_seed.csv\n?? results/buac_cnn1d_gate_coefficients.csv\n?? results/buac_cnn1d_gate_eval.csv\n?? results/buac_cnn1d_stage_signals.csv\n?? results/buac_gru_budget_sensitivity.csv\n?? results/buac_gru_decisions.csv\n?? results/buac_gru_gate_by_method.csv\n?? results/buac_gru_gate_by_seed.csv\n?? results/buac_gru_gate_coefficients.csv\n?? results/buac_gru_gate_eval.csv\n?? results/buac_gru_stage_signals.csv\n?? results/buac_mlp_budget_sensitivity.csv\n?? results/buac_mlp_decisions.csv\n?? results/buac_mlp_gate_by_method.csv\n?? results/buac_mlp_gate_by_seed.csv\n?? results/buac_mlp_gate_coefficients.csv\n?? results/buac_mlp_gate_eval.csv\n?? results/buac_mlp_stage_signals.csv\n?? results/buac_summary.csv\n?? results/temporal_purged_compare_CNN1D.csv\n?? results/temporal_purged_compare_GRU.csv\n?? results/temporal_purged_compare_MLP.csv\n?? results/temporal_sampling_diagnosis.csv\n?? results/temporal_sampling_probes.csv\n?? tests/test_buac.py\n?? tests/test_temporal_sampling.py"
   },
   "environment": {
     "python_version": "3.14.4",
@@ -167,7 +167,7 @@
     "robustness": 84,
     "feature_order": 96,
     "task_order": 144,
-    "temporal_purged": 270,
+    "temporal_purged": 2025,
     "leakage_ablation": 270,
     "per_class": 1890,
     "baseline_controls": 450,
@@ -176,6 +176,8 @@
     "stats_baseline_controls": 30,
     "xai_models": 36,
     "xai_baseline_evaluations": 72,
+    "buac_runs": 810,
+    "buac_stage_rows": 3240,
     "xai_sensitivity_cells": 12
   },
   "train_val_test_protocol": {
@@ -188,8 +190,11 @@
     "selection_use": "hyperparameter scoring only; excluded from onboard payload",
     "test_frac_cucd_id": 0.3,
     "test_frac_stin": 0.2,
+    "test_frac_temporal_fair_cucd_id": 0.2,
+    "val_frac_temporal_fair_cucd_id": 0.1,
     "split_mode_random": "random stratified (IID)",
-    "split_mode_temporal": "temporal_purged",
+    "split_mode_temporal": "temporal_purged (cold-start earliest-head)",
+    "split_mode_temporal_fair": "temporal_purged_fair (random-past train/val, future test)",
     "initial_n_per_class_t0": 700,
     "uplink_n_per_class": 150,
     "note": "Test locked first; val carved from train pool and split into disjoint calibration/selection halves; no test leakage"
@@ -486,6 +491,24 @@
       "figures/xai_feature_importance.png"
     ],
     "temporal_compare": "results/temporal_purged_compare.csv",
+    "temporal_figures": [
+      "figures/temporal_bracket.png",
+      "figures/temporal_mlp_protocols.png",
+      "figures/temporal_leakage_audit.png"
+    ],
+    "buac": [
+      "results/buac_summary.csv",
+      "results/buac_mlp_gate_eval.csv",
+      "results/buac_gru_gate_eval.csv",
+      "results/buac_cnn1d_gate_eval.csv",
+      "results/buac_mlp_decisions.csv",
+      "results/buac_gru_decisions.csv",
+      "results/buac_cnn1d_decisions.csv",
+      "results/buac_mlp_budget_sensitivity.csv",
+      "results/buac_gru_budget_sensitivity.csv",
+      "results/buac_cnn1d_budget_sensitivity.csv",
+      "figures/buac_gate.png"
+    ],
     "fewshot": "results/fewshot.csv",
     "feature_order": "results/feature_order_stability.csv",
     "ablations": [

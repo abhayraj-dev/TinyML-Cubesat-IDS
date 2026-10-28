@@ -142,6 +142,15 @@ def _counts():
         counts["xai_models"] = int(len(xai[
             ["dataset", "arch", "method", "seed"]].drop_duplicates()))
         counts["xai_baseline_evaluations"] = int(len(xai))
+    buac_runs = 0
+    buac_stage_rows = 0
+    for arch in ("mlp", "gru", "cnn1d"):
+        d = _read(os.path.join("results", f"buac_{arch}_stage_signals.csv"))
+        if d is not None and not d.empty:
+            buac_stage_rows += int(len(d))
+            buac_runs += int(len(d[["arch", "method", "protocol", "seed"]].drop_duplicates()))
+    counts["buac_runs"] = buac_runs
+    counts["buac_stage_rows"] = buac_stage_rows
     sensitivity = _read("results/xai_baseline_sensitivity.csv")
     if sensitivity is not None:
         counts["xai_sensitivity_cells"] = int(len(sensitivity))
@@ -225,8 +234,11 @@ def main():
             "selection_use": "hyperparameter scoring only; excluded from onboard payload",
             "test_frac_cucd_id": 0.30,
             "test_frac_stin": 0.20,
+            "test_frac_temporal_fair_cucd_id": 0.20,
+            "val_frac_temporal_fair_cucd_id": 0.10,
             "split_mode_random": "random stratified (IID)",
-            "split_mode_temporal": "temporal_purged",
+            "split_mode_temporal": "temporal_purged (cold-start earliest-head)",
+            "split_mode_temporal_fair": "temporal_purged_fair (random-past train/val, future test)",
             "initial_n_per_class_t0": 700,
             "uplink_n_per_class": 150,
             "note": "Test locked first; val carved from train pool and split into disjoint calibration/selection halves; no test leakage"
@@ -342,6 +354,24 @@ def main():
                 "figures/xai_feature_importance.png"
             ],
             "temporal_compare": "results/temporal_purged_compare.csv",
+            "temporal_figures": [
+                "figures/temporal_bracket.png",
+                "figures/temporal_mlp_protocols.png",
+                "figures/temporal_leakage_audit.png"
+            ],
+            "buac": [
+                "results/buac_summary.csv",
+                "results/buac_mlp_gate_eval.csv",
+                "results/buac_gru_gate_eval.csv",
+                "results/buac_cnn1d_gate_eval.csv",
+                "results/buac_mlp_decisions.csv",
+                "results/buac_gru_decisions.csv",
+                "results/buac_cnn1d_decisions.csv",
+                "results/buac_mlp_budget_sensitivity.csv",
+                "results/buac_gru_budget_sensitivity.csv",
+                "results/buac_cnn1d_budget_sensitivity.csv",
+                "figures/buac_gate.png",
+            ],
             "fewshot": "results/fewshot.csv",
             "feature_order": "results/feature_order_stability.csv",
             "ablations": [

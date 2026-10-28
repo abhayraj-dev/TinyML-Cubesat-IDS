@@ -223,7 +223,7 @@ class BiasCorrector:
 def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dict, seed: int = 0,
                     bias_correction: bool = False, replay_balance: str = "uniform",
                     ncm_eval: bool = False, embedding_herding: bool = False,
-                    ncm_temperature: float = 10.0):
+                    ncm_temperature: float = 10.0, stage_callback=None):
     assert method in ("finetune", "replay", "ewc", "full", "joint", "joint_scratch",
                       "lwf", "bic", "icarl")
     assert replay_balance in ("uniform", "class_balanced")
@@ -267,6 +267,7 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
     train_samples_total = 0  # student samples actually processed (incl. replay augmentation)
     teacher_samples_total = 0  # teacher-forward samples actually processed (distillation methods)
     ncm = None
+    stage_records = []       # optional per-stage diagnostics from stage_callback
 
     for t, task in enumerate(task_seq.tasks):
         n_old = class_offset
@@ -415,6 +416,31 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
             preds = logits.argmax(axis=1)
             V[t, j] = float((preds == yj).mean())
 
+        if stage_callback is not None:
+            rec = stage_callback({
+                "t": t,
+                "task": task,
+                "task_seq": task_seq,
+                "method": method,
+                "seed": seed,
+                "model": model,
+                "buffer": buffer,
+                "ewc": ewc,
+                "teacher": teacher,
+                "ncm": ncm,
+                "corrector": corrector,
+                "hp": hp,
+                "R": R,
+                "V": V,
+                "seen_tasks": seen_tasks,
+                "seen_val_tasks": seen_val_tasks,
+            })
+            if rec is not None:
+                if isinstance(rec, dict):
+                    stage_records.append(rec)
+                else:
+                    stage_records.extend(rec)
+
     return {
         "R": R,
         "V": V,
@@ -433,4 +459,5 @@ def train_continual(model_cls, model_kwargs, task_seq, method: str, hparams: dic
         "bias_correction": bias_correction,
         "ncm_eval": ncm_eval,
         "embedding_herding": embedding_herding,
+        "stage_records": stage_records,
     }

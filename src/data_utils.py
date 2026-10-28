@@ -200,6 +200,8 @@ class TaskSequence:
     # correlation) vs "temporal" (time-ordered blocks, leakage-safe).
     split_mode: str = "random"
     val_frac: float = 0.0
+    train_sample_mode: str = "random"
+    val_sample_mode: str = "random"
 
     @property
     def n_features(self) -> int:
@@ -308,27 +310,46 @@ def _temporal_purged_split(
     val_frac: float,
     purge_time_rad: float,
     time_col: str = "TimeRadians",
+    val_mode: str = "block",
+    rng: np.random.Generator | None = None,
 ) -> tuple:
-    """Leakage-safe contiguous split with time-based purge gaps on TimeRadians.
-    Layout: [train_pool | purge(purge_time_rad) | val | purge(purge_time_rad) | test]
-    The purge gaps are empty time regions to prevent sliding-window feature leakage.
-    purge_time_rad: radians on TimeRadians (0.02 rad ≈ 22s equivalent,
-    exceeds 20s sliding-window horizon + 20-22s clearing pauses).
-    Sorting uses unwrapped circular time so orbital wraps do not scramble the
-    chronological order. Returns (train_idx, val_idx, test_idx) as original
-    dataframe indices."""
+    """Leakage-safe split with a future test block and purge gaps.
+
+    val_mode='block' preserves the original layout:
+    [train_pool | purge | val | purge | test].
+
+    val_mode='random_past' keeps test locked in the future, purges it from the
+    past pool, then draws a random validation subset from that past pool. This
+    avoids the empty-validation failure for classes whose TimeRadians span is
+    narrower than the contiguous val block plus purge.
+    """
     sub, time_sorted = _chronological_order(df.loc[mask], time_col=time_col)
     idx_sorted = sub.index.to_numpy()
+    if val_mode not in ("block", "random_past"):
+        raise ValueError(
+            f"Unknown val_mode '{val_mode}'; expected 'block' or 'random_past'")
 
     n = len(idx_sorted)
     n_test = max(1, int(round(n * test_frac)))
     n_val = 0 if val_frac <= 0 else min(n - n_test - 1, max(1, int(round(n * val_frac))))
 
-    # Test is the future block
     test_idx = idx_sorted[n - n_test:]
     test_start_time = time_sorted[n - n_test]
 
-    # Val block ends purge_time_rad before test starts
+    if val_mode == "random_past":
+        past_cut_time = test_start_time - purge_time_rad
+        past_idx = idx_sorted[time_sorted <= past_cut_time]
+        n_val = min(n_val, max(0, len(past_idx) - 1))
+        if n_val > 0:
+            if rng is None:
+                rng = np.random.default_rng(0)
+            val_idx = rng.choice(past_idx, size=n_val, replace=False)
+            train_pool = np.setdiff1d(past_idx, val_idx, assume_unique=True)
+        else:
+            val_idx = np.zeros(0, dtype=idx_sorted.dtype)
+            train_pool = past_idx
+        return train_pool, val_idx, test_idx
+
     if n_val > 0:
         val_end_time = test_start_time - purge_time_rad
         val_time_slice = time_sorted[n - n_test - n_val:n - n_test]
@@ -338,7 +359,6 @@ def _temporal_purged_split(
     else:
         val_idx = np.zeros(0, dtype=idx_sorted.dtype)
 
-    # Train pool ends purge_time_rad before val starts (or test if no val)
     if len(val_idx) > 0:
         val_time_slice = time_sorted[n - n_test - n_val:n - n_test]
         val_mask = val_time_slice <= (test_start_time - purge_time_rad)
@@ -359,6 +379,21 @@ def _draw(idx: np.ndarray, n: int, rng: np.random.Generator):
     if len(idx) <= n:
         return idx
     return rng.choice(idx, size=n, replace=False)
+
+
+def _select_train_idx(
+    train_pool: np.ndarray,
+    n: int,
+    mode: str,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    if mode == "earliest":
+        return train_pool[:n] if len(train_pool) > n else train_pool
+    if mode == "random_past":
+        return _draw(train_pool, n, rng)
+    raise ValueError(
+        f"Unknown train_sample_mode '{mode}'; expected 'earliest' or 'random_past'"
+    )
 
 
 def _fit_scaler(X: np.ndarray):
@@ -731,7 +766,9 @@ def build_cucd_id_tasks_temporal(
                           X_val=X_val, y_val=y_val))
     _assert_split_integrity(tasks)
     return TaskSequence("CuCD-ID", tasks, feature_cols, scaler_mean, scaler_std,
-                        class_names_global, split_mode="temporal", val_frac=val_frac)
+                        class_names_global, split_mode="temporal",
+                        val_frac=val_frac, train_sample_mode="earliest",
+                        val_sample_mode="block")
 
 
 def build_stin_tasks_temporal(
@@ -789,7 +826,9 @@ def build_stin_tasks_temporal(
                           X_val=X_val, y_val=y_val))
     _assert_split_integrity(tasks)
     return TaskSequence("STIN", tasks, feature_cols, scaler_mean, scaler_std,
-                        class_names_global, split_mode="temporal", val_frac=val_frac)
+                        class_names_global, split_mode="temporal",
+                        val_frac=val_frac, train_sample_mode="earliest",
+                        val_sample_mode="block")
 
 
 def build_cucd_id_tasks_purged_temporal(
@@ -802,12 +841,20 @@ def build_cucd_id_tasks_purged_temporal(
     val_cap_per_class: int = 300,
     purge_time_rad: float = 0.02,
     feature_drop=None,
+    train_sample_mode: str = "earliest",
+    val_mode: str = "block",
 ) -> TaskSequence:
     """Leakage-safe temporal split with purge gaps on TimeRadians.
-    Layout per class: [train_pool | purge | val | purge | test]
+    With val_mode='block', the layout per class is
+    [train_pool | purge | val | purge | test].
     The purge gaps use TimeRadians units (0.02 rad ≈ 22s equivalent)
     to exceed the 20-second sliding-window feature horizon
-    and the documented 20-22s window-clearing pauses in CuCD-ID."""
+    and the documented 20-22s window-clearing pauses in CuCD-ID.
+    train_sample_mode='earliest' reproduces the original cold-start head
+    sample; 'random_past' draws the same per-class budget from the whole
+    past pool while leaving the future test block untouched.
+    val_mode='block' keeps the original contiguous validation block;
+    'random_past' draws validation randomly from the purged past pool."""
     import warnings
     rng = np.random.default_rng(seed)
     drop = set(feature_drop or [])
@@ -822,9 +869,10 @@ def build_cucd_id_tasks_purged_temporal(
             class_names_global.append(lbl)
             mask = df["label_name"] == lbl
             train_pool, val_pool, test_idx = _temporal_purged_split(
-                df, mask, test_frac, val_frac, purge_time_rad, time_col="TimeRadians")
-            # Train budget: earliest block (deterministic head)
-            train_idx = train_pool[:n_per_class] if len(train_pool) > n_per_class else train_pool
+                df, mask, test_frac, val_frac, purge_time_rad,
+                time_col="TimeRadians", val_mode=val_mode, rng=rng)
+            train_idx = _select_train_idx(
+                train_pool, n_per_class, train_sample_mode, rng)
             if len(train_idx) == 0:
                 raise ValueError(
                     f"Purged temporal split emptied train for class '{lbl}' "
@@ -866,4 +914,6 @@ def build_cucd_id_tasks_purged_temporal(
                           X_val=X_val, y_val=y_val))
     _assert_split_integrity(tasks)
     return TaskSequence("CuCD-ID", tasks, feature_cols, scaler_mean, scaler_std,
-                        class_names_global, split_mode="temporal_purged", val_frac=val_frac)
+                        class_names_global, split_mode="temporal_purged",
+                        val_frac=val_frac, train_sample_mode=train_sample_mode,
+                        val_sample_mode=val_mode)

@@ -573,30 +573,80 @@ def main():
 
     if _present("temporal_purged_compare.csv"):
         tc = pd.read_csv(os.path.join(RESULTS_DIR, "temporal_purged_compare.csv"))
-        out.append("\n### 7.4 IID vs forward-temporal-purged, CuCD-ID/MLP\n")
+        out.append("\n### 7.4 IID vs forward-temporal protocols, CuCD-ID (3 architectures)\n")
         out.append(df_to_md(tc.groupby(["method", "protocol"])["ACC"].agg(["mean", "std"]).reset_index()))
-        if "temporal_purged_no_leaky_features" in set(tc.protocol):
+        protos = set(tc.protocol)
+        has_fair = "temporal_purged_fair" in protos
+        deploy = ["finetune", "replay", "ewc", "full", "lwf", "bic", "icarl"]
+
+        def _mean(protocol):
+            sub = tc[tc.protocol == protocol].groupby("method").ACC.mean()
+            common = [m for m in deploy if m in sub.index]
+            return float(sub[common].mean()) if common else float("nan")
+
+        if "temporal_purged_no_leaky_features" in protos:
             noleak = (tc[tc.protocol == "temporal_purged_no_leaky_features"]
                       .groupby("method")["ACC"].agg(["mean", "std"]).reset_index())
-            out.append("\nCombined temporal + no time/ID/window features (the stricter "
-                       "deployment arm):\n")
+            out.append("\nCold-start temporal + no time/ID/window features:\n")
             out.append(df_to_md(noleak))
-        out.append("\nIID = random-split benchmark; temporal-purged = forward temporal "
-                    "generalization under distribution shift with reduced window overlap "
-                    "(separate estimands, not interpolated). Purge: 0.02 rad on "
-                    "TimeRadians (a proxy for the documented ~20-22 s window horizon; "
+        if "temporal_purged_fair_no_leaky_features" in protos:
+            noleak_fair = (tc[tc.protocol == "temporal_purged_fair_no_leaky_features"]
+                           .groupby("method")["ACC"].agg(["mean", "std"]).reset_index())
+            out.append("\nFair random-past temporal + no time/ID/window features:\n")
+            out.append(df_to_md(noleak_fair))
+        out.append("\nIID = random-split benchmark. `temporal_purged` is the original "
+                    "cold-start arm: train draws the earliest head of each class's past "
+                    "block, validation is the contiguous block ending one purge before "
+                    "test. `temporal_purged_fair` draws train and validation from the "
+                    "purged past and locks test in the future (70/10/20). Purge: 0.02 rad "
+                    "on TimeRadians (a proxy for the documented ~20-22 s window horizon; "
                     "not a wall-clock guarantee). Blocks are ordered on unwrapped "
-                    "circular time so an orbital wrap does not scramble chronology. "
-                    "For classes whose TimeRadians span is narrow, the purge can "
-                    "empty the validation slice; those cells are warned about by the "
-                    "builder and val-dependent methods (BiC/EWC) are correspondingly "
-                    "weaker in this protocol. See DATALOG.md for the drift diagnosis.\n")
-        out.append("\n**Interpretation.** The temporal-purged arm is not a small "
-                    "perturbation: deployable-method accuracy falls to roughly "
-                    "the four-class chance level, and the stricter no-leaky arm "
-                    "can fall below it. The IID headline is a benchmark estimand, "
-                    "not deployment evidence; do not read the IID ordering as an "
-                    "operational recommendation.\n")
+                    "circular time so an orbital wrap does not scramble chronology.\n")
+        if has_fair:
+            iid_mean, cold_mean, fair_mean = _mean("iid"), _mean("temporal_purged"), _mean("temporal_purged_fair")
+            nlf_mean = _mean("temporal_purged_fair_no_leaky_features")
+            out.append(f"**Interpretation.** Mean deployable-method ACC is "
+                       f"**{iid_mean:.4f} (IID)**, **{cold_mean:.4f} (cold-start "
+                       f"temporal)**, and **{fair_mean:.4f} (fair random-past "
+                       f"temporal)**. The cold-start arm isolates support: training "
+                       "only on the earliest head makes forward generalization look "
+                       "near chance even for `joint_scratch`, so the cold-start gap is "
+                       "not a pure drift or forgetting estimate. The fair arm recovers "
+                       "most of the IID accuracy for replay/BiC, but `finetune` remains "
+                       "near chance and the no-leaky fair arm falls to "
+                       f"**{nlf_mean:.4f}**, showing that temporal shift and "
+                       "time/ID/window feature reliance remain separate limitations.\n")
+            out.append("Cold-start is therefore a support-controlled baseline, not the "
+                       "deployment estimate. Random-past validation also avoids the "
+                       "empty-validation cells that the contiguous block creates for "
+                       "narrow classes; the builder warns for the cold-start arm.\n")
+            if _present("temporal_sampling_diagnosis.csv"):
+                diag = pd.read_csv(os.path.join(
+                    RESULTS_DIR, "temporal_sampling_diagnosis.csv"))
+                diag = diag[diag.arch == "MLP"] if "arch" in diag else diag
+                def _diag(method, protocol):
+                    sub = diag[(diag.method == method) &
+                               (diag.protocol == protocol)]
+                    return float(sub.ACC.mean()) if len(sub) else float("nan")
+                js_cold = _diag("joint_scratch", "temporal_purged_earliest_70")
+                js_fair = _diag("joint_scratch", "temporal_purged_random_past_70")
+                bic_cold = _diag("bic", "temporal_purged_earliest_70_randval")
+                bic_fair = _diag("bic", "temporal_purged_random_past_70")
+                if not (np.isnan(js_cold) or np.isnan(js_fair)):
+                    out.append(
+                        "**Matched-split control.** Re-running the cold-start arm "
+                        "with the same 70/10/20 test block and random validation as "
+                        f"the fair arm leaves MLP `joint_scratch` at **{js_cold:.3f}** "
+                        f"and BiC at **{bic_cold:.3f}**, versus **{js_fair:.3f}** and "
+                        f"**{bic_fair:.3f}** under random-past training (3 seeds; "
+                        "`temporal_sampling_diagnosis.csv`). Test/validation block "
+                        "choice is therefore not the main driver of the recovery.\n")
+        else:
+            out.append("\n**Interpretation.** The cold-start temporal arm is not a small "
+                        "perturbation: deployable-method accuracy falls to roughly the "
+                        "four-class chance level, and the stricter no-leaky arm can fall "
+                        "below it. Run the fair protocol before treating this as a drift "
+                        "or deployment estimate.\n")
     elif _present("temporal_compare.csv"):
         tc = pd.read_csv(os.path.join(RESULTS_DIR, "temporal_compare.csv"))
         out.append("\n### 7.4 Temporal-vs-random bracket (legacy unpurged), CuCD-ID/MLP\n")
@@ -722,10 +772,12 @@ def main():
                    "form a complete four-task scenario evaluation. Within-class "
                    f"early/late drift is large (mean |z| {drift_min:.2f}–"
                    f"{drift_max:.2f}; peak |z| {drift_peak:.2f} on "
-                   f"`{drift_top}`), so the temporal-purged collapse is a joint "
-                   "leakage + drift + scaler/prior-shift estimand. Neither the "
-                   "IID number nor the IID-minus-temporal gap should be read as "
-                   "a causal leakage correction.\n")
+                   f"`{drift_top}`), so the cold-start temporal gap is a joint "
+                   "support + drift + scaler/prior-shift estimand. The fair "
+                   "random-past arm removes the cold-start support component but "
+                   "not drift or feature reliance. Neither the IID number nor the "
+                   "IID-minus-temporal gap should be read as a causal leakage "
+                   "correction.\n")
         out.append("See `figures/temporal_leakage_audit.png` and "
                    "`results/temporal_leakage_audit.json`.\n")
 
@@ -1038,6 +1090,76 @@ def main():
         out.append("_(leakage_group_effects.csv not found -- run "
                    "`experiments/run_leakage_ablation.py` first)_\n")
 
+    bpath = os.path.join(RESULTS_DIR, "buac_summary.csv")
+    if os.path.exists(bpath):
+        bs = pd.read_csv(bpath)
+        out.append("\n### 7.11 Budget-Aware Update Admission Control (BUAC)\n")
+        keep = ["buac", "rule_buac", "buac_iid_trained"]
+        fair = bs[(bs.scope == "temporal_purged_fair") & bs.gate.isin(keep)]
+        out.append("\nFair random-past temporal scope (held-out seeds 10-14; "
+                   "budget 256 KB memory / 64 KB uplink):\n")
+        out.append(df_to_md(fair[[
+            "arch", "gate", "n", "safe_n", "unsafe_n", "safe_accept",
+            "unsafe_accept", "balanced_acc", "precision", "auroc"
+        ]].round(3)))
+        allscope = bs[(bs.scope == "all") & bs.gate.isin(keep)]
+        out.append("\nAll protocols pooled (IID + cold-start + fair):\n")
+        out.append(df_to_md(allscope[[
+            "arch", "gate", "n", "safe_accept", "unsafe_accept",
+            "balanced_acc", "auroc"
+        ]].round(3)))
+        mlp_sens_path = os.path.join(RESULTS_DIR, "buac_mlp_budget_sensitivity.csv")
+        if os.path.exists(mlp_sens_path):
+            sens = pd.read_csv(mlp_sens_path)
+            if "gate" in sens.columns:
+                sens = sens[sens.gate == "buac"]
+            if {"mem_budget_KB", "up_budget_KB", "gate_safe_accept",
+                "gate_unsafe_accept"}.issubset(sens.columns):
+                sens64 = sens[sens.up_budget_KB == 64.0][[
+                    "mem_budget_KB", "gate_safe_accept", "gate_unsafe_accept",
+                    "gate_balanced_acc"]]
+                out.append("\nMLP budget sensitivity at 64 KB uplink "
+                           "(retrospective threshold; not a deployment guarantee):\n")
+                out.append(df_to_md(sens64.round(3)))
+
+        def _gate_range(scope, gate, col):
+            sub = bs[(bs.scope == scope) & (bs.gate == gate)]
+            if len(sub) == 0:
+                return None
+            return float(sub[col].min()), float(sub[col].max())
+
+        fair_buac = _gate_range("temporal_purged_fair", "buac", "unsafe_accept")
+        fair_rule = _gate_range("temporal_purged_fair", "rule_buac", "unsafe_accept")
+        fair_iid = _gate_range("temporal_purged_fair", "buac_iid_trained", "unsafe_accept")
+        cold_rule = _gate_range("temporal_purged", "rule_buac", "safe_accept")
+        interp = ("**Interpretation.** Under the cold-start temporal protocol the "
+                  "gate accepts nothing, and the fixed rule also accepts nothing")
+        if cold_rule is not None:
+            interp += f" (safe acceptance {cold_rule[0]:.3f}-{cold_rule[1]:.3f} across architectures)"
+        interp += (". That regime is behaviorally equivalent to always-reject, so it "
+                   "cannot separate a validity-aware policy from a trivial one. "
+                   "Under the fair random-past protocol the learned gate and the fixed "
+                   "rule do accept updates, but transfer is architecture-dependent")
+        if fair_buac is not None:
+            interp += f" (BUAC unsafe acceptance {fair_buac[0]:.3f}-{fair_buac[1]:.3f})"
+        if fair_rule is not None:
+            interp += f"; the fixed rule's unsafe acceptance is {fair_rule[0]:.3f}-{fair_rule[1]:.3f}"
+        if fair_iid is not None:
+            interp += f", and an IID-only-trained gate is {fair_iid[0]:.3f}-{fair_iid[1]:.3f}"
+        interp += (". Only the MLP gate stays near the 5% unsafe target; GRU/CNN "
+                   "exceed it, and the fixed rule lacks the threshold calibration "
+                   "that the learned gate uses. These are stage-wise, offline "
+                   "admission decisions: rejecting an update does not branch later "
+                   "training, and ground-assisted coverage/utility is not evaluated.\n")
+        out.append(interp)
+        out.append("The gate uses only pre-test signals: selection-half gain/"
+                   "retention, forward-time flag, current-feature drift, and the "
+                   "memory/uplink budget. `r_fwd_flag` is a protocol proxy, not an "
+                   "independent physical-risk sensor. See `buac_*_decisions.csv` "
+                   "for per-stage decisions and `buac_*_budget_sensitivity.csv` "
+                   "for the budget sweep. See `figures/buac_gate.png` for the fair-"
+                   "protocol safe/unsafe acceptance bars.\n")
+
     out.append("\n## 8. Claim boundaries and known limitations\n")
     out.append("This report supports a benchmark/diagnostic reading, not a "
                "deployment or method-superiority claim. The main boundaries:\n")
@@ -1046,13 +1168,19 @@ def main():
                "possible; the time-block proxy is a sensitivity estimand only.\n")
     out.append("- **IID is not deployment.** Sliding-window aggregates and "
                "time/identifier features can cross the random train/test "
-               "boundary. Temporal-purged accuracy collapses, and the stricter "
-               "no-leaky arm can fall below four-class chance.\n")
+               "boundary. Cold-start temporal accuracy collapses; fair random-past "
+               "temporal recovers much of the IID number but not all, and the "
+               "no-leaky fair arm is lower still.\n")
     out.append("- **Leakage and drift are entangled.** The read-only audit in "
                "Section 7.4.1 shows dense temporal adjacency in the random "
                "split, but also class-incomplete time blocks and large "
                "within-class feature drift. The audit is a validity boundary, "
                "not a leakage-free estimate.\n")
+    out.append("- **BUAC is stage-wise and architecture-dependent.** The gate "
+               "does not simulate the downstream effect of rejection or the "
+               "ground-assisted path; fair-protocol unsafe acceptance is near "
+               "target only on MLP, while GRU/CNN exceed it. `r_fwd_flag` is a "
+               "protocol proxy, not a physical risk sensor.\n")
     out.append("- **`full` is not the winner.** The combined EWC+replay+BiC "
                "configuration is below replay on CuCD-ID for all three "
                "architectures. Its tuning grid is smaller, and the lambda=0 "
@@ -1101,20 +1229,25 @@ def main():
     tpath = os.path.join(RESULTS_DIR, "temporal_purged_compare.csv")
     if os.path.exists(tpath):
         tp = pd.read_csv(tpath)
-        iid = tp[tp.protocol == "iid"].groupby("method").ACC.mean()
-        pur = tp[tp.protocol == "temporal_purged"].groupby("method").ACC.mean()
-        common = [m for m in deployable if m in iid.index and m in pur.index]
-        if common:
-            temporal_line = (f"Mean deployable-method ACC falls from "
-                             f"{iid[common].mean():.4f} (IID) to "
-                             f"{pur[common].mean():.4f} (temporal-purged)")
-            nlp = tp[tp.protocol == "temporal_purged_no_leaky_features"].groupby("method").ACC.mean()
-            if len(nlp):
-                common2 = [m for m in common if m in nlp.index]
-                temporal_line += (f" and {nlp[common2].mean():.4f} with time/ID/window "
-                                  f"features removed as well.")
-            else:
-                temporal_line += "."
+
+        def _pmean(protocol):
+            sub = tp[tp.protocol == protocol].groupby("method").ACC.mean()
+            common = [m for m in deployable if m in sub.index]
+            return float(sub[common].mean()) if common else float("nan")
+
+        iid_mean = _pmean("iid")
+        cold_mean = _pmean("temporal_purged")
+        fair_mean = _pmean("temporal_purged_fair")
+        nlf_fair_mean = _pmean("temporal_purged_fair_no_leaky_features")
+        if np.isfinite(iid_mean) and np.isfinite(cold_mean):
+            temporal_line = (f"Mean deployable-method ACC is {iid_mean:.4f} (IID), "
+                             f"{cold_mean:.4f} (cold-start temporal)")
+            if np.isfinite(fair_mean):
+                temporal_line += f", and {fair_mean:.4f} (fair random-past temporal)"
+                if np.isfinite(nlf_fair_mean):
+                    temporal_line += (f"; without time/ID/window features the fair "
+                                      f"arm is {nlf_fair_mean:.4f}")
+            temporal_line += "."
 
     audit_line = ""
     apath = os.path.join(RESULTS_DIR, "temporal_leakage_audit_summary.csv")
@@ -1171,10 +1304,12 @@ def main():
         "on orbit. STIN is Li et al., IEEE Access 2020, "
         "doi:10.1109/ACCESS.2020.3041641, used as a cross-domain stress test.",
         "",
-        "**Scope and claims.** This is a benchmark and negative-result report, "
-        "not a claim that a new combined method wins. The IID random split is "
-        "a benchmark estimand; temporal-purged and feature-provenance results "
-        "are separate validity checks. `full` is evaluated as a baseline "
+        "**Scope and claims.** This is a CubeSat-first benchmark and "
+        "negative-result report, not a claim that a new combined method wins. "
+        "The random-split IID benchmark and the fair forward-temporal "
+        "deployment-facing estimate are co-headline estimands; cold-start "
+        "temporal is a support-control diagnostic and feature-provenance is a "
+        "separate reliance probe. `full` is evaluated as a baseline "
         "combination, not promoted as the proposed winner.",
         "",
         "## Executive summary",
@@ -1207,6 +1342,17 @@ def main():
         exec_out.append(f"- {leak_line}")
     if task_line:
         exec_out.append(f"- {task_line}")
+    bpath = os.path.join(RESULTS_DIR, "buac_summary.csv")
+    if os.path.exists(bpath):
+        bs = pd.read_csv(bpath)
+        fair = bs[(bs.scope == "temporal_purged_fair") & (bs.gate == "buac")]
+        if len(fair):
+            exec_out.append(
+                f"- BUAC on the fair random-past protocol: held-out safe acceptance "
+                f"**{fair.safe_accept.min():.3f}-{fair.safe_accept.max():.3f}**, "
+                f"unsafe acceptance **{fair.unsafe_accept.min():.3f}-{fair.unsafe_accept.max():.3f}** "
+                f"across {fair.arch.nunique()} architectures; cold-start remains "
+                f"reject-all, and GRU/CNN exceed the 5% unsafe target.")
     if os.path.exists(os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv")):
         cm = pd.read_csv(os.path.join(RESULTS_DIR, "icarl_ncm_vs_baselines.csv"))
         w = cm.loc[cm.ACC_delta_mean.idxmin()]

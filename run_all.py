@@ -11,24 +11,26 @@ Runs the complete experimental pipeline end-to-end for the confirmatory study:
   4c. NCM sanity/control (108 runs)              experiments/check_ncm_sanity.py
   4d. XAI study: SHAP vs IG + groups             experiments/run_xai.py
 
-  PHASE 2 (RQ evidence, dual-protocol evaluation):
-  5. Purged temporal evaluation (0.02 rad TimeRadians ~22s equiv.) experiments/run_purged_temporal.py
+  PHASE 2 (RQ evidence, multi-protocol evaluation):
+  5. Purged temporal evaluation (cold-start + fair random-past; 0.02 rad purge) experiments/run_purged_temporal.py
   5b. Temporal leakage/validity audit (read-only)   experiments/run_temporal_leakage_audit.py
-  6. Few-shot uplink sweep (ENHANCED)            experiments/run_fewshot.py
-  8. Feature-order stability (NEW)               experiments/run_feature_order.py
-  9b. Disentangled task-order study (frozen)      experiments/run_task_order.py
-  9c. Exploratory CNN arch tune (validation-scored, not applied) experiments/run_arch_tune.py
-  7. Ablation studies (frozen val-tuned hparams) experiments/run_ablation.py
-  9. Per-class F1 / confusion matrix analysis    experiments/run_per_class_analysis.py
-  10. Paired stats (ACC + Macro-F1, Holm)        experiments/run_stats.py
-  11. Robustness/quant/memory ledger             experiments/run_robustness.py
-  11b. Feature-provenance leakage ablation       experiments/run_leakage_ablation.py
-  11c. Main-vs-fewshot consistency check         experiments/check_consistency.py
+  5c. BUAC update-admission gate (IID/cold-start/fair; MLP/GRU/CNN1D) experiments/run_buac.py
+  5d. BUAC cross-architecture summary             experiments/summarize_buac.py
+  6. Few-shot uplink sweep (ENHANCED)             experiments/run_fewshot.py
+  7. Feature-order stability (NEW)                experiments/run_feature_order.py
+  8. Disentangled task-order study (frozen)       experiments/run_task_order.py
+  9. Exploratory CNN arch tune (validation-scored, not applied) experiments/run_arch_tune.py
+  10. Ablation studies (frozen val-tuned hparams) experiments/run_ablation.py
+  11. Per-class F1 / confusion matrix analysis    experiments/run_per_class_analysis.py
+  12. Paired stats (ACC + Macro-F1, Holm)         experiments/run_stats.py
+  13. Robustness/quant/memory ledger              experiments/run_robustness.py
+  14. Feature-provenance leakage ablation         experiments/run_leakage_ablation.py
+  15. Main-vs-fewshot consistency check           experiments/check_consistency.py
 
   REPORTING:
-  12. Figures (95% CI, Pareto, dual protocol)   analysis/plots.py
-  13. Experiment manifest                        experiments/create_manifest.py
-  14. Results summary report                     experiments/generate_summary_report.py
+  16. Figures (95% CI, Pareto, temporal protocols) analysis/plots.py
+  17. Experiment manifest                        experiments/create_manifest.py
+  18. Results summary report                     experiments/generate_summary_report.py
 
 Usage:
     python3 run_all.py
@@ -53,6 +55,8 @@ STEPS_CORE = [
     ("Gradient checks", [sys.executable, "tests/test_gradients.py"]),
     ("NCM unit tests", [sys.executable, "tests/test_ncm.py"]),
     ("Feature-group partition tests", [sys.executable, "tests/test_feature_groups.py"]),
+    ("BUAC gate unit tests", [sys.executable, "tests/test_buac.py"]),
+    ("Temporal sampling/purge tests", [sys.executable, "tests/test_temporal_sampling.py"]),
     ("XAI unit tests", [sys.executable, "tests/test_xai.py"]),
     ("Hyperparameter sweep (STIN, val-based)", [sys.executable, "experiments/run_hparam_sweep.py"]),
     ("Per-method/arch validation tuning (NEW)", [sys.executable, "experiments/run_validation_tune.py"]),
@@ -63,8 +67,12 @@ STEPS_CORE = [
 ]
 
 STEPS_PHASE2 = [
-    ("Purged temporal evaluation (0.02 rad TimeRadians purge)", [sys.executable, "experiments/run_purged_temporal.py"]),
+    ("Purged temporal evaluation (cold-start + fair random-past; 0.02 rad purge)", [sys.executable, "experiments/run_purged_temporal.py"]),
     ("Temporal leakage/validity audit (read-only)", [sys.executable, "experiments/run_temporal_leakage_audit.py"]),
+    ("BUAC admission control (MLP)", [sys.executable, "experiments/run_buac.py", "--arch", "MLP", "--prefix", "buac_mlp"]),
+    ("BUAC admission control (GRU)", [sys.executable, "experiments/run_buac.py", "--arch", "GRU", "--prefix", "buac_gru"]),
+    ("BUAC admission control (CNN1D)", [sys.executable, "experiments/run_buac.py", "--arch", "CNN1D", "--prefix", "buac_cnn1d"]),
+    ("BUAC cross-architecture summary", [sys.executable, "experiments/summarize_buac.py"]),
     ("Few-shot uplink sweep (ENHANCED)", [sys.executable, "experiments/run_fewshot.py"]),
     ("Feature-order stability (NEW)", [sys.executable, "experiments/run_feature_order.py"]),
     ("Disentangled task-order study (frozen)", [sys.executable, "experiments/run_task_order.py"]),
@@ -79,7 +87,7 @@ STEPS_PHASE2 = [
 ]
 
 STEPS_REPORT = [
-    ("Figures (CI, Pareto, dual protocol)", [sys.executable, "analysis/plots.py"]),
+    ("Figures (CI, Pareto, temporal protocols)", [sys.executable, "analysis/plots.py"]),
     ("Results summary report", [sys.executable, "experiments/generate_summary_report.py"]),
     ("Experiment manifest", [sys.executable, "experiments/create_manifest.py"]),
 ]
