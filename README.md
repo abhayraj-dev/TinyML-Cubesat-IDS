@@ -84,6 +84,7 @@ never surface. Section 7 shows this failure mode occurring, and the CMMU's
 |---|---|---|---|---|---|
 | **CuCD-ID** | Primary | `data/CuCD-ID/noised_dataset.csv` | 22,465 | 22 (telemetry) | 5 (`normal`, `command_flooding`, `data_injection`, `defence_impairment`, `storage_exhaustion`) |
 | **STIN** | Secondary / cross-domain stress test | `data/STIN/SAT20.csv` + `TER20.csv` (concatenated) | 209,564 | 30 (network flow) | 9 distinct attack types (`Syn_DDoS`, `UDP_DDoS`, `LDAP_DDoS`, `MSSQL_DDoS`, `Botnet`, `Portmap_DDoS`, `Web Attack`, `Backdoor`, `NetBIOS_DDoS`) |
+| **SCAD** | External 4-class CIL validation (local only) | `data/space-cyber-anomaly-detection-dataset-main/data/raw/{baseline,attack_rwa,attack_rwb,attack_rwc}/` | 612k scenario rows | 80 leakage-controlled telemetry features | `normal`, `RWA`, `RWB`, `RWC` |
 
 **Provenance and scope.** CuCD-ID is the labelled NOS3/cFS CubeSat
 telemetry dataset of Fayyaz et al., *Data in Brief* (2026),
@@ -100,6 +101,17 @@ sweep provides an initial hyperparameter prior only; **final
 method × architecture hyperparameters are tuned on CuCD-ID validation data
 and frozen** (`results/best_hparams_per_method_arch.json`) before any test
 evaluation -- the primary dataset's test numbers are never used for tuning.
+
+**External SCAD validation.** `experiments/run_scad.py` evaluates the
+scenario-disjoint 3-task SCAD sequence (`normal+RWA`, `RWB`, `RWC`). The
+split is over 120 trajectory groups, not files, so all attack intensities
+and the matching baseline of a trajectory stay in one split. Features are
+80 leakage-controlled telemetry signals, centred on each scenario's first
+300 attack-free rows; time, GPS/orbit/position, scenario identifiers and
+attack parameters are dropped. Run it with
+`python3 experiments/run_scad.py --archs MLP --tag mlp_primary` (add
+`--uplink-n 700 --tag mlp_up700` for the budget sensitivity). Results are
+recorded in `DATALOG.md`; the raw dataset is not redistributed.
 
 **Leakage caveat.** CuCD-ID includes a circular time field, CCSDS packet
 identifiers, and 20-second sliding-window aggregates. The headline IID
@@ -362,7 +374,7 @@ Holm). These tests are exploratory, not winner-selected.
    `results/final_experiment_manifest.json` (machine-readable provenance).
 8. **`experiments/generate_summary_report.py`** -- writes
    `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, and
-   `v6_5_project_report_final.md`, fully
+   `v6_6_project_report_final.md`, fully
    auto-generated reports pulling every number directly out of the
    CSV/JSON result files.
 
@@ -383,6 +395,7 @@ python3 tests/test_feature_groups.py                # exact 22/30-feature partit
 python3 experiments/run_hparam_sweep.py             # STIN coarse prior (validation-scored)
 python3 experiments/run_validation_tune.py          # per-method/arch tuning (validation, frozen)
 python3 experiments/run_main.py                     # 810-run matrix (test evaluation only)
+python3 experiments/run_scad.py --archs MLP --tag mlp_primary  # external SCAD 135-run matrix
 python3 experiments/run_icarl_ncm.py                # 90-run NCM evaluation
 python3 experiments/check_ncm_sanity.py             # 108-run NCM control
 python3 experiments/run_xai.py                      # 36-model SHAP vs IG + faithfulness (2 backgrounds)
@@ -436,7 +449,7 @@ a full run you should have:
 | `results/final_experiment_manifest.json` | manifest |
 | 35 PNG files under `figures/` | plots |
 | `results/baseline_controls.csv`, `results/stats_baseline_controls.csv` | equal-buffer / EWC-lambda controls |
-| `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, `v6_5_project_report_final.md` | report |
+| `results/RESULTS_SUMMARY.md`, `results/XAI_SUPPLEMENT.md`, `v6_6_project_report_final.md` | report |
 
 Nothing needs network access at run time (the two datasets are already
 included under `data/`); everything is deterministic given the fixed seeds
@@ -455,7 +468,7 @@ tuning, the 810-run matrix, and ablations. No GPU required.)
 
 Every result value is written by the experiment pipeline; none is edited by
 hand. See `results/RESULTS_SUMMARY.md` and the auto-generated
-`v6_5_project_report_final.md` for the current tables, confidence intervals,
+`v6_6_project_report_final.md` for the current tables, confidence intervals,
 paired tests, ablations, and figures. `results/main_results_summary.csv` is
 the underlying source for the headline matrix.
 
@@ -480,7 +493,11 @@ The supported qualitative findings are:
 - Update admission is only non-trivial under the fair temporal protocol.
   Cold-start rejects all updates; learned BUAC is near the 5% unsafe target on
   MLP but exceeds it on GRU/CNN, and the fixed rule can exceed it on CNN.
-  BUAC is stage-wise/offline, not a closed-loop deployment claim.
+  BUAC is stage-wise/offline, not a closed-loop deployment claim. The current
+  manuscript keeps BUAC as a secondary diagnostic and adds a scenario-disjoint
+  SCAD external stress test. SCAD is a negative/boundary result: the 150-shot
+  joint ceiling is 0.563 and GRU/CNN are near chance, so it is not presented as
+  cross-dataset confirmation.
 - Persistent model memory fits the assumed budget, but estimated peak update
   RAM is materially larger and is reported separately.
 

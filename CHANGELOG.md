@@ -4,6 +4,24 @@ All protocol/method changes are logged here with **why** (journal-review rationa
 Target story is unchanged: **onboard class-incremental IDS under memory + uplink budgets (simulation-only).**
 No generic IDS datasets are added — CuCD-ID stays primary, STIN stays stress-test.
 
+## [2026-10-28] SCAD external scenario-disjoint validation (Q2 boundary test)
+- **Added:** `load_scad` / `build_scad_tasks`, `experiments/run_scad.py`, and
+  `tests/test_scad.py`. The loader retains 80 leakage-controlled telemetry
+  features and splits on trajectory groups, not files.
+- **Protocol:** three class-incremental tasks (normal+RWA, RWB, RWC), 84/12/24
+  trajectory groups, T0 at 700 samples per class and later tasks at 150;
+  a 700-shot variant probes the uplink budget.
+- **Primary MLP (15 seeds, 150 shots):** joint-scratch 0.563, iCaRL-lite
+  0.506, BiC-lite 0.498, replay 0.462, fine-tune/EWC/LwF 0.333. At 700 shots,
+  replay 0.585, iCaRL-lite 0.563, BiC-lite 0.539, joint-scratch 0.662.
+- **Cross-architecture:** GRU and 1-D CNN remain near the four-class chance
+  level (0.288-0.370 and 0.244-0.338).
+- **Interpretation:** SCAD is an external negative/boundary result, not a
+  second confirmation or a positive transfer claim. The manuscript adds a
+  scenario-disjoint SCAD section and keeps BUAC as the secondary diagnostic.
+- **Outputs:** `results/scad_*`; `results/RESULTS_SUMMARY.md` and
+  `v6_6_project_report_final.md` are regenerated from the CSVs.
+
 ## [2026-10-26] v6.5 leakage dedup + XAI metric/baseline corrections
 - **Artifact identity:** package/report version set to **v6.5**
   (`v6_5_project_report_final.md`); manifest, README, and PROJECT_CONTEXT

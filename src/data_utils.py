@@ -1,11 +1,13 @@
 """
 Dataset loading and class-incremental task split construction.
 
-Two datasets are used:
+Three datasets are supported:
   * CuCD-ID (primary)   -- `noised_dataset.csv`, CubeSat telemetry, 5 classes.
   * STIN    (secondary) -- `SAT20.csv` + `TER20.csv` concatenated, network-flow
                             features, 9 attack classes, used as a larger-scale
                             stress test and as the hyperparameter-tuning set.
+  * SCAD    (external)  -- scenario-disjoint 4-class reaction-wheel attacks,
+                            used as an out-of-distribution validation set.
 
 Class-incremental protocol: every task introduces a set of classes that have
 never appeared in any earlier task (classes are never repeated across
@@ -39,6 +41,7 @@ evaluation only -- they are never used for training).
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import List
 
@@ -234,6 +237,243 @@ def load_stin(sat_path: str, ter_path: str) -> pd.DataFrame:
     df = pd.concat([a, b], axis=0, ignore_index=True)
     df["label_name"] = df["Label"].astype(str)
     return df
+
+
+SCAD_RAW_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data",
+    "space-cyber-anomaly-detection-dataset-main",
+    "data",
+    "raw",
+)
+SCAD_TASK_DEFS = [
+    ("T0_normal_rwa", ["normal", "RWA"]),
+    ("T1_rwb", ["RWB"]),
+    ("T2_rwc", ["RWC"]),
+]
+SCAD_CLASS_BY_BUCKET = {
+    "baseline": "normal",
+    "attack_rwa": "RWA",
+    "attack_rwb": "RWB",
+    "attack_rwc": "RWC",
+}
+SCAD_DROP_EXACT = {
+    "AttackIntensity", "FswTime(sec)", "Run_Batch", "Run_Batch_Variant",
+    "Scenario", "TimeDelay", "UTC", "Variant", "date_created",
+    "date_loaded", "result_label",
+}
+SCAD_DROP_SUBSTRINGS = (
+    "AngleToPrimaryTarget", "ArgPerigee", "Altitude", "CurrentDay",
+    "CurrentHour", "CurrentMinute", "CurrentMonth", "CurrentSecond",
+    "CurrentYear", "Eccentricity", "Extrapolated", "GpsSeconds",
+    "GpsTime", "GpsWeek", "Inclination", "LastNew", "Latitude",
+    "Longitude", "Pos_I", "Raan", "RawSecondaryGenericPointData",
+    "SemiMajorAxis", "SensedPos", "SensedVel", "SunBetaAngle",
+    "TrueAnomaly", "Vel_I",
+)
+SCAD_RESIDUAL_ROWS = 300
+
+
+def _scad_feature_names(raw_dir: str) -> List[str]:
+    probe_dir = os.path.join(raw_dir, "baseline")
+    probes = sorted(f for f in os.listdir(probe_dir) if f.endswith(".csv")
+                    and f.startswith("fsw_data_"))
+    assert probes, f"No SCAD baseline CSVs under {probe_dir}"
+    cols = pd.read_csv(os.path.join(probe_dir, probes[0]), nrows=0).columns.tolist()
+    return [
+        c for c in cols
+        if c not in SCAD_DROP_EXACT
+        and not any(pat in c for pat in SCAD_DROP_SUBSTRINGS)
+    ]
+
+
+def _scad_group_id(filename: str) -> str:
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    return stem.rsplit("_", 1)[0]
+
+
+def load_scad(raw_dir: str = SCAD_RAW_DIR, residual: bool = True,
+              max_scenarios_per_class: int = 0,
+              residual_mode: str = "mean") -> dict:
+    """Load SCAD as per-scenario feature arrays, keyed by class.
+
+    Each attack scenario contributes only its attack-labelled rows.  Normal
+    rows in attack scenarios are deliberately excluded so that no scenario
+    contributes to both the normal and an attack class.  Only post-baseline
+    rows are retained for every class.  With ``residual``, features are
+    centred on the first 300 rows of their own scenario, which are attack-free
+    in every SCAD CSV.
+    """
+    meta = pd.read_csv(os.path.join(raw_dir, "all_metadata.csv"))
+    feature_names = _scad_feature_names(raw_dir)
+    read_cols = feature_names + ["result_label"]
+    dtype = {c: np.float32 for c in feature_names}
+    classes = {name: [] for name in SCAD_CLASS_BY_BUCKET.values()}
+
+    all_groups = sorted({
+        _scad_group_id(str(p)) for p in meta["data_file"]
+        if str(p).endswith(".csv")
+    })
+    if max_scenarios_per_class:
+        all_groups = all_groups[:max_scenarios_per_class]
+    allowed_groups = set(all_groups)
+
+    for bucket, cls in SCAD_CLASS_BY_BUCKET.items():
+        rows = meta[meta["Scenario"] == bucket]
+        rows = rows[rows["data_file"].map(
+            lambda p: _scad_group_id(str(p)) in allowed_groups)]
+        for _, row in rows.iterrows():
+            path = os.path.join(raw_dir, bucket,
+                                os.path.basename(str(row["data_file"])))
+            df = pd.read_csv(path, usecols=read_cols, dtype=dtype)
+            X = df[feature_names].to_numpy(dtype=np.float32, copy=False)
+            if residual:
+                n_base = min(SCAD_RESIDUAL_ROWS, len(X))
+                base = X[:n_base]
+                mu = base.mean(axis=0, keepdims=True)
+                if residual_mode == "mean":
+                    X = X - mu
+                elif residual_mode == "zscore":
+                    sd = base.std(axis=0, keepdims=True)
+                    sd[sd < 1e-6] = 1.0
+                    X = (X - mu) / sd
+                else:
+                    raise ValueError(
+                        f"Unknown residual_mode '{residual_mode}'; "
+                        "expected 'mean' or 'zscore'")
+            if cls == "normal":
+                keep = np.arange(len(X)) >= SCAD_RESIDUAL_ROWS
+            else:
+                labels = df["result_label"].astype(str).str.strip().to_numpy()
+                keep = labels == cls
+            X = np.ascontiguousarray(X[keep], dtype=np.float32)
+            if len(X) == 0:
+                continue
+            X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+            classes[cls].append((_scad_group_id(path), X))
+
+    for cls, items in classes.items():
+        assert items, f"No SCAD scenarios loaded for class {cls}"
+    return {"feature_names": feature_names, "classes": classes, "raw_dir": raw_dir}
+
+
+def _scad_gather(items, idx, cap: int, rng: np.random.Generator):
+    X = np.concatenate([items[i][1] for i in idx], axis=0)
+    if cap and len(X) > cap:
+        X = X[rng.choice(len(X), size=cap, replace=False)]
+    return np.ascontiguousarray(X, dtype=np.float32)
+
+
+def build_scad_tasks(
+    data: dict,
+    seed: int = 0,
+    test_frac: float = 0.20,
+    val_frac: float = 0.10,
+    initial_n_per_class: int = 700,
+    uplink_n_per_class: int = 150,
+    val_cap_per_class: int = 300,
+    test_cap_per_class: int = 1200,
+) -> TaskSequence:
+    """Scenario-disjoint 3-task SCAD sequence: normal+RWA, RWB, RWC.
+
+    The split is made once over SCAD trajectory groups (month + offset), not
+    over files.  All five attack intensities and the matching baseline run of
+    a trajectory therefore land in the same split, and every class uses the
+    same train/val/test trajectories.
+    """
+    rng = np.random.default_rng(seed)
+    classes = data["classes"]
+    feature_names = data["feature_names"]
+
+    group_sets = {
+        cls: {group for group, _ in items} for cls, items in classes.items()
+    }
+    assert len({frozenset(g) for g in group_sets.values()}) == 1, \
+        "SCAD classes do not share the same trajectory groups"
+    groups = sorted(next(iter(group_sets.values())))
+    order = rng.permutation(len(groups))
+    n_test = max(1, int(round(len(order) * test_frac)))
+    n_val = max(1, int(round(len(order) * val_frac)))
+    test_groups = {groups[i] for i in order[:n_test]}
+    val_groups = {groups[i] for i in order[n_test:n_test + n_val]}
+    train_groups = {groups[i] for i in order[n_test + n_val:]}
+    assert train_groups and val_groups and test_groups
+    assert not (train_groups & val_groups)
+    assert not (train_groups & test_groups)
+    assert not (val_groups & test_groups)
+
+    tasks = []
+    class_names_global = []
+    scaler_mean = scaler_std = None
+    split_report = {}
+
+    for t, (tname, class_list) in enumerate(SCAD_TASK_DEFS):
+        n_train = initial_n_per_class if t == 0 else uplink_n_per_class
+        Xs_train, ys_train, Xs_test, ys_test = [], [], [], []
+        Xs_val, ys_val = [], []
+
+        for local_y, cls in enumerate(class_list):
+            items = classes[cls]
+            train_idx = [i for i, (g, _) in enumerate(items) if g in train_groups]
+            val_idx = [i for i, (g, _) in enumerate(items) if g in val_groups]
+            test_idx = [i for i, (g, _) in enumerate(items) if g in test_groups]
+            assert train_idx, f"{cls}: no training scenarios"
+            assert val_idx, f"{cls}: no validation scenarios"
+            assert test_idx, f"{cls}: no test scenarios"
+
+            split_report.setdefault(tname, {})[cls] = {
+                "train_groups": len(train_groups),
+                "val_groups": len(val_groups),
+                "test_groups": len(test_groups),
+                "train_scenarios": len(train_idx),
+                "val_scenarios": len(val_idx),
+                "test_scenarios": len(test_idx),
+            }
+
+            X_train = _scad_gather(items, train_idx, 0, rng)
+            if len(X_train) > n_train:
+                X_train = X_train[rng.choice(len(X_train), size=n_train, replace=False)]
+            X_val = _scad_gather(items, val_idx, val_cap_per_class, rng)
+            X_test = _scad_gather(items, test_idx, test_cap_per_class, rng)
+
+            Xs_train.append(X_train)
+            ys_train.append(np.full(len(X_train), local_y, dtype=np.int64))
+            Xs_val.append(X_val)
+            ys_val.append(np.full(len(X_val), local_y, dtype=np.int64))
+            Xs_test.append(X_test)
+            ys_test.append(np.full(len(X_test), local_y, dtype=np.int64))
+
+        X_train = np.concatenate(Xs_train, axis=0)
+        y_train = np.concatenate(ys_train, axis=0)
+        X_val = np.concatenate(Xs_val, axis=0)
+        y_val = np.concatenate(ys_val, axis=0)
+        X_test = np.concatenate(Xs_test, axis=0)
+        y_test = np.concatenate(ys_test, axis=0)
+
+        if t == 0:
+            scaler_mean, scaler_std = _fit_scaler(X_train)
+        X_train = _apply_scaler(X_train, scaler_mean, scaler_std)
+        X_val = _apply_scaler(X_val, scaler_mean, scaler_std)
+        X_test = _apply_scaler(X_test, scaler_mean, scaler_std)
+
+        tasks.append(Task(
+            task_id=t, name=tname, class_names=list(class_list),
+            X_train=X_train, y_train=y_train,
+            X_test=X_test, y_test=y_test,
+            X_val=X_val, y_val=y_val,
+        ))
+        class_names_global.extend(class_list)
+
+    _assert_split_integrity(tasks)
+    ts = TaskSequence(
+        dataset_name="SCAD", tasks=tasks, feature_names=feature_names,
+        scaler_mean=scaler_mean, scaler_std=scaler_std,
+        class_names_global=class_names_global,
+        split_mode="scenario_disjoint", val_frac=val_frac,
+        train_sample_mode="random",
+    )
+    ts.scad_split_report = split_report
+    return ts
 
 
 # --------------------------------------------------------------------------- #

@@ -1364,11 +1364,57 @@ MLP budget sensitivity at 64 KB uplink (retrospective threshold; not a deploymen
 The gate uses only pre-test signals: selection-half gain/retention, forward-time flag, current-feature drift, and the memory/uplink budget. `r_fwd_flag` is a protocol proxy, not an independent physical-risk sensor. See `buac_*_decisions.csv` for per-stage decisions and `buac_*_budget_sensitivity.csv` for the budget sweep. See `figures/buac_gate.png` for the fair-protocol safe/unsafe acceptance bars.
 
 
+### 7.12 External stress test: SCAD scenario-disjoint telemetry
+
+SCAD is an external, CC BY 4.0 satellite-telemetry dataset with scenario-level reaction-wheel attack labels; it is not a second CuCD-ID confirmation. We build a three-task class-incremental sequence (normal+RWA, RWB, RWC) over a single trajectory-group split: 84 training, 12 validation and 24 test groups. The 80 retained features exclude timestamps, scenario identifiers and absolute orbital state, and are centred on each scenario's first 300 attack-free rows. Task 0 uses 700 samples per class and later tasks 150, matching the CuCD-ID budget. Means are over 15 seeds.
+
+| method        |   ACC |   ACC sd |    BWT |    FM |   Macro-F1 |   Balanced ACC |
+|:--------------|------:|---------:|-------:|------:|-----------:|---------------:|
+| joint_scratch | 0.563 |    0.04  | -0.058 | 0.058 |      0.608 |          0.622 |
+| joint         | 0.545 |    0.035 | -0.024 | 0.024 |      0.588 |          0.603 |
+| icarl         | 0.506 |    0.032 | -0.422 | 0.422 |      0.49  |          0.491 |
+| bic           | 0.498 |    0.042 | -0.198 | 0.198 |      0.524 |          0.535 |
+| replay        | 0.462 |    0.024 | -0.396 | 0.396 |      0.472 |          0.506 |
+| full          | 0.434 |    0.035 | -0.503 | 0.503 |      0.401 |          0.416 |
+| ewc           | 0.334 |    0.002 | -0.913 | 0.913 |      0.106 |          0.252 |
+| lwf           | 0.333 |    0     | -0.925 | 0.925 |      0.1   |          0.25  |
+| finetune      | 0.333 |    0     | -0.918 | 0.918 |      0.1   |          0.25  |
+
+With 150 shots per new class, the joint-scratch ceiling is **0.563**, and replay reaches **0.462**. BiC-lite (0.498) and iCaRL-lite (0.506) lead the deployable methods, while fine-tuning, EWC and LwF sit at chance. The ranking is budget-dependent: with 700 shots per class, replay reaches **0.585** and joint-scratch **0.662**, but BiC-lite (0.539) and iCaRL-lite (0.563) fall behind replay.
+
+
+SCAD MLP, 700 shots per class:
+
+| method        |   ACC |    BWT |    FM |
+|:--------------|------:|-------:|------:|
+| joint_scratch | 0.662 | -0.127 | 0.127 |
+| replay        | 0.585 | -0.334 | 0.334 |
+| icarl         | 0.563 | -0.433 | 0.433 |
+| bic           | 0.539 | -0.157 | 0.157 |
+
+SCAD GRU/CNN cross-architecture check (150 shots):
+
+| arch   | method        |   ACC |    BWT |     FM |
+|:-------|:--------------|------:|-------:|-------:|
+| CNN1D  | replay        | 0.338 | -0.657 |  0.657 |
+| CNN1D  | icarl         | 0.334 | -0.824 |  0.824 |
+| CNN1D  | bic           | 0.291 | -0.201 |  0.201 |
+| CNN1D  | joint_scratch | 0.244 |  0.021 | -0.006 |
+| GRU    | icarl         | 0.37  | -0.495 |  0.495 |
+| GRU    | joint_scratch | 0.355 | -0.022 |  0.024 |
+| GRU    | replay        | 0.348 | -0.358 |  0.358 |
+| GRU    | bic           | 0.344 | -0.179 |  0.179 |
+
+The GRU and CNN remain at or near the four-class chance level (0.25). This is a negative transfer result, not evidence that the CuCD-ID ranking generalises. The external test is therefore reported as a boundary condition: it strengthens the paper's validity argument only because it is allowed to fail, and it shows that scenario-disjoint SCAD telemetry is harder than the random CuCD-ID split.
+
+
 ## 8. Claim boundaries and known limitations
 
 This report supports a benchmark/diagnostic reading, not a deployment or method-superiority claim. The main boundaries:
 
 - **No scenario-level validation.** CuCD-ID has no scenario/run identifier in the released CSV. A true scenario split is not possible; the time-block proxy is a sensitivity estimand only.
+
+- **SCAD is a weak external check.** Its scenario-disjoint sequence is not directly comparable to CuCD-ID, the joint ceiling is only 0.563 at 150 shots, the method ranking changes at 700 shots, and GRU/CNN are near chance. It is reported as a negative/boundary result, not as independent confirmation.
 
 - **IID is not deployment.** Sliding-window aggregates and time/identifier features can cross the random train/test boundary. Cold-start temporal accuracy collapses; fair random-past temporal recovers much of the IID number but not all, and the no-leaky fair arm is lower still.
 

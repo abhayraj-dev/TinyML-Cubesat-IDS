@@ -1,0 +1,71 @@
+Using nested-validation frozen hyperparameters
+SCAD matrix: 270 runs; 3 worker process(es), one BLAS thread per worker
+Preprocessing: within-scenario mean residual
+  T0_normal_rwa: train=1400 val=600 test=2400 classes=['normal', 'RWA']
+  T1_rwb: train=150 val=300 test=1200 classes=['RWB']
+  T2_rwc: train=150 val=300 test=1200 classes=['RWC']
+  [5/270] GRU finetune seed=4 ACC=0.333 BWT=-0.869 (6.5s)
+  [10/270] GRU finetune seed=9 ACC=0.338 BWT=-0.831 (11.7s)
+  [15/270] GRU finetune seed=14 ACC=0.333 BWT=-0.876 (18.2s)
+  [20/270] GRU replay seed=4 ACC=0.363 BWT=-0.358 (30.1s)
+  [25/270] GRU replay seed=9 ACC=0.339 BWT=-0.420 (40.7s)
+  [30/270] GRU replay seed=14 ACC=0.331 BWT=-0.360 (52.1s)
+  [35/270] GRU ewc seed=4 ACC=0.353 BWT=-0.249 (59.2s)
+  [40/270] GRU ewc seed=9 ACC=0.348 BWT=-0.294 (66.2s)
+  [45/270] GRU ewc seed=14 ACC=0.354 BWT=-0.369 (72.1s)
+  [50/270] GRU full seed=4 ACC=0.384 BWT=-0.596 (81.0s)
+  [55/270] GRU full seed=9 ACC=0.340 BWT=-0.574 (87.2s)
+  [60/270] GRU full seed=14 ACC=0.346 BWT=-0.568 (93.7s)
+  [65/270] GRU lwf seed=4 ACC=0.332 BWT=-0.863 (101.4s)
+  [70/270] GRU lwf seed=9 ACC=0.330 BWT=-0.819 (106.5s)
+  [75/270] GRU lwf seed=14 ACC=0.336 BWT=-0.836 (110.9s)
+  [80/270] GRU bic seed=4 ACC=0.323 BWT=-0.117 (136.0s)
+  [85/270] GRU bic seed=9 ACC=0.384 BWT=-0.268 (151.5s)
+  [90/270] GRU bic seed=14 ACC=0.363 BWT=-0.343 (173.9s)
+  [95/270] GRU icarl seed=4 ACC=0.375 BWT=-0.529 (194.1s)
+  [100/270] GRU icarl seed=9 ACC=0.368 BWT=-0.568 (208.0s)
+  [105/270] GRU icarl seed=14 ACC=0.370 BWT=-0.459 (226.7s)
+  [110/270] GRU joint seed=4 ACC=0.294 BWT=0.041 (241.8s)
+  [115/270] GRU joint seed=9 ACC=0.298 BWT=0.032 (259.6s)
+  [120/270] GRU joint seed=14 ACC=0.314 BWT=0.019 (270.0s)
+  [125/270] GRU joint_scratch seed=4 ACC=0.301 BWT=-0.134 (303.2s)
+  [130/270] GRU joint_scratch seed=9 ACC=0.360 BWT=-0.029 (328.8s)
+  [135/270] GRU joint_scratch seed=14 ACC=0.369 BWT=-0.056 (359.7s)
+  [140/270] CNN1D finetune seed=4 ACC=0.333 BWT=-0.773 (390.4s)
+  [145/270] CNN1D finetune seed=9 ACC=0.333 BWT=-0.809 (428.1s)
+  [150/270] CNN1D finetune seed=14 ACC=0.333 BWT=-0.768 (456.4s)
+  [155/270] CNN1D replay seed=4 ACC=0.344 BWT=-0.691 (484.6s)
+  [160/270] CNN1D replay seed=9 ACC=0.333 BWT=-0.724 (522.6s)
+  [165/270] CNN1D replay seed=14 ACC=0.378 BWT=-0.648 (546.8s)
+  [170/270] CNN1D ewc seed=4 ACC=0.333 BWT=-0.768 (570.1s)
+  [175/270] CNN1D ewc seed=9 ACC=0.333 BWT=-0.781 (596.9s)
+  [180/270] CNN1D ewc seed=14 ACC=0.333 BWT=-0.776 (608.3s)
+  [185/270] CNN1D full seed=4 ACC=0.333 BWT=-0.776 (652.1s)
+  [190/270] CNN1D full seed=9 ACC=0.334 BWT=-0.795 (691.9s)
+  [195/270] CNN1D full seed=14 ACC=0.338 BWT=-0.814 (717.6s)
+  [200/270] CNN1D lwf seed=4 ACC=0.333 BWT=-0.768 (742.4s)
+  [205/270] CNN1D lwf seed=9 ACC=0.333 BWT=-0.781 (756.4s)
+  [210/270] CNN1D lwf seed=14 ACC=0.333 BWT=-0.776 (772.2s)
+  [215/270] CNN1D bic seed=4 ACC=0.255 BWT=-0.133 (816.8s)
+  [220/270] CNN1D bic seed=9 ACC=0.235 BWT=-0.037 (859.5s)
+  [225/270] CNN1D bic seed=14 ACC=0.348 BWT=-0.418 (890.0s)
+  [230/270] CNN1D icarl seed=4 ACC=0.333 BWT=-0.825 (935.7s)
+  [235/270] CNN1D icarl seed=9 ACC=0.333 BWT=-0.814 (984.6s)
+  [240/270] CNN1D icarl seed=14 ACC=0.343 BWT=-0.863 (1029.8s)
+  [245/270] CNN1D joint seed=4 ACC=0.246 BWT=0.023 (1118.7s)
+  [250/270] CNN1D joint seed=9 ACC=0.235 BWT=0.024 (1214.7s)
+  [255/270] CNN1D joint seed=14 ACC=0.277 BWT=0.022 (1264.6s)
+  [260/270] CNN1D joint_scratch seed=4 ACC=0.223 BWT=0.002 (1355.6s)
+  [265/270] CNN1D joint_scratch seed=9 ACC=0.309 BWT=0.135 (1439.9s)
+  [270/270] CNN1D joint_scratch seed=14 ACC=0.267 BWT=0.007 (1496.4s)
+
+Done. Total time: 1496.5s
+270 runs written to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/scad_runs_gru_cnn15_group.csv
+
+Summary (ACC_mean):
+method    bic    ewc  finetune   full  ...  joint  joint_scratch    lwf  replay
+arch                                   ...                                     
+CNN1D   0.291  0.333     0.333  0.332  ...  0.249          0.244  0.333   0.338
+GRU     0.344  0.334     0.333  0.353  ...  0.288          0.355  0.336   0.348
+
+[2 rows x 9 columns]

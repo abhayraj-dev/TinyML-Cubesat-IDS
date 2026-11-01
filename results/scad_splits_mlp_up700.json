@@ -1,0 +1,602 @@
+{
+  "0": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "1": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "2": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "3": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "4": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "5": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "6": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "7": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "8": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "9": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "10": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "11": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "12": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "13": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  },
+  "14": {
+    "T0_normal_rwa": {
+      "normal": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 84,
+        "val_scenarios": 12,
+        "test_scenarios": 24
+      },
+      "RWA": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T1_rwb": {
+      "RWB": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    },
+    "T2_rwc": {
+      "RWC": {
+        "train_groups": 84,
+        "val_groups": 12,
+        "test_groups": 24,
+        "train_scenarios": 420,
+        "val_scenarios": 60,
+        "test_scenarios": 120
+      }
+    }
+  }
+}
