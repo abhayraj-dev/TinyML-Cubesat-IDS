@@ -1,9 +1,33 @@
 # TinyML CubeSat Class-Incremental IDS
 
-A from-scratch NumPy study of **class-incremental intrusion detection for
-resource-constrained CubeSat telemetry**. The repository contains the full
-experimental pipeline, frozen hyperparameters, per-run results, XAI tables,
-statistical tests, and the final v6.7 report.
+## What this project is
+
+This is a reproducible research codebase for **onboard class-incremental
+intrusion detection on CubeSat telemetry**. It asks a practical mission
+question: can a small IDS learn new attack classes after launch without
+retraining from scratch, forgetting earlier attacks, or exceeding the
+spacecraft's memory, compute, and uplink budgets?
+
+The project is implemented from scratch in NumPy. It contains the full
+experimental pipeline, frozen hyperparameters, seed-level results, statistical
+tests, XAI tables, and the final v6.7 report.
+
+## What it does
+
+- Builds class-incremental tasks where every new task introduces attack
+  classes that never appeared before, using a single growing classifier head.
+- Simulates the onboard constraint: task 0 gets a larger pre-launch corpus,
+  later tasks get only a small 150-sample/class uplink budget.
+- Compares fine-tuning, EWC, LwF, experience replay, Replay+EWC, BiC-lite,
+  iCaRL-lite, and joint-training references across MLP, GRU, and 1-D CNN
+  backbones.
+- Measures accuracy, backward transfer, forgetting, calibration, per-class F1,
+  persistent memory, compute, and uplink payload.
+- Audits leakage and validity with temporal splits, feature ablations,
+  first-differencing controls, task-order tests, buffer-size sweeps, and
+  budget-aware calibration (BUAC).
+- Uses CuCD-ID as the primary simulated CubeSat telemetry benchmark, STIN as a
+  cross-domain stress test, and SCAD as an external boundary validation.
 
 **All CuCD-ID telemetry is simulated** (NOS3/cFS software-in-the-loop digital
 twin), not captured from an orbiting spacecraft. No result here is a
@@ -104,7 +128,7 @@ experiments/    Experiment runners and summary generator
   first_difference/   v6.7 differencing controls
 results/        CSV/JSON result matrices, stats, XAI tables
 figures/        Generated figures
-data/           Redistributable CuCD-ID and STIN files
+data/           Dataset download instructions and label schema
 tests/          Gradient, metric, split, and protocol tests
 analysis/       Exploratory analysis
 run_all.py      Full pipeline driver
@@ -125,6 +149,21 @@ pip install -r requirements.txt
 
 Python 3.9+ is required. The pipeline uses only NumPy, pandas, matplotlib,
 and tabulate; there is no PyTorch/TensorFlow/sklearn dependency.
+
+## Dataset download
+
+The raw CSVs are deliberately not committed. Download them from the official
+sources and place them at the expected paths:
+
+| Dataset | Download | Destination |
+|---|---|---|
+| CuCD-ID | [Mendeley Data v3](https://data.mendeley.com/datasets/7n2d42pm3n/3) | `data/CuCD-ID/noised_dataset.csv` |
+| STIN | [kun9717/STIN-data-set](https://github.com/kun9717/STIN-data-set) | `data/STIN/SAT20.csv`, `data/STIN/TER20.csv` |
+| SCAD | Original external source; not redistributed | See `DATALOG.md` |
+
+Exact files, SHA-256 checksums, citations, and upstream license notes are in
+[`data/README.md`](data/README.md). The committed results were produced with
+the files whose checksums are listed there.
 
 ## Reproduce
 
@@ -161,8 +200,10 @@ silently fall back.
 
 ## Tests
 
+The tests are standalone scripts, not `unittest` cases:
+
 ```bash
-python3 -m unittest discover -s tests -v
+for f in tests/test_*.py; do echo "== $f"; python3 "$f" || exit 1; done
 ```
 
 Tests cover finite-difference gradients (including the growing head), BUAC
@@ -173,11 +214,13 @@ splits, temporal sampling, task order, statistics, and XAI invariants.
 
 - **CuCD-ID** — Fayyaz et al., *Data in Brief* (2026),
   doi:10.1016/j.dib.2026.112598; data doi:10.17632/7n2d42pm3n.3.
-  Simulated NOS3/cFS CubeSat telemetry; redistributed files are in
-  `data/CuCD-ID/`.
+  Simulated NOS3/cFS CubeSat telemetry. The dataset is CC BY 4.0; download
+  `noised_dataset.csv` to `data/CuCD-ID/` as described in [`data/README.md`](data/README.md).
 - **STIN** — Li et al., *IEEE Access* (2020),
-  doi:10.1109/ACCESS.2020.3041641; `data/STIN/SAT20.csv` and `TER20.csv`.
-  Used as a cross-domain stress test. The provided files have no benign class.
+  doi:10.1109/ACCESS.2020.3041641. Used as a cross-domain stress test. The
+  upstream license does not clearly permit redistribution, so `SAT20.csv` and
+  `TER20.csv` are downloaded separately rather than committed. The provided
+  files have no benign class.
 - **SCAD** — external 4-class CIL validation only; the raw dataset is not
   redistributed.
 
@@ -195,3 +238,11 @@ Reported uplink bytes include adaptation samples plus the onboard
 calibration/val-balanced Fisher payload, using packed float32/int8 estimates.
 CSV text formatting, quantization metadata, and protocol framing are excluded.
 See Section 4 of `results/RESULTS_SUMMARY.md` for the per-task ledger.
+
+
+## License
+
+The original code and repository materials are released under the MIT License
+(see [`LICENSE`](LICENSE)). Third-party datasets are **not** covered by that
+license and remain subject to their upstream terms; see
+[`data/README.md`](data/README.md) for attribution and download details.

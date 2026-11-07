@@ -24,3 +24,8 @@ PROJECT_CONTEXT.md
 SUPERVISOR_SUMMARY.md
 v5_*_project_report_final.md
 v6_[2-6]_project_report_final.md
+
+# Raw datasets are downloaded separately (see data/README.md)
+data/CuCD-ID/noised_dataset.csv
+data/STIN/SAT20.csv
+data/STIN/TER20.csv

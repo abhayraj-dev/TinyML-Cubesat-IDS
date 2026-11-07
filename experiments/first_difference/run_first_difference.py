@@ -423,6 +423,7 @@ def main():
     summary.to_csv(summary_path, index=False)
     comparison.to_csv(comp_path, index=False)
 
+    repo_root = os.path.abspath(os.path.join(_HERE, "..", ".."))
     setup = {
         "arch": ARCH,
         "methods": methods,
@@ -432,7 +433,7 @@ def main():
         "rows_after": {k: int(len(v)) for k, v in _DATASETS.items()},
         "diff_sets": {k: DIFF_SETS[k] for k in all_diff_sets},
         "feature_drop": {k: FEATURE_DROP[k] for k in all_diff_sets},
-        "baseline": baseline_path,
+        "baseline": os.path.relpath(baseline_path, repo_root),
         "n_runs": len(runs),
         "seconds": float(time.perf_counter() - t0),
     }

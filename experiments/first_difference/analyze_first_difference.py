@@ -184,7 +184,7 @@ def _write_takeaways(path, summary, tests, baseline):
         f"{np_iid_ex:.3f} IID and {np_fair_ex:.3f} fair-temporal, and "
         f"joint/joint_scratch at {np_iid_joint:.3f} IID and "
         f"{np_fair_joint:.3f} fair-temporal. The exact and stricter controls "
-        "bracket the result at roughly 0.47--0.55 fair-temporal for the online "
+        "bracket the result at roughly 0.45--0.55 fair-temporal for the online "
         "exemplars. Dropping the window signal therefore does not create the "
         "residual skill; it lowers the bound only slightly.",
         "4. **The exact exemplar ranking is not stable.** Under baseline fair "

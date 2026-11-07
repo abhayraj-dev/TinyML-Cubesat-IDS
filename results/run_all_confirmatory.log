@@ -101,7 +101,7 @@ Selection uses the disjoint selection half only; BiC/EWC fit on the calibration 
     CNN1D/joint_scratch: best_val_score=0.9696, hparams={'lr': 0.01, 'epochs': 50}
 
 === Tuning Complete (3655.1s) ===
-Best configs saved to: /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/best_hparams_per_method_arch.json
+Best configs saved to: results/best_hparams_per_method_arch.json
 Summary of best validation scores:
 
   MLP:
@@ -282,7 +282,7 @@ replay        iid                                0.991  0.003
               temporal_purged                    0.184  0.091
               temporal_purged_no_leaky_features  0.066  0.037
 
-Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/temporal_purged_compare.csv (270 runs, 285.2s)
+Wrote results/temporal_purged_compare.csv (270 runs, 285.2s)
 Few-shot sweep: 420 runs; 4 worker process(es), one BLAS thread per worker
   [20/420] fixed MLP bic K=5 seed=4 ACC=0.709 (26s)
   [40/420] fixed MLP bic K=10 seed=4 ACC=0.907 (47s)
@@ -420,7 +420,7 @@ CNN1D:
   icarl     : orig=0.804 perm=0.807 drop=-0.003
   bic       : orig=0.881 perm=0.883 drop=-0.002
 
-Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/feature_order_stability.csv (96 runs, 309.7s)
+Wrote results/feature_order_stability.csv (96 runs, 309.7s)
 Task-order study: 144 runs; 4 worker process(es), one BLAS thread per worker
   [24/144] order=[0, 1, 3, 2] moves_with_task icarl seed=2 ACC=0.991 (36s)
   [48/144] order=[0, 2, 3, 1] moves_with_task icarl seed=2 ACC=0.971 (74s)
@@ -481,10 +481,10 @@ replay         0.001  25        0.387
 Wrote results/arch_tune.csv (54 runs, 255s)
 Ablations: 1170 runs; 4 worker process(es), one BLAS thread per worker
 Traceback (most recent call last):
-  File "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/run_ablation.py", line 124, in <module>
+  File "experiments/run_ablation.py", line 124, in <module>
     main()
     ~~~~^^
-  File "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/run_ablation.py", line 98, in main
+  File "experiments/run_ablation.py", line 98, in main
     t0 = time.perf_counter()
          ^^^^
 NameError: name 'time' is not defined. Did you forget to import 'time'?

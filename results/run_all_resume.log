@@ -175,8 +175,8 @@ Baseline controls: 450 runs; 4 worker process(es), one BLAS thread per worker
   [440/450] STIN CNN1D full_l10 seed=4 (1033s)
   [450/450] STIN CNN1D full_l10 seed=14 (1097s)
 
-Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/baseline_controls.csv (450 runs)
-Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_baseline_controls.csv (30 comparisons)
+Wrote results/baseline_controls.csv (450 runs)
+Wrote results/stats_baseline_controls.csv (30 comparisons)
 metric               comparison dataset  arch  mean_diff        p   p_holm
    ACC replay_matched vs replay CuCD-ID CNN1D  -0.027063 0.092896 1.000000
    ACC replay_matched vs replay CuCD-ID   GRU  -0.009994 0.673035 1.000000
@@ -497,7 +497,7 @@ STIN    T0_flood_base          0.730  0.195  ...  0.133   0.586
 [7 rows x 9 columns]
 === experiments/run_stats.py ===
 
-Wrote 216 pre-specified pairwise comparisons to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_permutation.csv
+Wrote 216 pre-specified pairwise comparisons to results/stats_permutation.csv
   162/216 survive Holm p<0.05
   CuCD-ID CNN1D lwf      vs joint   : Δ=-0.742 95%CI=[-0.743,-0.741] d=-345.81 p=0.0001 p_holm=0.0132 **
   CuCD-ID CNN1D ewc      vs joint   : Δ=-0.742 95%CI=[-0.743,-0.741] d=-356.74 p=0.0001 p_holm=0.0132 **
@@ -512,7 +512,7 @@ Wrote 216 pre-specified pairwise comparisons to /home/abhay-raj/Desktop/Open cod
   CuCD-ID MLP   replay   vs lwf     : Δ=+0.731 95%CI=[+0.714,+0.740] d=+24.72 p=0.0001 p_holm=0.0132 **
   CuCD-ID MLP   finetune vs bic     : Δ=-0.730 95%CI=[-0.742,-0.709] d=-19.71 p=0.0001 p_holm=0.0132 **
 
-Wrote 216 pre-specified pairwise comparisons to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/stats_permutation_macrof1.csv
+Wrote 216 pre-specified pairwise comparisons to results/stats_permutation_macrof1.csv
   164/216 survive Holm p<0.05
   CuCD-ID CNN1D lwf      vs joint   : Δ=-0.920 95%CI=[-0.921,-0.919] d=-508.95 p=0.0001 p_holm=0.0132 **
   CuCD-ID CNN1D ewc      vs joint   : Δ=-0.920 95%CI=[-0.921,-0.919] d=-467.85 p=0.0001 p_holm=0.0132 **
@@ -769,29 +769,29 @@ Few-shot seeds: [np.int64(0), np.int64(1), np.int64(2), np.int64(3), np.int64(4)
 ======================================================================
 ALL CHECKS PASSED - No inconsistencies detected
 === analysis/plots.py ===
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/method_comparison_CuCD-ID.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/method_comparison_STIN.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/forgetting_curve_task0_CuCD-ID.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/forgetting_curve_task0_STIN.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/accuracy_heatmap_CuCD-ID.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/accuracy_heatmap_STIN.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/memory_footprint.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/hparam_sweep_heatmap.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/ewc_lambda_sensitivity.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/buffer_size_sensitivity.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/task_order_sensitivity.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/architecture_comparison.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/per_class_f1_STIN_GRU.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/per_class_f1_CuCD-ID_MLP.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/confusion_matrix_STIN_GRU.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/confusion_matrix_CuCD-ID_MLP.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/fewshot_pareto.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/arch_tune.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/temporal_bracket.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/robustness.png
-wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/analysis/../figures/leakage_ablation.png
+wrote analysis/figures/method_comparison_CuCD-ID.png
+wrote analysis/figures/method_comparison_STIN.png
+wrote analysis/figures/forgetting_curve_task0_CuCD-ID.png
+wrote analysis/figures/forgetting_curve_task0_STIN.png
+wrote analysis/figures/accuracy_heatmap_CuCD-ID.png
+wrote analysis/figures/accuracy_heatmap_STIN.png
+wrote analysis/figures/memory_footprint.png
+wrote analysis/figures/hparam_sweep_heatmap.png
+wrote analysis/figures/ewc_lambda_sensitivity.png
+wrote analysis/figures/buffer_size_sensitivity.png
+wrote analysis/figures/task_order_sensitivity.png
+wrote analysis/figures/architecture_comparison.png
+wrote analysis/figures/per_class_f1_STIN_GRU.png
+wrote analysis/figures/per_class_f1_CuCD-ID_MLP.png
+wrote analysis/figures/confusion_matrix_STIN_GRU.png
+wrote analysis/figures/confusion_matrix_CuCD-ID_MLP.png
+wrote analysis/figures/fewshot_pareto.png
+wrote analysis/figures/arch_tune.png
+wrote analysis/figures/temporal_bracket.png
+wrote analysis/figures/robustness.png
+wrote analysis/figures/leakage_ablation.png
 === experiments/generate_summary_report.py ===
-Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/RESULTS_SUMMARY.md (113404 chars)
+Wrote results/RESULTS_SUMMARY.md (113404 chars)
 Wrote v5_4_project_report_final.md (115442 chars, auto-generated)
 === experiments/create_manifest.py ===
-Manifest written to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/final_experiment_manifest.json
+Manifest written to results/final_experiment_manifest.json

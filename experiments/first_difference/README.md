@@ -67,7 +67,7 @@ gap does not vanish.
 `raw_no_prov` is stricter: it also removes the differenced window signal. It
 leaves replay/BiC/iCaRL at 0.555 IID and 0.500 fair-temporal. The exact and
 stricter controls therefore bracket the fair-temporal online-exemplar result
-at roughly 0.47--0.55. Dropping the window signal lowers the bound only
+at roughly 0.45--0.55. Dropping the window signal lowers the bound only
 slightly; it does not create the residual skill.
 
 Recommendation: keep this as a secondary robustness analysis. Say that the
@@ -76,5 +76,5 @@ controls absolute accuracy falls significantly while exemplar methods remain
 above chance. Do not say the confound is removed or that the conclusions are
 invariant to it. Do not replace the headline results with this analysis.
 
-The exact and stricter controls are reported in the manuscript's RQ3 and in
-the first-differencing table.
+The exact and stricter controls are reported in section 7.13 of
+`v6_7_project_report_final.md` and in the first-differencing table.

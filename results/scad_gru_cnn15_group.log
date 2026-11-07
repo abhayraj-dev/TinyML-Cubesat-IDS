@@ -60,7 +60,7 @@ Preprocessing: within-scenario mean residual
   [270/270] CNN1D joint_scratch seed=14 ACC=0.267 BWT=0.007 (1496.4s)
 
 Done. Total time: 1496.5s
-270 runs written to /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/../results/scad_runs_gru_cnn15_group.csv
+270 runs written to results/scad_runs_gru_cnn15_group.csv
 
 Summary (ACC_mean):
 method    bic    ewc  finetune   full  ...  joint  joint_scratch    lwf  replay

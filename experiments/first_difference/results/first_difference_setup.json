@@ -125,7 +125,7 @@
       "StdDevMessageLengthInWindow"
     ]
   },
-  "baseline": "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/../../results/temporal_purged_compare_MLP.csv",
+  "baseline": "results/temporal_purged_compare_MLP.csv",
   "n_runs": 1080,
   "seconds": 195.62432809000165
 }
