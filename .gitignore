@@ -14,3 +14,13 @@ data/AegisSat-AD.csv
 data/UNSW-IoTSAT-main/
 data/space-cyber-anomaly-detection-dataset-main/
 CUCDID_All/
+
+# Private project documents: kept locally, excluded from the public release
+cubesat_paper/
+2026-FedLTN-Cubesat-mdpi-mathematics.pdf
+Base_Paper.pdf
+PAPER_PLAN.md
+PROJECT_CONTEXT.md
+SUPERVISOR_SUMMARY.md
+v5_*_project_report_final.md
+v6_[2-6]_project_report_final.md

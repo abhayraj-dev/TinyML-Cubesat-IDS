@@ -1,0 +1,131 @@
+{
+  "arch": "MLP",
+  "methods": [
+    "finetune",
+    "replay",
+    "ewc",
+    "full",
+    "lwf",
+    "bic",
+    "icarl",
+    "joint",
+    "joint_scratch"
+  ],
+  "protocols": [
+    "iid",
+    "temporal_purged_fair"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "rows_before": 22465,
+  "rows_after": {
+    "resource_state": 22460
+  },
+  "diff_sets": {
+    "raw": [
+      "MsgLength",
+      "MemoryAnonMB",
+      "MemoryFileMB",
+      "MemoryKernelstackMB",
+      "MemoryPageTableMB",
+      "MemorySocketMB",
+      "MemoryPercpuMB",
+      "MemoryShmemMB",
+      "MemorySlabUnreclaimableMB"
+    ],
+    "raw_window": [
+      "MsgLength",
+      "MemoryAnonMB",
+      "MemoryFileMB",
+      "MemoryKernelstackMB",
+      "MemoryPageTableMB",
+      "MemorySocketMB",
+      "MemoryPercpuMB",
+      "MemoryShmemMB",
+      "MemorySlabUnreclaimableMB",
+      "FlowLengthInWindow",
+      "SlidingWindowMeanIntervalSec",
+      "SlidingWindowMaxIntervalSec",
+      "SlidingWindowMinIntervalSec",
+      "MessageCountInWindow",
+      "UniqueMessageIDsInWindow",
+      "AverageMessageLengthInWindow",
+      "MessageRateInWindow",
+      "StdDevMessageLengthInWindow"
+    ],
+    "resource_state": [
+      "MemoryAnonMB",
+      "MemoryFileMB",
+      "MemoryKernelstackMB",
+      "MemoryPageTableMB",
+      "MemorySocketMB",
+      "MemoryPercpuMB",
+      "MemoryShmemMB",
+      "MemorySlabUnreclaimableMB",
+      "FlowLengthInWindow",
+      "SlidingWindowMeanIntervalSec",
+      "SlidingWindowMaxIntervalSec",
+      "SlidingWindowMinIntervalSec",
+      "MessageCountInWindow",
+      "UniqueMessageIDsInWindow",
+      "AverageMessageLengthInWindow",
+      "MessageRateInWindow",
+      "StdDevMessageLengthInWindow"
+    ],
+    "raw_no_prov": [
+      "MsgLength",
+      "MemoryAnonMB",
+      "MemoryFileMB",
+      "MemoryKernelstackMB",
+      "MemoryPageTableMB",
+      "MemorySocketMB",
+      "MemoryPercpuMB",
+      "MemoryShmemMB",
+      "MemorySlabUnreclaimableMB"
+    ]
+  },
+  "feature_drop": {
+    "raw": [],
+    "raw_window": [],
+    "resource_state": [
+      "TimeRadians",
+      "MsgId",
+      "CmdCode",
+      "ApId",
+      "MsgLength"
+    ],
+    "raw_no_prov": [
+      "TimeRadians",
+      "MsgId",
+      "CmdCode",
+      "ApId",
+      "FlowLengthInWindow",
+      "SlidingWindowMeanIntervalSec",
+      "SlidingWindowMaxIntervalSec",
+      "SlidingWindowMinIntervalSec",
+      "MessageCountInWindow",
+      "UniqueMessageIDsInWindow",
+      "AverageMessageLengthInWindow",
+      "MessageRateInWindow",
+      "StdDevMessageLengthInWindow"
+    ]
+  },
+  "baseline": "/home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/../../results/temporal_purged_compare_MLP.csv",
+  "n_runs": 1080,
+  "seconds": 195.62432809000165
+}

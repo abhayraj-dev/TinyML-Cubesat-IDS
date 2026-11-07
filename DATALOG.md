@@ -8,6 +8,14 @@
 
 Purpose: log **what data/split/config produced which results**, so the journal reproducibility checklist can be answered. Append-only: newest entries on top.
 
+## 2026-11-07 — v6.7 first-differencing provenance controls
+- **Protocol:** within each class's time-ordered recording, every row is differenced against its predecessor and the first row is dropped. Four feature sets: `raw` (message length + 8 memory gauges), `raw_window` (raw + 9 window aggregates), `resource_state` (8 gauges + 9 window aggregates; time, length and identifiers removed), `raw_no_prov` (differenced raw only; time, identifiers and window aggregates removed).
+- **Matrix:** 4 feature sets × 2 protocols (`temporal_purged_fair`, `iid`) × 6 strategies × 15 seeds = **1,080 runs**.
+- **Fair-temporal (mean ACC):** raw replay/BiC/iCaRL 0.822/0.857/0.833, joint-scratch 0.916; 17-feature 0.547/0.551/0.474, joint 0.692; no-provenance 0.504/0.547/0.450, joint 0.643; memory-free 0.250 throughout.
+- **Tests:** every exemplar/joint drop vs the original fair run is significant after Holm (`p<0.001`; Replay+EWC `p=0.000610`). IID ordering is preserved under both controls (BiC-lite, replay, iCaRL-lite).
+- **Caveat:** first-differencing removes constant recording/session offsets, not slowly varying signatures; the controls adapt but do not replicate Singh et al.'s normal-only two-sided calibration. Use 0.45–0.55 as an empirical range, not a leakage-free estimate.
+- **Outputs:** `experiments/first_difference/results/first_difference_{runs,summary,comparison,tests}.csv`, `first_difference_setup.json`, `first_difference_report.md`, `first_difference_takeaways.md`; report section 7.13 and `v6_7_project_report_final.md`.
+
 ## 2026-10-28 — SCAD scenario-disjoint external validation (MLP primary)
 - **Loader/protocol:** `src/data_utils.py::load_scad` reads SCAD with 80 leakage-controlled telemetry features (time, GPS/UTC, orbit/position, scenario IDs, `AttackIntensity`, `TimeDelay`, `Variant*`, `Run_Batch*` and labels dropped). Features are centred on each scenario's first 300 attack-free rows; only post-baseline rows are retained. `build_scad_tasks` uses one global 70/10/20 split over **120 trajectory groups** (month + offset), so all intensities and the matching baseline run of a trajectory stay in the same split and test trajectories are never trained on. Sequence: **T0 normal+RWA, T1 RWB, T2 RWC**.
 - **Budgets/split:** 84/12/24 trajectory groups; T0 train/val/test = **1,400 / 600 / 2,400**; T1 and T2 = **150 / 300 / 1,200**. Val is split 50/50 into calibration/selection by the existing `Task` code.

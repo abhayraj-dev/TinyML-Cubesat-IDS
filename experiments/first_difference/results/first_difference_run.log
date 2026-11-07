@@ -1,0 +1,60 @@
+raw: 22460 rows, 24 columns
+raw_window: 22460 rows, 24 columns
+raw_no_prov: 22460 rows, 24 columns
+First-difference matrix: 810 runs; 4 worker process(es), one BLAS thread per worker
+  [20/810] raw iid replay seed=4 ACC=0.957 (4.3s)
+  [40/810] raw iid ewc seed=9 ACC=0.250 (10.8s)
+  [60/810] raw iid full seed=14 ACC=0.933 (17.9s)
+  [80/810] raw iid bic seed=4 ACC=0.979 (30.8s)
+  [100/810] raw iid icarl seed=9 ACC=0.973 (59.2s)
+  [120/810] raw iid joint seed=14 ACC=0.987 (84.9s)
+  [140/810] raw temporal_purged_fair finetune seed=4 ACC=0.261 (92.2s)
+  [160/810] raw temporal_purged_fair replay seed=9 ACC=0.829 (98.5s)
+  [180/810] raw temporal_purged_fair ewc seed=14 ACC=0.250 (107.0s)
+  [200/810] raw temporal_purged_fair lwf seed=4 ACC=0.250 (116.2s)
+  [220/810] raw temporal_purged_fair bic seed=9 ACC=0.902 (136.9s)
+  [240/810] raw temporal_purged_fair icarl seed=14 ACC=0.868 (164.6s)
+  [260/810] raw temporal_purged_fair joint_scratch seed=4 ACC=0.939 (185.5s)
+  [280/810] raw_window iid finetune seed=9 ACC=0.250 (193.5s)
+  [300/810] raw_window iid replay seed=14 ACC=0.637 (200.7s)
+  [320/810] raw_window iid full seed=4 ACC=0.591 (209.8s)
+  [340/810] raw_window iid lwf seed=9 ACC=0.254 (218.4s)
+  [360/810] raw_window iid bic seed=14 ACC=0.861 (243.3s)
+  [380/810] raw_window iid joint seed=4 ACC=0.942 (273.2s)
+  [400/810] raw_window iid joint_scratch seed=9 ACC=0.919 (291.8s)
+  [420/810] raw_window temporal_purged_fair finetune seed=14 ACC=0.250 (297.8s)
+  [440/810] raw_window temporal_purged_fair ewc seed=4 ACC=0.250 (306.0s)
+  [460/810] raw_window temporal_purged_fair full seed=9 ACC=0.541 (314.9s)
+  [480/810] raw_window temporal_purged_fair lwf seed=14 ACC=0.250 (322.8s)
+  [500/810] raw_window temporal_purged_fair icarl seed=4 ACC=0.592 (354.0s)
+  [520/810] raw_window temporal_purged_fair joint seed=9 ACC=0.881 (380.7s)
+  [540/810] raw_window temporal_purged_fair joint_scratch seed=14 ACC=0.834 (398.1s)
+  [560/810] raw_no_prov iid replay seed=4 ACC=0.580 (403.0s)
+  [580/810] raw_no_prov iid ewc seed=9 ACC=0.250 (411.6s)
+  [600/810] raw_no_prov iid full seed=14 ACC=0.628 (421.4s)
+  [620/810] raw_no_prov iid bic seed=4 ACC=0.605 (437.1s)
+  [640/810] raw_no_prov iid icarl seed=9 ACC=0.529 (464.9s)
+  [660/810] raw_no_prov iid joint seed=14 ACC=0.671 (491.1s)
+  [680/810] raw_no_prov temporal_purged_fair finetune seed=4 ACC=0.250 (498.6s)
+  [700/810] raw_no_prov temporal_purged_fair replay seed=9 ACC=0.513 (504.7s)
+  [720/810] raw_no_prov temporal_purged_fair ewc seed=14 ACC=0.250 (513.0s)
+  [740/810] raw_no_prov temporal_purged_fair lwf seed=4 ACC=0.250 (522.0s)
+  [760/810] raw_no_prov temporal_purged_fair bic seed=9 ACC=0.556 (542.9s)
+  [780/810] raw_no_prov temporal_purged_fair icarl seed=14 ACC=0.483 (571.6s)
+  [800/810] raw_no_prov temporal_purged_fair joint_scratch seed=4 ACC=0.665 (590.5s)
+  [810/810] raw_no_prov temporal_purged_fair joint_scratch seed=14 ACC=0.642 (596.1s)
+
+Mean ACC by (diff_set, protocol, method):
+method                              bic    ewc  finetune   full  icarl  joint  joint_scratch    lwf  replay
+diff_set    protocol                                                                                       
+raw         iid                   0.974  0.252     0.260  0.859  0.978  0.991          0.993  0.258   0.966
+            temporal_purged_fair  0.857  0.269     0.251  0.720  0.833  0.915          0.916  0.252   0.822
+raw_no_prov iid                   0.604  0.250     0.250  0.581  0.509  0.678          0.672  0.250   0.552
+            temporal_purged_fair  0.547  0.250     0.250  0.449  0.450  0.617          0.643  0.250   0.504
+raw_window  iid                   0.833  0.257     0.250  0.624  0.737  0.954          0.955  0.250   0.722
+            temporal_purged_fair  0.794  0.268     0.251  0.502  0.682  0.873          0.871  0.256   0.635
+
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/results/first_difference_runs.csv
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/results/first_difference_summary.csv
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/results/first_difference_comparison.csv
+Wrote /home/abhay-raj/Desktop/Open code Project/cubesat-cl-ids (Copy)/experiments/first_difference/results/first_difference_report.md
